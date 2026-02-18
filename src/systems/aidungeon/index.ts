@@ -1,7 +1,7 @@
 /**
  * AI Dungeon system adapter.
  *
- * AI Dungeon provides a better persistent system by defining JSON objects
+ * AI Dungeon provides a better persistence system by defining JSON objects
  * under the global variable `state`. It also provides `info` and `memory`
  * fields for influencing AI behaviour.
  */
