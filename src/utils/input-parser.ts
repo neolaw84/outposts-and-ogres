@@ -12,7 +12,7 @@
  * keywords from the cartridge's available actions.
  */
 
-import { ParsedAction } from './types';
+import { ParsedAction } from '../types';
 
 /**
  * Parse the player's message and extract the intended action.

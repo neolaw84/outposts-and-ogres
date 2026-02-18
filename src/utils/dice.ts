@@ -2,7 +2,7 @@
  * Dice rolling utility for the RPG system.
  */
 
-import { DiceRollResult } from './types';
+import { DiceRollResult } from '../types';
 
 /**
  * Roll a single die with the given number of sides.

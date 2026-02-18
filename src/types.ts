@@ -99,6 +99,45 @@ interface OutputPrompt {
   result: ActionResult;
 }
 
+/**
+ * Interface that each platform system adapter must implement.
+ *
+ * Different AI platforms (Janitor AI, SillyTavern, AI Dungeon) have
+ * different ways to access player input, modify prompts to the AI,
+ * and persist game state. Each system adapter encapsulates these
+ * platform-specific details.
+ */
+interface SystemAdapter {
+  /** Human-readable name of this system, e.g. "Janitor AI". */
+  readonly name: string;
+
+  /**
+   * Extract the player's latest message from the platform's context.
+   * Each platform stores conversation history differently.
+   */
+  getPlayerMessage(context: Record<string, unknown>): string | null;
+
+  /**
+   * Apply the generated prompt to the platform's context so that the
+   * AI will use it for its next narration. For example, Janitor AI
+   * allows modifying `context.character.personality` and
+   * `context.character.scenario`.
+   */
+  applyPrompt(context: Record<string, unknown>, prompt: OutputPrompt): void;
+
+  /**
+   * Load persisted game state from the platform's storage mechanism.
+   * Returns an empty object if no state exists yet.
+   */
+  loadState(context: Record<string, unknown>): Record<string, unknown>;
+
+  /**
+   * Save game state using the platform's storage mechanism.
+   * E.g. AI Dungeon uses a global `state` JSON object.
+   */
+  saveState(context: Record<string, unknown>, state: Record<string, unknown>): void;
+}
+
 export {
   Message,
   ParsedAction,
@@ -106,5 +145,6 @@ export {
   ActionResult,
   CartridgeRule,
   GameCartridge,
-  OutputPrompt
+  OutputPrompt,
+  SystemAdapter
 };

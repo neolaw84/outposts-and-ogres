@@ -1,4 +1,4 @@
-import { parsePlayerInput } from '../src/systems/input-parser';
+import { parsePlayerInput } from '../src/utils/input-parser';
 
 describe('Input Parser', () => {
   const knownActions = ['attack', 'dodge', 'cast', 'defend', 'flee'];

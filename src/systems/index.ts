@@ -1,18 +1,12 @@
 /**
- * Systems module – exports all game play script components.
+ * Systems module – exports all platform-specific system adapters.
+ *
+ * Each system adapter encapsulates the differences between AI platforms:
+ * - How to access player input
+ * - How to modify prompts to the AI
+ * - How to persist game state
  */
 
-export {
-  Message,
-  ParsedAction,
-  DiceRollResult,
-  ActionResult,
-  CartridgeRule,
-  GameCartridge,
-  OutputPrompt
-} from './types';
-
-export { rollDie, rollDice, sumRolls } from './dice';
-export { parsePlayerInput } from './input-parser';
-export { GamePlayScript } from './game-play-script';
-export { defaultCartridge } from './default-cartridge';
+export { JanitorAIAdapter } from './janitorai/index';
+export { SillyTavernAdapter } from './sillytavern/index';
+export { AIDungeonAdapter } from './aidungeon/index';

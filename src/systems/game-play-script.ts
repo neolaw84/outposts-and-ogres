@@ -16,9 +16,9 @@ import {
   GameCartridge,
   CartridgeRule,
   OutputPrompt
-} from './types';
-import { rollDice, sumRolls } from './dice';
-import { parsePlayerInput } from './input-parser';
+} from '../types';
+import { rollDice, sumRolls } from '../utils/dice';
+import { parsePlayerInput } from '../utils/input-parser';
 
 class GamePlayScript {
   private cartridge: GameCartridge;

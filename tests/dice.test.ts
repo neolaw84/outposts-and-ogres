@@ -1,4 +1,4 @@
-import { rollDie, rollDice, sumRolls } from '../src/systems/dice';
+import { rollDie, rollDice, sumRolls } from '../src/utils/dice';
 
 describe('Dice', () => {
   test('rollDie should return value between 1 and sides', () => {

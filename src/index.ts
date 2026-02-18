@@ -1,6 +1,6 @@
 import { Character } from './character';
 import { GamePlayScript } from './systems/game-play-script';
-import { defaultCartridge } from './systems/default-cartridge';
+import { basicFantasyCartridge } from './cartridges/basic-fantasy';
 
 /**
  * OutpostsAndOgres - Foundation RPG System
@@ -22,7 +22,7 @@ class OutpostsAndOgres {
   }
 
   public createGamePlayScript(): GamePlayScript {
-    return new GamePlayScript(defaultCartridge);
+    return new GamePlayScript(basicFantasyCartridge);
   }
 }
 
@@ -33,7 +33,7 @@ rpgSystem.createCharacter('Hero', 150);
 export default rpgSystem;
 export { Character };
 export { GamePlayScript } from './systems/game-play-script';
-export { defaultCartridge } from './systems/default-cartridge';
+export { basicFantasyCartridge } from './cartridges/basic-fantasy';
 export {
   Message,
   ParsedAction,
@@ -41,7 +41,11 @@ export {
   ActionResult,
   CartridgeRule,
   GameCartridge,
-  OutputPrompt
-} from './systems/types';
-export { rollDie, rollDice, sumRolls } from './systems/dice';
-export { parsePlayerInput } from './systems/input-parser';
+  OutputPrompt,
+  SystemAdapter
+} from './types';
+export { rollDie, rollDice, sumRolls } from './utils/dice';
+export { parsePlayerInput } from './utils/input-parser';
+export { JanitorAIAdapter } from './systems/janitorai/index';
+export { SillyTavernAdapter } from './systems/sillytavern/index';
+export { AIDungeonAdapter } from './systems/aidungeon/index';

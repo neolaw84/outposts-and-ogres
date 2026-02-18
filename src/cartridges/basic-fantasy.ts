@@ -1,13 +1,13 @@
 /**
- * Default game cartridge – a simple fantasy RPG system.
+ * Basic Fantasy cartridge – a simple fantasy RPG rule book.
  *
  * This serves as both a working example and the out-of-the-box game system.
  * It can be swapped out for any other GameCartridge at runtime.
  */
 
-import { GameCartridge } from './types';
+import { GameCartridge } from '../types';
 
-const defaultCartridge: GameCartridge = {
+const basicFantasyCartridge: GameCartridge = {
   name: 'Outposts & Ogres – Basic',
   version: '1.0.0',
 
@@ -163,4 +163,4 @@ const defaultCartridge: GameCartridge = {
   ]
 };
 
-export { defaultCartridge };
+export { basicFantasyCartridge };
