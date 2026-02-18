@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outposts and Ogres - Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .output {
+            background: #f9f9f9;
+            padding: 15px;
+            border-left: 4px solid #4CAF50;
+            margin: 20px 0;
+            font-family: monospace;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Outposts and Ogres - RPG Demo</h1>
+        <p>A foundation RPG script for Janitor AI and SillyTavern clones.</p>
+        
+        <div>
+            <button onclick="runDemo()">Run Demo</button>
+            <button onclick="clearOutput()">Clear Output</button>
+        </div>
+        
+        <div id="output" class="output"></div>
+    </div>
+
+    <script src="dist/bundle.js"></script>
+    <script>
+        function log(message) {
+            var output = document.getElementById('output');
+            output.innerHTML += message + '<br>';
+        }
+
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+        }
+
+        function runDemo() {
+            clearOutput();
+            
+            log('=== OutpostsAndOgres Demo ===');
+            log('Version: ' + window.OutpostsAndOgres.getVersion());
+            log('');
+            
+            log('Creating a hero named "Aragorn" with 120 HP...');
+            var hero = window.OutpostsAndOgres.createCharacter('Aragorn', 120);
+            log('Hero created: ' + hero.getName());
+            log('Health: ' + hero.getHealth() + '/' + hero.getMaxHealth());
+            log('Level: ' + hero.getLevel());
+            log('');
+            
+            log('Hero takes 40 damage from an Ogre attack!');
+            hero.takeDamage(40);
+            log('Health after damage: ' + hero.getHealth() + '/' + hero.getMaxHealth());
+            log('Is hero alive? ' + hero.isAlive());
+            log('');
+            
+            log('Hero drinks a healing potion (+30 HP)');
+            hero.heal(30);
+            log('Health after healing: ' + hero.getHealth() + '/' + hero.getMaxHealth());
+            log('');
+            
+            log('Hero gains enough experience to level up!');
+            hero.levelUp();
+            log('New level: ' + hero.getLevel());
+            log('Health: ' + hero.getHealth() + '/' + hero.getMaxHealth());
+            log('');
+            
+            log('=== Demo Complete ===');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+{
+  "name": "outposts-and-ogres",
+  "version": "1.0.0",
+  "description": "Foundation RPG System with LLM as rendering (narration) engine.",
+  "main": "dist/bundle.js",
+  "scripts": {
+    "build": "rollup -c rollup.config.js",
+    "build:webpack": "webpack --config webpack.config.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neolaw84/outposts-and-ogres.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/neolaw84/outposts-and-ogres/issues"
+  },
+  "homepage": "https://github.com/neolaw84/outposts-and-ogres#readme",
+  "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/plugin-transform-block-scoping": "^7.28.6",
+    "@babel/preset-env": "^7.29.0",
+    "@rollup/plugin-babel": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "@types/jest": "^30.0.0",
+    "babel-loader": "^10.0.0",
+    "jest": "^30.2.0",
+    "rollup": "^4.57.1",
+    "rollup-plugin-cleanup": "^3.2.1",
+    "ts-jest": "^29.4.6",
+    "ts-loader": "^9.5.4",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3",
+    "webpack": "^5.105.2",
+    "webpack-cli": "^6.0.1"
+  }
+}
