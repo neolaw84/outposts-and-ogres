@@ -22,5 +22,7 @@ class OutpostsAndOgres {
 
 const rpgSystem = new OutpostsAndOgres();
 
+rpgSystem.createCharacter('Hero', 150);
+
 export default rpgSystem;
 export { Character };
