@@ -76,7 +76,7 @@ class GamePlayScript {
    * Returns null if no recognisable action is found.
    */
   public extractAction(playerMessage: string): ParsedAction | null {
-    var actions = this.cartridge.availableActions[this.currentCondition] || [];
+    const actions = this.cartridge.availableActions[this.currentCondition] || [];
     return parsePlayerInput(playerMessage, actions);
   }
 
@@ -86,8 +86,8 @@ class GamePlayScript {
 
   /** Find the cartridge rule for the current condition + action. */
   public findRule(actionKeyword: string): CartridgeRule | null {
-    var rules = this.cartridge.rules;
-    for (var i = 0; i < rules.length; i++) {
+    const rules = this.cartridge.rules;
+    for (let i = 0; i < rules.length; i++) {
       if (
         rules[i].condition === this.currentCondition &&
         rules[i].action === actionKeyword
@@ -102,11 +102,10 @@ class GamePlayScript {
    * Resolve the player's action: roll dice and determine success or failure.
    */
   public resolveAction(parsedAction: ParsedAction): ActionResult {
-    var rule = this.findRule(parsedAction.action);
+    const rule = this.findRule(parsedAction.action);
     if (!rule) {
-      // No matching rule – default to a simple d20 check with difficulty 10
-      var rolls = rollDice(1, 20);
-      var total = sumRolls(rolls);
+      const rolls = rollDice(1, 20);
+      const total = sumRolls(rolls);
       return {
         success: total >= 10,
         action: parsedAction,
@@ -116,8 +115,8 @@ class GamePlayScript {
       };
     }
 
-    var rolls = rollDice(rule.diceCount, rule.diceSides);
-    var total = sumRolls(rolls);
+    const rolls = rollDice(rule.diceCount, rule.diceSides);
+    const total = sumRolls(rolls);
     return {
       success: total >= rule.difficulty,
       action: parsedAction,
@@ -140,8 +139,8 @@ class GamePlayScript {
    *   (d) what the player can do next turn
    */
   public buildPrompt(result: ActionResult): OutputPrompt {
-    var rule = this.findRule(result.action.action);
-    var outcomeFragment: string;
+    const rule = this.findRule(result.action.action);
+    let outcomeFragment: string;
 
     if (rule) {
       outcomeFragment = result.success ? rule.successPrompt : rule.failurePrompt;
@@ -151,14 +150,14 @@ class GamePlayScript {
         : 'The action fails.';
     }
 
-    var targetText = result.action.target
+    const targetText = result.action.target
       ? ' targeting ' + result.action.target
       : '';
 
-    var availableActions = this.cartridge.availableActions[this.currentCondition] || [];
-    var actionList = availableActions.join(', ');
+    const availableActions = this.cartridge.availableActions[this.currentCondition] || [];
+    const actionList = availableActions.join(', ');
 
-    var prompt =
+    const prompt =
       'The player attempted to ' + result.action.action + targetText + '. ' +
       'They rolled ' + result.rollTotal + ' against difficulty ' + result.difficulty + '. ' +
       outcomeFragment + ' ' +
@@ -185,13 +184,13 @@ class GamePlayScript {
     this.addMessage({ role: 'player', content: playerMessage });
 
     // Phase 1 – Input
-    var parsed = this.extractAction(playerMessage);
+    const parsed = this.extractAction(playerMessage);
     if (!parsed) {
       return null;
     }
 
     // Phase 2 – Process
-    var result = this.resolveAction(parsed);
+    const result = this.resolveAction(parsed);
 
     // Phase 3 – Output
     return this.buildPrompt(result);

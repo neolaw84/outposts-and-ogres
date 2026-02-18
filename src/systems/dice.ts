@@ -9,7 +9,7 @@ import { DiceRollResult } from './types';
  * Returns a value between 1 and sides (inclusive).
  */
 function rollDie(sides: number): DiceRollResult {
-  var value = Math.floor(Math.random() * sides) + 1;
+  const value = Math.floor(Math.random() * sides) + 1;
   return { sides: sides, value: value };
 }
 
@@ -17,8 +17,8 @@ function rollDie(sides: number): DiceRollResult {
  * Roll multiple dice and return the individual results.
  */
 function rollDice(count: number, sides: number): DiceRollResult[] {
-  var results: DiceRollResult[] = [];
-  for (var i = 0; i < count; i++) {
+  const results: DiceRollResult[] = [];
+  for (let i = 0; i < count; i++) {
     results.push(rollDie(sides));
   }
   return results;
@@ -28,8 +28,8 @@ function rollDice(count: number, sides: number): DiceRollResult[] {
  * Sum the values from an array of dice roll results.
  */
 function sumRolls(rolls: DiceRollResult[]): number {
-  var total = 0;
-  for (var i = 0; i < rolls.length; i++) {
+  let total = 0;
+  for (let i = 0; i < rolls.length; i++) {
     total = total + rolls[i].value;
   }
   return total;

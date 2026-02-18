@@ -24,21 +24,21 @@ import { ParsedAction } from './types';
  */
 function parsePlayerInput(message: string, knownActions: string[]): ParsedAction | null {
   // 1. Try the explicit bracket syntax: <action> or <action target> or <action:target>
-  var bracketMatch = message.match(/<([^>]+)>/);
+  const bracketMatch = message.match(/<([^>]+)>/);
   if (bracketMatch) {
-    var inner = bracketMatch[1].trim();
+    const inner = bracketMatch[1].trim();
     // Support colon separator: <action:target>
-    var colonIndex = inner.indexOf(':');
+    const colonIndex = inner.indexOf(':');
     if (colonIndex !== -1) {
-      var action = inner.substring(0, colonIndex).trim().toLowerCase();
-      var target = inner.substring(colonIndex + 1).trim();
+      const action = inner.substring(0, colonIndex).trim().toLowerCase();
+      const target = inner.substring(colonIndex + 1).trim();
       return { action: action, target: target, raw: message };
     }
     // Support space separator: <action target>
-    var spaceIndex = inner.indexOf(' ');
+    const spaceIndex = inner.indexOf(' ');
     if (spaceIndex !== -1) {
-      var action = inner.substring(0, spaceIndex).trim().toLowerCase();
-      var target = inner.substring(spaceIndex + 1).trim();
+      const action = inner.substring(0, spaceIndex).trim().toLowerCase();
+      const target = inner.substring(spaceIndex + 1).trim();
       return { action: action, target: target, raw: message };
     }
     // Just the action keyword
@@ -46,9 +46,9 @@ function parsePlayerInput(message: string, knownActions: string[]): ParsedAction
   }
 
   // 2. Fallback: scan the message for known action keywords
-  var lowerMessage = message.toLowerCase();
-  for (var i = 0; i < knownActions.length; i++) {
-    var keyword = knownActions[i].toLowerCase();
+  const lowerMessage = message.toLowerCase();
+  for (let i = 0; i < knownActions.length; i++) {
+    const keyword = knownActions[i].toLowerCase();
     if (lowerMessage.indexOf(keyword) !== -1) {
       return { action: keyword, target: '', raw: message };
     }

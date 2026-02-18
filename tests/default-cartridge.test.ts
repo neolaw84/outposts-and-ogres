@@ -19,29 +19,29 @@ describe('Default Cartridge', () => {
   });
 
   test('should have rules for combat actions', () => {
-    var combatRules = defaultCartridge.rules.filter(function (r) {
+    const combatRules = defaultCartridge.rules.filter(function (r) {
       return r.condition === 'combat';
     });
     expect(combatRules.length).toBe(5);
   });
 
   test('should have rules for exploration actions', () => {
-    var explorationRules = defaultCartridge.rules.filter(function (r) {
+    const explorationRules = defaultCartridge.rules.filter(function (r) {
       return r.condition === 'exploration';
     });
     expect(explorationRules.length).toBe(5);
   });
 
   test('should have rules for social actions', () => {
-    var socialRules = defaultCartridge.rules.filter(function (r) {
+    const socialRules = defaultCartridge.rules.filter(function (r) {
       return r.condition === 'social';
     });
     expect(socialRules.length).toBe(5);
   });
 
   test('each rule should have required fields', () => {
-    for (var i = 0; i < defaultCartridge.rules.length; i++) {
-      var rule = defaultCartridge.rules[i];
+    for (let i = 0; i < defaultCartridge.rules.length; i++) {
+      const rule = defaultCartridge.rules[i];
       expect(rule.condition).toBeTruthy();
       expect(rule.action).toBeTruthy();
       expect(rule.diceCount).toBeGreaterThan(0);

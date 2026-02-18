@@ -7,7 +7,7 @@
 
 import { GameCartridge } from './types';
 
-var defaultCartridge: GameCartridge = {
+const defaultCartridge: GameCartridge = {
   name: 'Outposts & Ogres – Basic',
   version: '1.0.0',
 
