@@ -95,9 +95,79 @@ interface GameCartridge {
 interface OutputPrompt {
   /** Complete prompt text to send to the AI. */
   text: string;
+  /** Prompt split into channel-specific segments for each platform. */
+  channels: PromptChannels;
+  /** Structured turn events used to build platform prompts. */
+  events: TurnEvent[];
   /** The action result that informed the prompt. */
   result: ActionResult;
 }
+
+/** Prompt fragments for systems that support separate memory channels. */
+interface PromptChannels {
+  /** Long horizon context and world-state continuity. */
+  longHorizon: string;
+  /** Mid-term instructions for upcoming narration behaviour. */
+  midTerm: string;
+  /** Immediate narration guidance for the very next model response. */
+  shortTerm: string;
+  /** Fallback full prompt for platforms with a single prompt field. */
+  combined: string;
+}
+
+/** Emotional signal extracted from free-text player input. */
+interface PlayerEmotionSignal {
+  /** Emotion label detected in the player text. */
+  emotion: 'fear' | 'anger' | 'hope' | 'calm' | 'curiosity';
+  /** Keyword that triggered the signal detection. */
+  sourceKeyword: string;
+}
+
+/** Player input event emitted for each processed turn. */
+interface PlayerInputEvent {
+  type: 'player_input';
+  rawText: string;
+  condition: string;
+  parsedAction: ParsedAction;
+  emotions: PlayerEmotionSignal[];
+  scenarioUnderstanding: {
+    suggestedCondition: string | null;
+    confidence: 'low' | 'medium' | 'high';
+    cues: string[];
+  };
+}
+
+/** Dice resolution event emitted after process phase. */
+interface DiceResolutionEvent {
+  type: 'dice_resolution';
+  action: string;
+  target: string;
+  success: boolean;
+  rolls: DiceRollResult[];
+  rollTotal: number;
+  difficulty: number;
+}
+
+/** Event emitted to expose what the player can do next. */
+interface AvailableChoicesEvent {
+  type: 'available_choices';
+  condition: string;
+  choices: string[];
+}
+
+/** Event emitted to provide cartridge-authored narration cue text. */
+interface NarrativeCueEvent {
+  type: 'narrative_cue';
+  success: boolean;
+  cue: string;
+}
+
+/** Union of all gameplay events used by prompt mappers. */
+type TurnEvent =
+  | PlayerInputEvent
+  | DiceResolutionEvent
+  | AvailableChoicesEvent
+  | NarrativeCueEvent;
 
 /**
  * Interface that each platform system adapter must implement.
@@ -146,5 +216,12 @@ export {
   CartridgeRule,
   GameCartridge,
   OutputPrompt,
+  PromptChannels,
+  PlayerEmotionSignal,
+  PlayerInputEvent,
+  DiceResolutionEvent,
+  AvailableChoicesEvent,
+  NarrativeCueEvent,
+  TurnEvent,
   SystemAdapter
 };

@@ -28,6 +28,13 @@ describe('SillyTavernAdapter', () => {
     const context: Record<string, unknown> = {};
     const prompt: OutputPrompt = {
       text: 'Narrate the attack.',
+      channels: {
+        longHorizon: 'Long horizon',
+        midTerm: 'Mid term',
+        shortTerm: 'Short term',
+        combined: 'Combined prompt text'
+      },
+      events: [],
       result: {
         success: true,
         action: { action: 'attack', target: 'goblin', raw: '<attack goblin>' },
@@ -37,7 +44,7 @@ describe('SillyTavernAdapter', () => {
       }
     };
     adapter.applyPrompt(context, prompt);
-    expect(context['systemPrompt']).toBe('Narrate the attack.');
+    expect(context['systemPrompt']).toBe('Combined prompt text');
   });
 
   test('should load empty state when none exists', () => {

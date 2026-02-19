@@ -18,7 +18,16 @@ class AIDungeonAdapter implements SystemAdapter {
   }
 
   applyPrompt(context: Record<string, unknown>, prompt: OutputPrompt): void {
-    // AI Dungeon uses `memory` and `info` fields to influence the AI
+    // AI Dungeon supports segmented memory channels
+    const state = (context['state'] || {}) as Record<string, unknown>;
+    const memory = (state['memory'] || {}) as Record<string, unknown>;
+    memory['context'] = prompt.channels.longHorizon;
+    memory['authorsNote'] = prompt.channels.midTerm;
+    memory['frontMemory'] = prompt.channels.shortTerm;
+    state['memory'] = memory;
+    context['state'] = state;
+
+    // Keep a single-field fallback for compatibility
     context['memory'] = prompt.text;
   }
 

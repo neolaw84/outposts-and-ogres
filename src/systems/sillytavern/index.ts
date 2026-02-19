@@ -26,7 +26,7 @@ class SillyTavernAdapter implements SystemAdapter {
 
   applyPrompt(context: Record<string, unknown>, prompt: OutputPrompt): void {
     // SillyTavern allows modifying the system prompt and character description
-    context['systemPrompt'] = prompt.text;
+    context['systemPrompt'] = prompt.channels.combined;
   }
 
   loadState(context: Record<string, unknown>): Record<string, unknown> {

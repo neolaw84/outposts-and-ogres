@@ -15,23 +15,27 @@ import {
   ActionResult,
   GameCartridge,
   CartridgeRule,
-  OutputPrompt
+  OutputPrompt,
+  TurnEvent
 } from '../types';
 import { rollDice, sumRolls } from '../utils/dice';
-import { parsePlayerInput } from '../utils/input-parser';
+import { understandPlayerInput } from '../inputs/player-input-understanding';
+import { PromptMapper } from '../prompt-mappers';
 
 class GamePlayScript {
   private cartridge: GameCartridge;
   private currentCondition: string;
   private messages: Message[];
+  private promptMapper: PromptMapper;
 
-  constructor(cartridge: GameCartridge) {
+  constructor(cartridge: GameCartridge, promptMapper: PromptMapper) {
     this.cartridge = cartridge;
     // Default to the first stop condition
     this.currentCondition = cartridge.stopConditions.length > 0
       ? cartridge.stopConditions[0]
       : 'default';
     this.messages = [];
+    this.promptMapper = promptMapper;
   }
 
   /** Get the currently loaded cartridge. */
@@ -77,7 +81,12 @@ class GamePlayScript {
    */
   public extractAction(playerMessage: string): ParsedAction | null {
     const actions = this.cartridge.availableActions[this.currentCondition] || [];
-    return parsePlayerInput(playerMessage, actions);
+    const understanding = understandPlayerInput(
+      playerMessage,
+      actions,
+      this.cartridge.stopConditions
+    );
+    return understanding.parsedAction;
   }
 
   // ----------------------------------------------------------------
@@ -138,35 +147,70 @@ class GamePlayScript {
    *   (c) upcoming NPC actions
    *   (d) what the player can do next turn
    */
-  public buildPrompt(result: ActionResult): OutputPrompt {
+  public buildTurnEvents(
+    playerMessage: string,
+    parsedAction: ParsedAction,
+    result: ActionResult
+  ): TurnEvent[] {
     const rule = this.findRule(result.action.action);
-    let outcomeFragment: string;
+    let outcomeFragment = '';
 
     if (rule) {
       outcomeFragment = result.success ? rule.successPrompt : rule.failurePrompt;
-    } else {
-      outcomeFragment = result.success
-        ? 'The action succeeds.'
-        : 'The action fails.';
     }
 
-    const targetText = result.action.target
-      ? ' targeting ' + result.action.target
-      : '';
+    if (!outcomeFragment) {
+      outcomeFragment = result.success ? 'The action succeeds.' : 'The action fails.';
+    }
+
+    const actions = this.cartridge.availableActions[this.currentCondition] || [];
+    const understanding = understandPlayerInput(
+      playerMessage,
+      actions,
+      this.cartridge.stopConditions
+    );
 
     const availableActions = this.cartridge.availableActions[this.currentCondition] || [];
-    const actionList = availableActions.join(', ');
 
-    const prompt =
-      'The player attempted to ' + result.action.action + targetText + '. ' +
-      'They rolled ' + result.rollTotal + ' against difficulty ' + result.difficulty + '. ' +
-      outcomeFragment + ' ' +
-      'Narrate the outcome of the player\'s action. ' +
-      'Describe any NPC reactions or actions that follow. ' +
-      'End by telling the player what they can do next. ' +
-      'Available actions: ' + actionList + '.';
+    return [
+      {
+        type: 'player_input',
+        rawText: playerMessage,
+        condition: this.currentCondition,
+        parsedAction: parsedAction,
+        emotions: understanding.emotions,
+        scenarioUnderstanding: understanding.scenario
+      },
+      {
+        type: 'dice_resolution',
+        action: result.action.action,
+        target: result.action.target,
+        success: result.success,
+        rolls: result.rolls,
+        rollTotal: result.rollTotal,
+        difficulty: result.difficulty
+      },
+      {
+        type: 'narrative_cue',
+        success: result.success,
+        cue: outcomeFragment
+      },
+      {
+        type: 'available_choices',
+        condition: this.currentCondition,
+        choices: availableActions
+      }
+    ];
+  }
 
-    return { text: prompt, result: result };
+  public buildPrompt(result: ActionResult, events: TurnEvent[]): OutputPrompt {
+    const channels = this.promptMapper(events);
+    return {
+      text: channels.combined,
+      channels: channels,
+      events: events,
+      result: result
+    };
   }
 
   // ----------------------------------------------------------------
@@ -193,7 +237,8 @@ class GamePlayScript {
     const result = this.resolveAction(parsed);
 
     // Phase 3 – Output
-    return this.buildPrompt(result);
+    const events = this.buildTurnEvents(playerMessage, parsed, result);
+    return this.buildPrompt(result, events);
   }
 }
 

@@ -23,6 +23,13 @@ describe('AIDungeonAdapter', () => {
     const context: Record<string, unknown> = {};
     const prompt: OutputPrompt = {
       text: 'Narrate the attack.',
+      channels: {
+        longHorizon: 'Long horizon',
+        midTerm: 'Mid term',
+        shortTerm: 'Short term',
+        combined: 'Combined'
+      },
+      events: [],
       result: {
         success: true,
         action: { action: 'attack', target: 'goblin', raw: '<attack goblin>' },
@@ -33,6 +40,11 @@ describe('AIDungeonAdapter', () => {
     };
     adapter.applyPrompt(context, prompt);
     expect(context['memory']).toBe('Narrate the attack.');
+    const state = context['state'] as Record<string, unknown>;
+    const memory = state['memory'] as Record<string, unknown>;
+    expect(memory['context']).toBe('Long horizon');
+    expect(memory['authorsNote']).toBe('Mid term');
+    expect(memory['frontMemory']).toBe('Short term');
   });
 
   test('should load empty state when none exists', () => {

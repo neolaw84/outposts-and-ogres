@@ -22,7 +22,10 @@ class OutpostsAndOgres {
   }
 
   public createGamePlayScript(): GamePlayScript {
-    return new GamePlayScript(basicFantasyCartridge);
+    void basicFantasyCartridge;
+    throw new Error(
+      'GamePlayScript composition is build-time only. Use a composed bundle (e.g. build:basic:aidungeon) that binds cartridge and system mapper.'
+    );
   }
 }
 
@@ -46,6 +49,12 @@ export {
 } from './types';
 export { rollDie, rollDice, sumRolls } from './utils/dice';
 export { parsePlayerInput } from './utils/input-parser';
+export {
+  parseActionInput,
+  detectEmotionSignals,
+  understandScenario,
+  understandPlayerInput
+} from './inputs';
 export { JanitorAIAdapter } from './systems/janitorai/index';
 export { SillyTavernAdapter } from './systems/sillytavern/index';
 export { AIDungeonAdapter } from './systems/aidungeon/index';

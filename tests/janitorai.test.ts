@@ -36,6 +36,13 @@ describe('JanitorAIAdapter', () => {
     const context: Record<string, unknown> = {};
     const prompt: OutputPrompt = {
       text: 'The player attacked the goblin.',
+      channels: {
+        longHorizon: 'Long horizon',
+        midTerm: 'Mid term',
+        shortTerm: 'Short term',
+        combined: 'Long horizon\n\nMid term\n\nShort term'
+      },
+      events: [],
       result: {
         success: true,
         action: { action: 'attack', target: 'goblin', raw: '<attack goblin>' },
@@ -46,7 +53,8 @@ describe('JanitorAIAdapter', () => {
     };
     adapter.applyPrompt(context, prompt);
     const character = context['character'] as Record<string, unknown>;
-    expect(character['scenario']).toBe('The player attacked the goblin.');
+    expect(character['personality']).toContain('Long horizon');
+    expect(character['scenario']).toBe('Short term');
   });
 
   test('should load empty state when none exists', () => {

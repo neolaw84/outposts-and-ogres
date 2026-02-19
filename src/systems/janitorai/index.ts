@@ -29,7 +29,8 @@ class JanitorAIAdapter implements SystemAdapter {
   applyPrompt(context: Record<string, unknown>, prompt: OutputPrompt): void {
     // Janitor AI allows modifying character personality and scenario
     const character = (context['character'] || {}) as Record<string, unknown>;
-    character['scenario'] = prompt.text;
+    character['personality'] = prompt.channels.longHorizon + '\n\n' + prompt.channels.midTerm;
+    character['scenario'] = prompt.channels.shortTerm;
     context['character'] = character;
   }
 

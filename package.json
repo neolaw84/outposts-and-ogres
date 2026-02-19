@@ -5,6 +5,9 @@
   "main": "dist/bundle.js",
   "scripts": {
     "build": "rollup -c rollup.config.js",
+    "build:basic:aidungeon": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=aidungeon rollup -c rollup.config.js",
+    "build:basic:janitorai": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=janitorai rollup -c rollup.config.js",
+    "build:basic:sillytavern": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=sillytavern rollup -c rollup.config.js",
     "build:webpack": "webpack --config webpack.config.js",
     "test": "jest",
     "test:watch": "jest --watch",
