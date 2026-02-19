@@ -45,7 +45,8 @@ export {
   CartridgeRule,
   GameCartridge,
   OutputPrompt,
-  SystemAdapter
+  SystemAdapter,
+  ScenarioUpdate
 } from './types';
 export { rollDie, rollDice, sumRolls } from './utils/dice';
 export { parsePlayerInput } from './utils/input-parser';
