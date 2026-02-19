@@ -9,6 +9,7 @@
  */
 
 import { base64EncodeRaw, base64DecodeRaw } from './base64';
+import { isValidDateStr } from './time-utils';
 
 /** Effect definition used for LLM instruction generation. */
 interface EffectDefinition {
@@ -153,6 +154,82 @@ function findEffectByKey(
   return { effect: foundEffect, typeCheck: foundTypeCheck };
 }
 
+/**
+ * Validate input object recursively and return a mirror object indicating validity.
+ * Performs type checks on elapsed_time, effects array (with nested flags/tags/meters),
+ * and debug flag.
+ */
+function cleanInput(inputObject: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+
+  // 1. Validate elapsed_time
+  if (typeof inputObject.elapsed_time === 'string' && inputObject.elapsed_time.indexOf('P') === 0) {
+    result.elapsed_time = true;
+  } else {
+    result.elapsed_time = false;
+  }
+
+  // 2. Validate effects
+  if (Array.isArray(inputObject.effects)) {
+    const effectsArray: Array<Record<string, unknown>> = [];
+    for (let i = 0; i < inputObject.effects.length; i++) {
+      const eff = inputObject.effects[i] as Record<string, unknown>;
+      const resEff: Record<string, unknown> = {};
+
+      // Key
+      resEff.key = (typeof eff.key === 'string' && (eff.key as string).length > 0);
+
+      // What
+      resEff.what = (typeof eff.what === 'string');
+
+      // When
+      resEff.when = (typeof eff.when === 'string' && isValidDateStr(eff.when as string));
+
+      // Flags
+      if (eff.flags && typeof eff.flags === 'object') {
+        const flags: Record<string, boolean> = {};
+        const effFlags = eff.flags as Record<string, unknown>;
+        for (const k in effFlags) {
+          flags[k] = (typeof effFlags[k] === 'boolean');
+        }
+        resEff.flags = flags;
+      }
+
+      // Tags
+      if (eff.tags && typeof eff.tags === 'object') {
+        const tags: Record<string, boolean> = {};
+        const effTags = eff.tags as Record<string, unknown>;
+        for (const k in effTags) {
+          tags[k] = (typeof effTags[k] === 'string');
+        }
+        resEff.tags = tags;
+      }
+
+      // Meters
+      if (eff.meters && typeof eff.meters === 'object') {
+        const meters: Record<string, boolean> = {};
+        const effMeters = eff.meters as Record<string, unknown>;
+        for (const k in effMeters) {
+          meters[k] = (typeof effMeters[k] === 'number');
+        }
+        resEff.meters = meters;
+      }
+
+      effectsArray.push(resEff);
+    }
+    result.effects = effectsArray;
+  } else {
+    result.effects = false;
+  }
+
+  // 3. Debug
+  if (inputObject.debug) {
+    result.debug = true;
+  }
+
+  return result;
+}
+
 export {
   EffectDefinition,
   FoundEffect,
@@ -161,5 +238,6 @@ export {
   buildRpStateBlock,
   extractNarrationSummary,
   generateEffectInstruction,
-  findEffectByKey
+  findEffectByKey,
+  cleanInput
 };
