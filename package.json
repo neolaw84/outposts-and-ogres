@@ -9,6 +9,9 @@
     "build:basic:janitorai": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=janitorai rollup -c rollup.config.js",
     "build:basic:sillytavern": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=sillytavern rollup -c rollup.config.js",
     "build:webpack": "webpack --config webpack.config.js",
+    "build:webpack:basic:aidungeon": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=aidungeon webpack --config webpack.config.js",
+    "build:webpack:basic:janitorai": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=janitorai webpack --config webpack.config.js",
+    "build:webpack:basic:sillytavern": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=sillytavern webpack --config webpack.config.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
