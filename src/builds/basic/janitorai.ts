@@ -42,4 +42,14 @@ export {
 export { rollDie, rollDice, sumRolls } from '../../utils/dice';
 export { parseActionInput } from '../../inputs/action-parser';
 export { parsePlayerInput } from '../../utils/input-parser';
+export { base64EncodeRaw, base64DecodeRaw, base64Encode, base64Decode } from '../../utils/base64';
+export {
+  encodeState,
+  decodeState,
+  buildRpStateBlock,
+  extractNarrationSummary,
+  generateEffectInstruction,
+  findEffectByKey
+} from '../../utils/llm-utils';
+export { extractMatch } from '../../utils/text-utils';
 export { JanitorAIAdapter } from '../../systems/janitorai/index';

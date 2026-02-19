@@ -1,49 +1,45 @@
+import { ScenarioUpdate } from '../types';
+
 interface ScenarioUnderstanding {
   suggestedCondition: string | null;
   confidence: 'low' | 'medium' | 'high';
   cues: string[];
 }
 
+/**
+ * Interpret a `ScenarioUpdate` (the open-contract LLM output) into a
+ * cartridge-specific `ScenarioUnderstanding`.
+ *
+ * Priority:
+ *  1. A flag whose key matches an available condition and whose value is
+ *     non-zero → high confidence.
+ *  2. A tag whose value matches an available condition → medium confidence.
+ *  3. No match → low confidence, no suggested condition.
+ */
 function understandScenario(
-  message: string,
+  update: ScenarioUpdate,
   availableConditions: string[]
 ): ScenarioUnderstanding {
-  const text = message.toLowerCase();
-  const conditionKeywords: Record<string, string[]> = {
-    combat: ['attack', 'strike', 'fight', 'defend', 'flee', 'enemy'],
-    exploration: ['search', 'inspect', 'look', 'move', 'rest', 'explore'],
-    social: ['persuade', 'talk', 'ask', 'barter', 'intimidate', 'deceive']
-  };
-
-  let bestCondition: string | null = null;
-  let bestScore = 0;
-  let matched: string[] = [];
-
+  // Check flags: flag key equals a condition name with non-zero value
   for (let i = 0; i < availableConditions.length; i++) {
     const condition = availableConditions[i];
-    const keywords = conditionKeywords[condition] || [];
-    let score = 0;
-    const cues: string[] = [];
-    for (let j = 0; j < keywords.length; j++) {
-      if (text.indexOf(keywords[j]) !== -1) {
-        score = score + 1;
-        cues.push(keywords[j]);
-      }
-    }
-    if (score > bestScore) {
-      bestScore = score;
-      bestCondition = condition;
-      matched = cues;
+    if (update.flags[condition] !== undefined && update.flags[condition] > 0) {
+      return { suggestedCondition: condition, confidence: 'high', cues: [condition] };
     }
   }
 
-  if (bestScore === 0) {
-    return { suggestedCondition: null, confidence: 'low', cues: [] };
+  // Check tags: tag value equals a condition name
+  const tagKeys = Object.keys(update.tags);
+  for (let i = 0; i < availableConditions.length; i++) {
+    const condition = availableConditions[i];
+    for (let j = 0; j < tagKeys.length; j++) {
+      if (update.tags[tagKeys[j]] === condition) {
+        return { suggestedCondition: condition, confidence: 'medium', cues: [tagKeys[j]] };
+      }
+    }
   }
-  if (bestScore === 1) {
-    return { suggestedCondition: bestCondition, confidence: 'medium', cues: matched };
-  }
-  return { suggestedCondition: bestCondition, confidence: 'high', cues: matched };
+
+  return { suggestedCondition: null, confidence: 'low', cues: [] };
 }
 
 export { ScenarioUnderstanding, understandScenario };

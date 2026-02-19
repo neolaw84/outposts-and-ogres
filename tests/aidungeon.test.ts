@@ -70,4 +70,74 @@ describe('AIDungeonAdapter', () => {
     expect(stateObj['otherData']).toBe('keep me');
     expect(stateObj['gameState']).toEqual({ turn: 1 });
   });
+
+  // ----------------------------------------------------------------
+  // getScenarioUpdate
+  // ----------------------------------------------------------------
+
+  test('should extract scenario update from last story history entry', () => {
+    const adapter = new AIDungeonAdapter();
+    const update = {
+      elapsed_time: 'PT10M',
+      flags: { torch_lit: 1 },
+      tags: { location: 'dungeon' },
+      meters: { tension: 0.5 }
+    };
+    const context = {
+      history: [
+        { type: 'do', text: 'You attack the goblin.' },
+        { type: 'story', text: 'The goblin falls. [NARRATION_SUMMARY]' + JSON.stringify(update) + '[/NARRATION_SUMMARY]' }
+      ]
+    };
+    expect(adapter.getScenarioUpdate(context)).toEqual(update);
+  });
+
+  test('should return null when history has no story entry with a summary', () => {
+    const adapter = new AIDungeonAdapter();
+    const context = {
+      history: [
+        { type: 'do', text: 'You search the room.' },
+        { type: 'story', text: 'You find nothing of interest.' }
+      ]
+    };
+    expect(adapter.getScenarioUpdate(context)).toBeNull();
+  });
+
+  test('should return null when history is absent', () => {
+    const adapter = new AIDungeonAdapter();
+    expect(adapter.getScenarioUpdate({})).toBeNull();
+  });
+
+  test('should skip story entries without a summary and find an earlier one', () => {
+    const adapter = new AIDungeonAdapter();
+    const update = {
+      elapsed_time: 'PT3M',
+      flags: { goblin_dead: 1 },
+      tags: {},
+      meters: {}
+    };
+    const context = {
+      history: [
+        { type: 'story', text: 'You enter the cave. [NARRATION_SUMMARY]' + JSON.stringify(update) + '[/NARRATION_SUMMARY]' },
+        { type: 'do', text: 'You attack.' },
+        { type: 'story', text: 'The goblin dodges.' } // no summary
+      ]
+    };
+    expect(adapter.getScenarioUpdate(context)).toEqual(update);
+  });
+
+  test('should use defaults for missing ScenarioUpdate fields', () => {
+    const adapter = new AIDungeonAdapter();
+    const context = {
+      history: [
+        { type: 'story', text: 'Narration [NARRATION_SUMMARY]{}[/NARRATION_SUMMARY]' }
+      ]
+    };
+    const result = adapter.getScenarioUpdate(context);
+    expect(result).not.toBeNull();
+    expect(result!.elapsed_time).toBe('PT0S');
+    expect(result!.flags).toEqual({});
+    expect(result!.tags).toEqual({});
+    expect(result!.meters).toEqual({});
+  });
 });

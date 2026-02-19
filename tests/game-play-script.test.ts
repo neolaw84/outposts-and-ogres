@@ -99,7 +99,7 @@ describe('GamePlayScript', () => {
     const prompt = script.buildPrompt(result, events);
     expect(prompt.text).toContain('attack');
     expect(prompt.text).toContain('orc');
-    expect(prompt.channels.shortTerm).toContain('Roll');
+    expect(prompt.channels.shortTerm).toContain('Dice result');
     expect(prompt.events.length).toBeGreaterThanOrEqual(3);
     expect(prompt.result).toBe(result);
   });
