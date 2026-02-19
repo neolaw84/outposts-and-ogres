@@ -21,11 +21,31 @@ npm install
 
 ## Building
 
-Build the project to create `dist/bundle.js`:
+Builds are composed at build time by selecting a cartridge × system combination.
+
+The base `npm run build` command is intentionally fail-fast and requires explicit selection.
+
+Use one of these commands:
 
 ```bash
-npm run build
+npm run build:basic:aidungeon
+npm run build:basic:janitorai
+npm run build:basic:sillytavern
 ```
+
+Webpack supports the same composition model:
+
+```bash
+npm run build:webpack:basic:aidungeon
+npm run build:webpack:basic:janitorai
+npm run build:webpack:basic:sillytavern
+```
+
+`npm run build:webpack` is also fail-fast and requires explicit `BUILD_CARTRIDGE` and
+`BUILD_SYSTEM` selection via one of the scripts above.
+
+These commands generate dedicated bundles, for example `dist/bundle.basic.aidungeon.js`,
+without runtime cartridge/system selection logic in the gameplay engine.
 
 The build process:
 1. Compiles TypeScript to ES5

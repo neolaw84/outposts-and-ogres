@@ -1,4 +1,6 @@
 import { Character } from './character';
+import { GamePlayScript } from './systems/game-play-script';
+import { basicFantasyCartridge } from './cartridges/basic-fantasy';
 
 /**
  * OutpostsAndOgres - Foundation RPG System
@@ -18,6 +20,13 @@ class OutpostsAndOgres {
   public createCharacter(name: string, maxHealth?: number): Character {
     return new Character(name, maxHealth);
   }
+
+  public createGamePlayScript(): GamePlayScript {
+    void basicFantasyCartridge;
+    throw new Error(
+      'GamePlayScript composition is build-time only. Use a composed bundle (e.g. build:basic:aidungeon) that binds cartridge and system mapper.'
+    );
+  }
 }
 
 const rpgSystem = new OutpostsAndOgres();
@@ -26,3 +35,26 @@ rpgSystem.createCharacter('Hero', 150);
 
 export default rpgSystem;
 export { Character };
+export { GamePlayScript } from './systems/game-play-script';
+export { basicFantasyCartridge } from './cartridges/basic-fantasy';
+export {
+  Message,
+  ParsedAction,
+  DiceRollResult,
+  ActionResult,
+  CartridgeRule,
+  GameCartridge,
+  OutputPrompt,
+  SystemAdapter
+} from './types';
+export { rollDie, rollDice, sumRolls } from './utils/dice';
+export { parsePlayerInput } from './utils/input-parser';
+export {
+  parseActionInput,
+  detectEmotionSignals,
+  understandScenario,
+  understandPlayerInput
+} from './inputs';
+export { JanitorAIAdapter } from './systems/janitorai/index';
+export { SillyTavernAdapter } from './systems/sillytavern/index';
+export { AIDungeonAdapter } from './systems/aidungeon/index';
