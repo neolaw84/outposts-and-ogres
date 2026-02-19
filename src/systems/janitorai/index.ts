@@ -50,21 +50,21 @@ class JanitorAIAdapter implements SystemAdapter {
   // ------------------------------------------------------------------
 
   getPlayerMessage(context: Record<string, unknown>): string | null {
-    var chat = context['chat'] as Record<string, unknown> | undefined;
+    const chat = context['chat'] as Record<string, unknown> | undefined;
     if (!chat) {
       return null;
     }
 
     // Try context.chat.last_message (singular) first.
-    var singular = chat['last_message'] as string | undefined;
+    const singular = chat['last_message'] as string | undefined;
     if (singular) {
       return singular;
     }
 
     // Fall back to context.chat.last_messages (last item).
-    var messages = chat['last_messages'] as Array<ChatMessage> | undefined;
+    const messages = chat['last_messages'] as Array<ChatMessage> | undefined;
     if (messages && messages.length > 0) {
-      var lastMsg = messages[messages.length - 1];
+      const lastMsg = messages[messages.length - 1];
       if (lastMsg && lastMsg['content']) {
         return lastMsg['content'] as string;
       }
@@ -78,9 +78,9 @@ class JanitorAIAdapter implements SystemAdapter {
   // ------------------------------------------------------------------
 
   applyPrompt(context: Record<string, unknown>, prompt: OutputPrompt): void {
-    var character = (context['character'] || {}) as Record<string, unknown>;
-    var existingPersonality = (character['personality'] || '') as string;
-    var existingScenario = (character['scenario'] || '') as string;
+    const character = (context['character'] || {}) as Record<string, unknown>;
+    const existingPersonality = (character['personality'] || '') as string;
+    const existingScenario = (character['scenario'] || '') as string;
 
     // Prepend long-horizon + mid-term guidance to personality.
     character['personality'] =
@@ -103,41 +103,41 @@ class JanitorAIAdapter implements SystemAdapter {
   // ------------------------------------------------------------------
 
   loadState(context: Record<string, unknown>): Record<string, unknown> {
-    var chat = context['chat'] as Record<string, unknown> | undefined;
+    const chat = context['chat'] as Record<string, unknown> | undefined;
     if (!chat) {
       return {};
     }
 
     // The previous LLM response is the second-last item in last_messages.
-    var messages = chat['last_messages'] as Array<ChatMessage> | undefined;
+    const messages = chat['last_messages'] as Array<ChatMessage> | undefined;
     if (!messages || messages.length < 2) {
       return {};
     }
 
-    var prevResponse = messages[messages.length - 2];
+    const prevResponse = messages[messages.length - 2];
     if (!prevResponse || !prevResponse['content']) {
       return {};
     }
 
-    var decoded = decodeState(prevResponse['content'] as string);
+    const decoded = decodeState(prevResponse['content'] as string);
     return decoded || {};
   }
 
   saveState(context: Record<string, unknown>, state: Record<string, unknown>): void {
-    var character = (context['character'] || {}) as Record<string, unknown>;
-    var personality = (character['personality'] || '') as string;
+    const character = (context['character'] || {}) as Record<string, unknown>;
+    let personality = (character['personality'] || '') as string;
 
-    var stateBlock = buildRpStateBlock(state);
+    const stateBlock = buildRpStateBlock(state);
 
     // Build the instruction that tells the LLM to return the block verbatim.
-    var instruction =
+    const instruction =
       'IMPORTANT: The following block contains encoded game state. ' +
       'You MUST include it EXACTLY as-is in your response, without ' +
       'any modification whatsoever.\n' +
       stateBlock;
 
     // Replace an existing RP_STATE instruction or prepend a new one.
-    var rpStateRegex = /[\s\S]*?\[RP_STATE\][\s\S]*?\[\/RP_STATE\]/;
+    const rpStateRegex = /[\s\S]*?\[RP_STATE\][\s\S]*?\[\/RP_STATE\]/;
     if (personality.indexOf('[RP_STATE]') !== -1) {
       personality = personality.replace(rpStateRegex, instruction);
     } else {
@@ -157,17 +157,17 @@ class JanitorAIAdapter implements SystemAdapter {
    * Returns null if no valid block is found.
    */
   extractNarrationSummary(context: Record<string, unknown>): Record<string, unknown> | null {
-    var chat = context['chat'] as Record<string, unknown> | undefined;
+    const chat = context['chat'] as Record<string, unknown> | undefined;
     if (!chat) {
       return null;
     }
 
-    var messages = chat['last_messages'] as Array<ChatMessage> | undefined;
+    const messages = chat['last_messages'] as Array<ChatMessage> | undefined;
     if (!messages || messages.length < 2) {
       return null;
     }
 
-    var prevResponse = messages[messages.length - 2];
+    const prevResponse = messages[messages.length - 2];
     if (!prevResponse || !prevResponse['content']) {
       return null;
     }

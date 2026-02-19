@@ -10,7 +10,7 @@
  * substring matching in both directions. Falls back to defaultValue.
  */
 function extractMatch(allowedValues: string[], defaultValue: string, inputValue: string): string {
-  var lowerWhat = inputValue.toLowerCase();
+  const lowerWhat = inputValue.toLowerCase();
 
   if (allowedValues.indexOf(lowerWhat) !== -1) {
     return lowerWhat;

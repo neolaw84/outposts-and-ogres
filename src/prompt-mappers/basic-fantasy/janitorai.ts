@@ -4,7 +4,7 @@ function getEvent<T extends TurnEvent['type']>(
   events: TurnEvent[],
   type: T
 ): Extract<TurnEvent, { type: T }> | null {
-  for (var i = 0; i < events.length; i++) {
+  for (let i = 0; i < events.length; i++) {
     if (events[i].type === type) {
       return events[i] as Extract<TurnEvent, { type: T }>;
     }
@@ -25,7 +25,7 @@ function buildNarrationGuide(
   cueEvent: Extract<TurnEvent, { type: 'narrative_cue' }> | null,
   choicesEvent: Extract<TurnEvent, { type: 'available_choices' }> | null
 ): string {
-  var lines: string[] = [];
+  const lines: string[] = [];
   lines.push('[NARRATION_GUIDE]');
 
   if (diceEvent) {
@@ -72,7 +72,7 @@ function buildNarrationGuide(
 function buildNarrationSummaryInstructions(
   diceEvent: Extract<TurnEvent, { type: 'dice_resolution' }> | null
 ): string {
-  var lines: string[] = [];
+  const lines: string[] = [];
   lines.push(
     'At the END of your narration, include a [NARRATION_SUMMARY] block ' +
     'containing a JSON object that summarises what NPCs did this turn. ' +
@@ -117,13 +117,13 @@ function buildNarrationSummaryInstructions(
 }
 
 function mapBasicFantasyJanitorAI(events: TurnEvent[]): PromptChannels {
-  var inputEvent = getEvent(events, 'player_input');
-  var diceEvent = getEvent(events, 'dice_resolution');
-  var choicesEvent = getEvent(events, 'available_choices');
-  var cueEvent = getEvent(events, 'narrative_cue');
+  const inputEvent = getEvent(events, 'player_input');
+  const diceEvent = getEvent(events, 'dice_resolution');
+  const choicesEvent = getEvent(events, 'available_choices');
+  const cueEvent = getEvent(events, 'narrative_cue');
 
   // Long-horizon: persistent guidance prepended to personality.
-  var personalityText =
+  const personalityText =
     'Persistent guidance: Maintain tone continuity, respect condition logic, and carry forward player emotional state. ' +
     'Condition=' + (inputEvent ? inputEvent.condition : 'unknown') + '. ' +
     'Emotions=' + (inputEvent && inputEvent.emotions.length > 0
@@ -131,14 +131,14 @@ function mapBasicFantasyJanitorAI(events: TurnEvent[]): PromptChannels {
       : 'none') + '.';
 
   // Mid-term: instructions for upcoming narration behaviour.
-  var midTerm =
+  const midTerm =
     'Mid-turn objective: include NPC reaction, environmental consequence, and explicit player options.';
 
   // Short-term: [NARRATION_GUIDE] + NARRATION_SUMMARY instructions,
   // prepended/appended to scenario.
-  var narrationGuide = buildNarrationGuide(diceEvent, cueEvent, choicesEvent);
-  var summaryInstructions = buildNarrationSummaryInstructions(diceEvent);
-  var scenarioText = narrationGuide + '\n\n' + summaryInstructions;
+  const narrationGuide = buildNarrationGuide(diceEvent, cueEvent, choicesEvent);
+  const summaryInstructions = buildNarrationSummaryInstructions(diceEvent);
+  const scenarioText = narrationGuide + '\n\n' + summaryInstructions;
 
   return {
     longHorizon: personalityText,

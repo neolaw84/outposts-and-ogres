@@ -7,14 +7,14 @@
  * inspect, interpret or modify it.
  */
 
-var _keyStr: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+const _keyStr: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
 
 function _utf8Encode(input: string): string {
   input = input.replace(/\r\n/g, '\n');
-  var utftext = '';
+  let utftext = '';
 
-  for (var n = 0; n < input.length; n++) {
-    var c = input.charCodeAt(n);
+  for (let n = 0; n < input.length; n++) {
+    const c = input.charCodeAt(n);
 
     if (c < 128) {
       utftext += String.fromCharCode(c);
@@ -32,11 +32,11 @@ function _utf8Encode(input: string): string {
 }
 
 function _utf8Decode(utftext: string): string {
-  var result = '';
-  var i = 0;
-  var c = 0;
-  var c2 = 0;
-  var c3 = 0;
+  let result = '';
+  let i = 0;
+  let c = 0;
+  let c2 = 0;
+  let c3 = 0;
 
   while (i < utftext.length) {
     c = utftext.charCodeAt(i);
@@ -63,15 +63,15 @@ function _utf8Decode(utftext: string): string {
  * Suitable for ASCII-safe input or when UTF-8 encoding is handled externally.
  */
 function base64EncodeRaw(input: string): string {
-  var output = '';
-  var chr1: number;
-  var chr2: number;
-  var chr3: number;
-  var enc1: number;
-  var enc2: number;
-  var enc3: number;
-  var enc4: number;
-  var i = 0;
+  let output = '';
+  let chr1: number;
+  let chr2: number;
+  let chr3: number;
+  let enc1: number;
+  let enc2: number;
+  let enc3: number;
+  let enc4: number;
+  let i = 0;
 
   while (i < input.length) {
     chr1 = input.charCodeAt(i++);
@@ -101,15 +101,15 @@ function base64EncodeRaw(input: string): string {
  * Decode a Base64 string without UTF-8 post-processing.
  */
 function base64DecodeRaw(input: string): string {
-  var output = '';
-  var chr1: number;
-  var chr2: number;
-  var chr3: number;
-  var enc1: number;
-  var enc2: number;
-  var enc3: number;
-  var enc4: number;
-  var i = 0;
+  let output = '';
+  let chr1: number;
+  let chr2: number;
+  let chr3: number;
+  let enc1: number;
+  let enc2: number;
+  let enc3: number;
+  let enc4: number;
+  let i = 0;
 
   input = input.replace(/[^A-Za-z0-9\+\/\=]/g, '');
 

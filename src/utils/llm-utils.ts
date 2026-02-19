@@ -31,7 +31,7 @@ function encodeState(state: Record<string, unknown> | null): string {
   if (!state) {
     return '';
   }
-  var jsonStr = JSON.stringify(state);
+  const jsonStr = JSON.stringify(state);
   return base64EncodeRaw(jsonStr);
 }
 
@@ -44,18 +44,18 @@ function decodeState(message: string | null): Record<string, unknown> | null {
   if (!message) {
     return null;
   }
-  var startTag = '[RP_STATE]';
-  var endTag = '[/RP_STATE]';
-  var startIndex = message.indexOf(startTag);
-  var endIndex = message.indexOf(endTag);
+  const startTag = '[RP_STATE]';
+  const endTag = '[/RP_STATE]';
+  const startIndex = message.indexOf(startTag);
+  const endIndex = message.indexOf(endTag);
 
   if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) {
     return null;
   }
 
-  var b64 = message.substring(startIndex + startTag.length, endIndex);
+  const b64 = message.substring(startIndex + startTag.length, endIndex);
   try {
-    var jsonStr = base64DecodeRaw(b64);
+    const jsonStr = base64DecodeRaw(b64);
     return JSON.parse(jsonStr) as Record<string, unknown>;
   } catch (_e) {
     return null;
@@ -67,7 +67,7 @@ function decodeState(message: string | null): Record<string, unknown> | null {
  * the state verbatim in its response.
  */
 function buildRpStateBlock(state: Record<string, unknown>): string {
-  var encoded = encodeState(state);
+  const encoded = encodeState(state);
   return '[RP_STATE]' + encoded + '[/RP_STATE]';
 }
 
@@ -79,20 +79,20 @@ function extractNarrationSummary(message: string | null): Record<string, unknown
   if (!message) {
     return null;
   }
-  var endTag = '[/NARRATION_SUMMARY]';
-  var startTag = '[NARRATION_SUMMARY]';
+  const endTag = '[/NARRATION_SUMMARY]';
+  const startTag = '[NARRATION_SUMMARY]';
 
-  var endIndex = message.lastIndexOf(endTag);
+  const endIndex = message.lastIndexOf(endTag);
   if (endIndex === -1) {
     return null;
   }
 
-  var startIndex = message.lastIndexOf(startTag, endIndex);
+  const startIndex = message.lastIndexOf(startTag, endIndex);
   if (startIndex === -1) {
     return null;
   }
 
-  var jsonStr = message.substring(startIndex + startTag.length, endIndex);
+  const jsonStr = message.substring(startIndex + startTag.length, endIndex);
   try {
     return JSON.parse(jsonStr) as Record<string, unknown>;
   } catch (_e) {
@@ -109,15 +109,15 @@ function generateEffectInstruction(effectDef: EffectDefinition): string {
     return '';
   }
 
-  var jsonBlock: Record<string, unknown> = {};
-  var keys = Object.keys(effectDef);
-  for (var i = 0; i < keys.length; i++) {
+  const jsonBlock: Record<string, unknown> = {};
+  const keys = Object.keys(effectDef);
+  for (let i = 0; i < keys.length; i++) {
     if (keys[i] !== 'condition') {
       jsonBlock[keys[i]] = effectDef[keys[i]];
     }
   }
 
-  var jsonString = JSON.stringify(jsonBlock, null, 4);
+  const jsonString = JSON.stringify(jsonBlock, null, 4);
   return 'In the above narration of yours, if and only if ' +
     effectDef.condition +
     ', include one instance of the following in the "effects" array.\n\n' +
@@ -132,14 +132,14 @@ function findEffectByKey(
   naSum: Record<string, unknown>,
   typeChecks: Record<string, unknown>
 ): FoundEffect {
-  var foundEffect: Record<string, unknown> | null = null;
-  var foundTypeCheck: Record<string, unknown> | null = null;
+  let foundEffect: Record<string, unknown> | null = null;
+  let foundTypeCheck: Record<string, unknown> | null = null;
 
-  var effects = naSum['effects'] as Array<Record<string, unknown>> | undefined;
-  var typeCheckEffects = typeChecks['effects'] as Array<Record<string, unknown>> | undefined;
+  const effects = naSum['effects'] as Array<Record<string, unknown>> | undefined;
+  const typeCheckEffects = typeChecks['effects'] as Array<Record<string, unknown>> | undefined;
 
   if (effects && Array.isArray(effects)) {
-    for (var j = 0; j < effects.length; j++) {
+    for (let j = 0; j < effects.length; j++) {
       if (effects[j]['key'] === key) {
         foundEffect = effects[j];
         if (typeCheckEffects && typeCheckEffects[j]) {
