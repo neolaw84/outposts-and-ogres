@@ -45,10 +45,21 @@ export {
   CartridgeRule,
   GameCartridge,
   OutputPrompt,
-  SystemAdapter
+  SystemAdapter,
+  ScenarioUpdate
 } from './types';
 export { rollDie, rollDice, sumRolls } from './utils/dice';
 export { parsePlayerInput } from './utils/input-parser';
+export { base64EncodeRaw, base64DecodeRaw, base64Encode, base64Decode } from './utils/base64';
+export {
+  encodeState,
+  decodeState,
+  buildRpStateBlock,
+  extractNarrationSummary,
+  generateEffectInstruction,
+  findEffectByKey
+} from './utils/llm-utils';
+export { extractMatch } from './utils/text-utils';
 export {
   parseActionInput,
   detectEmotionSignals,
