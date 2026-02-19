@@ -170,6 +170,34 @@ type TurnEvent =
   | NarrativeCueEvent;
 
 /**
+ * Structured scenario-update block returned by the LLM at the end of each
+ * narration turn.  This is the raw, generic bridge between free-text LLM
+ * narration and the game script.  It is intentionally kept wide and open so
+ * it works across all systems and cartridges.
+ *
+ * The cartridge is responsible for interpreting the fields and converting
+ * them into its own (cartridge-specific) domain objects if needed.
+ *
+ * Example LLM output (inside a [NARRATION_SUMMARY] block):
+ * {
+ *   "elapsed_time": "PT5M",
+ *   "flags": { "in_combat": 1, "door_open": 0 },
+ *   "tags":  { "weather": "storm", "npc_mood": "hostile" },
+ *   "meters": { "tension": 0.8, "distance_to_exit": 42 }
+ * }
+ */
+export interface ScenarioUpdate {
+  /** ISO 8601 duration – how much in-game time passed this narration turn (e.g. "PT5M"). */
+  elapsed_time: string;
+  /** Integer flags emitted by the LLM (0 = false, 1 = true, etc.). */
+  flags: Record<string, number>;
+  /** Arbitrary string tags emitted by the LLM. */
+  tags: Record<string, string>;
+  /** Numeric meters emitted by the LLM (e.g. tension, distance). */
+  meters: Record<string, number>;
+}
+
+/**
  * Interface that each platform system adapter must implement.
  *
  * Different AI platforms (Janitor AI, SillyTavern, AI Dungeon) have
@@ -206,6 +234,14 @@ interface SystemAdapter {
    * E.g. AI Dungeon uses a global `state` JSON object.
    */
   saveState(context: Record<string, unknown>, state: Record<string, unknown>): void;
+
+  /**
+   * Extract the structured scenario-update JSON emitted by the LLM in its
+   * last narration response and return it as a `ScenarioUpdate`.
+   * The exact field / mechanism used to locate the block differs per platform.
+   * Returns null if no valid block is found.
+   */
+  getScenarioUpdate(context: Record<string, unknown>): ScenarioUpdate | null;
 }
 
 export {
@@ -223,5 +259,6 @@ export {
   AvailableChoicesEvent,
   NarrativeCueEvent,
   TurnEvent,
+  ScenarioUpdate,
   SystemAdapter
 };

@@ -246,21 +246,26 @@ describe('JanitorAIAdapter', function () {
   });
 
   // ----------------------------------------------------------------
-  // Narration summary extraction
+  // Scenario update extraction
   // ----------------------------------------------------------------
 
-  test('should extract narration summary from previous LLM response', function () {
+  test('should extract scenario update from previous LLM response', function () {
     var adapter = new JanitorAIAdapter();
-    var summary = { npc_actions: [{ npc: 'Goblin', action: 'attack', target: 'player' }] };
+    var update = {
+      elapsed_time: 'PT5M',
+      flags: { in_combat: 1 },
+      tags: { weather: 'storm' },
+      meters: { tension: 0.8 }
+    };
     var context = {
       chat: {
         last_messages: [
-          { content: 'Narration text [NARRATION_SUMMARY]' + JSON.stringify(summary) + '[/NARRATION_SUMMARY]' },
+          { content: 'Narration text [NARRATION_SUMMARY]' + JSON.stringify(update) + '[/NARRATION_SUMMARY]' },
           { content: 'Player message' }
         ]
       }
     };
-    expect(adapter.extractNarrationSummary(context)).toEqual(summary);
+    expect(adapter.getScenarioUpdate(context)).toEqual(update);
   });
 
   test('should return null when no narration summary exists', function () {
@@ -273,6 +278,24 @@ describe('JanitorAIAdapter', function () {
         ]
       }
     };
-    expect(adapter.extractNarrationSummary(context)).toBeNull();
+    expect(adapter.getScenarioUpdate(context)).toBeNull();
+  });
+
+  test('should use defaults for missing ScenarioUpdate fields', function () {
+    var adapter = new JanitorAIAdapter();
+    var context = {
+      chat: {
+        last_messages: [
+          { content: 'Narration [NARRATION_SUMMARY]{}[/NARRATION_SUMMARY]' },
+          { content: 'Player message' }
+        ]
+      }
+    };
+    var result = adapter.getScenarioUpdate(context);
+    expect(result).not.toBeNull();
+    expect(result!.elapsed_time).toBe('PT0S');
+    expect(result!.flags).toEqual({});
+    expect(result!.tags).toEqual({});
+    expect(result!.meters).toEqual({});
   });
 });

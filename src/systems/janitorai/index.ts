@@ -33,7 +33,7 @@
  *   to scenario so the LLM produces a plain-JSON summary block.
  */
 
-import { SystemAdapter, OutputPrompt } from '../../types';
+import { SystemAdapter, OutputPrompt, ScenarioUpdate } from '../../types';
 import { decodeState, buildRpStateBlock, extractNarrationSummary } from '../../utils/llm-utils';
 
 /** Content of the last LLM response message. */
@@ -149,14 +149,15 @@ class JanitorAIAdapter implements SystemAdapter {
   }
 
   // ------------------------------------------------------------------
-  // Narration summary extraction (convenience helper)
+  // Scenario update extraction
   // ------------------------------------------------------------------
 
   /**
-   * Extract the [NARRATION_SUMMARY] JSON from the last LLM response.
+   * Extract the [NARRATION_SUMMARY] JSON from the last LLM response and
+   * return it as a `ScenarioUpdate`.
    * Returns null if no valid block is found.
    */
-  extractNarrationSummary(context: Record<string, unknown>): Record<string, unknown> | null {
+  getScenarioUpdate(context: Record<string, unknown>): ScenarioUpdate | null {
     const chat = context['chat'] as Record<string, unknown> | undefined;
     if (!chat) {
       return null;
@@ -172,7 +173,16 @@ class JanitorAIAdapter implements SystemAdapter {
       return null;
     }
 
-    return extractNarrationSummary(prevResponse['content'] as string);
+    const raw = extractNarrationSummary(prevResponse['content'] as string);
+    if (!raw) {
+      return null;
+    }
+    return {
+      elapsed_time: (raw['elapsed_time'] as string) || 'PT0S',
+      flags: (raw['flags'] as Record<string, number>) || {},
+      tags: (raw['tags'] as Record<string, string>) || {},
+      meters: (raw['meters'] as Record<string, number>) || {}
+    };
   }
 }
 

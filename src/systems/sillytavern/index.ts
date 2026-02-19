@@ -6,7 +6,8 @@
  * State can be persisted via the extension data mechanism.
  */
 
-import { SystemAdapter, OutputPrompt } from '../../types';
+import { SystemAdapter, OutputPrompt, ScenarioUpdate } from '../../types';
+import { extractNarrationSummary } from '../../utils/llm-utils';
 
 class SillyTavernAdapter implements SystemAdapter {
   readonly name: string = 'SillyTavern';
@@ -42,6 +43,36 @@ class SillyTavernAdapter implements SystemAdapter {
     const extensionData = (context['extensionData'] || {}) as Record<string, unknown>;
     extensionData['gameState'] = state;
     context['extensionData'] = extensionData;
+  }
+
+  /**
+   * Extract the [NARRATION_SUMMARY] JSON from the last AI message in the
+   * SillyTavern chat array and return it as a `ScenarioUpdate`.
+   * SillyTavern chat messages use `is_user` ('true'/'false') and `mes` fields.
+   * Returns null if no valid block is found.
+   */
+  getScenarioUpdate(context: Record<string, unknown>): ScenarioUpdate | null {
+    const chat = context['chat'] as Array<Record<string, string>> | undefined;
+    if (!chat || chat.length === 0) {
+      return null;
+    }
+
+    for (let i = chat.length - 1; i >= 0; i--) {
+      // SillyTavern represents the is_user field as the string 'true'/'false'.
+      if (chat[i]['is_user'] !== 'true') {
+        const raw = extractNarrationSummary(chat[i]['mes'] || null);
+        if (!raw) {
+          continue;
+        }
+        return {
+          elapsed_time: (raw['elapsed_time'] as string) || 'PT0S',
+          flags: (raw['flags'] as Record<string, number>) || {},
+          tags: (raw['tags'] as Record<string, string>) || {},
+          meters: (raw['meters'] as Record<string, number>) || {}
+        };
+      }
+    }
+    return null;
   }
 }
 
