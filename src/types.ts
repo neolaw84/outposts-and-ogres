@@ -259,6 +259,5 @@ export {
   AvailableChoicesEvent,
   NarrativeCueEvent,
   TurnEvent,
-  ScenarioUpdate,
   SystemAdapter
 };

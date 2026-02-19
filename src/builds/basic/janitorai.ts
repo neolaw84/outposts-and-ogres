@@ -51,5 +51,34 @@ export {
   generateEffectInstruction,
   findEffectByKey
 } from '../../utils/llm-utils';
-export { extractMatch } from '../../utils/text-utils';
-export { JanitorAIAdapter } from '../../systems/janitorai/index';
+import { extractMatch } from '../../utils/text-utils';
+import { JanitorAIAdapter } from '../../systems/janitorai/index';
+
+export { extractMatch, JanitorAIAdapter };
+
+// ------------------------------------------------------------------
+// DRIVER SCRIPT
+// ------------------------------------------------------------------
+
+declare const context: Record<string, unknown>;
+
+// Only execute if we are in the JanitorAI environment (context is present)
+if (typeof context !== 'undefined') {
+  const adapter = new JanitorAIAdapter();
+  // rpgSystem is already instantiated above
+  const script = rpgSystem.createGamePlayScript();
+
+  // 1. INPUT
+  const playerMsg = adapter.getPlayerMessage(context);
+
+  if (playerMsg) {
+    // 2. PROCESS & 3. OUTPUT
+    // processTurn handles: input -> processing (dice) -> output (prompt generation)
+    const prompt = script.processTurn(playerMsg);
+
+    // 4. INJECT
+    if (prompt) {
+      adapter.applyPrompt(context, prompt);
+    }
+  }
+}

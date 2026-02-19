@@ -38,8 +38,7 @@ import { decodeState, buildRpStateBlock, extractNarrationSummary } from '../../u
 
 /** Content of the last LLM response message. */
 interface ChatMessage {
-  content?: string;
-  [key: string]: unknown;
+  message?: string;
 }
 
 class JanitorAIAdapter implements SystemAdapter {
@@ -65,8 +64,8 @@ class JanitorAIAdapter implements SystemAdapter {
     const messages = chat['last_messages'] as Array<ChatMessage> | undefined;
     if (messages && messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
-      if (lastMsg && lastMsg['content']) {
-        return lastMsg['content'] as string;
+      if (lastMsg && lastMsg['message']) {
+        return lastMsg['message'] as string;
       }
     }
 
@@ -115,11 +114,11 @@ class JanitorAIAdapter implements SystemAdapter {
     }
 
     const prevResponse = messages[messages.length - 2];
-    if (!prevResponse || !prevResponse['content']) {
+    if (!prevResponse || !prevResponse['message']) {
       return {};
     }
 
-    const decoded = decodeState(prevResponse['content'] as string);
+    const decoded = decodeState(prevResponse['message'] as string);
     return decoded || {};
   }
 
@@ -169,11 +168,11 @@ class JanitorAIAdapter implements SystemAdapter {
     }
 
     const prevResponse = messages[messages.length - 2];
-    if (!prevResponse || !prevResponse['content']) {
+    if (!prevResponse || !prevResponse['message']) {
       return null;
     }
 
-    const raw = extractNarrationSummary(prevResponse['content'] as string);
+    const raw = extractNarrationSummary(prevResponse['message'] as string);
     if (!raw) {
       return null;
     }
