@@ -10,7 +10,6 @@
  */
 
 import {
-  Message,
   ParsedAction,
   ActionResult,
   GameCartridge,
@@ -25,7 +24,6 @@ import { PromptMapper } from '../prompt-mappers';
 class GamePlayScript {
   private cartridge: GameCartridge;
   private currentCondition: string;
-  private messages: Message[];
   private promptMapper: PromptMapper;
 
   constructor(cartridge: GameCartridge, promptMapper: PromptMapper) {
@@ -34,7 +32,6 @@ class GamePlayScript {
     this.currentCondition = cartridge.stopConditions.length > 0
       ? cartridge.stopConditions[0]
       : 'default';
-    this.messages = [];
     this.promptMapper = promptMapper;
   }
 
@@ -59,16 +56,6 @@ class GamePlayScript {
   /** Set the current condition / scenario. */
   public setCondition(condition: string): void {
     this.currentCondition = condition;
-  }
-
-  /** Get all messages exchanged so far. */
-  public getMessages(): Message[] {
-    return this.messages;
-  }
-
-  /** Add a message to the history. */
-  public addMessage(message: Message): void {
-    this.messages.push(message);
   }
 
   // ----------------------------------------------------------------
@@ -224,9 +211,6 @@ class GamePlayScript {
    * @returns An OutputPrompt to send to the AI, or null if no action was found.
    */
   public processTurn(playerMessage: string): OutputPrompt | null {
-    // Record the player's message
-    this.addMessage({ role: 'player', content: playerMessage });
-
     // Phase 1 – Input
     const parsed = this.extractAction(playerMessage);
     if (!parsed) {

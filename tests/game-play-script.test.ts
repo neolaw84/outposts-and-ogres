@@ -35,15 +35,6 @@ describe('GamePlayScript', () => {
     expect(script.getCondition()).toBe('puzzle');
   });
 
-  test('should track messages', () => {
-    const script = createScript();
-    script.addMessage({ role: 'ai', content: 'Welcome adventurer.' });
-    script.addMessage({ role: 'player', content: '<attack>' });
-    expect(script.getMessages().length).toBe(2);
-    expect(script.getMessages()[0].role).toBe('ai');
-    expect(script.getMessages()[1].role).toBe('player');
-  });
-
   test('extractAction should find a bracketed action in combat', () => {
     const script = createScript();
     const parsed = script.extractAction('<attack goblin>');
@@ -110,15 +101,12 @@ describe('GamePlayScript', () => {
     expect(output).not.toBeNull();
     expect(output!.text).toContain('attack');
     expect(output!.text).toContain('goblin');
-    expect(script.getMessages().length).toBe(1);
-    expect(script.getMessages()[0].role).toBe('player');
   });
 
   test('processTurn should return null for unrecognised input', () => {
     const script = createScript();
     const output = script.processTurn('I look around confused');
     expect(output).toBeNull();
-    expect(script.getMessages().length).toBe(1);
   });
 
   test('processTurn should work in exploration condition', () => {
