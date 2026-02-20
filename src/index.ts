@@ -40,8 +40,6 @@ export { basicFantasyCartridge } from './cartridges/basic-fantasy';
 export {
   Message,
   ParsedAction,
-  DiceRollResult,
-  ActionResult,
   CartridgeRule,
   GameCartridge,
   OutputPrompt,
@@ -50,7 +48,7 @@ export {
   Impact,
   SideEffect,
   AspectFunctionResult,
-  CharacterSheet,
+  GameState,
   StoredSideEffect,
   StoredImpact,
   EffectDefinition,
@@ -78,7 +76,7 @@ export {
 export { JanitorAIAdapter } from './systems/janitorai/index';
 export { SillyTavernAdapter } from './systems/sillytavern/index';
 export { AIDungeonAdapter } from './systems/aidungeon/index';
-export { applySideEffect, revertSideEffect } from './core/character-sheet';
+export { applySideEffect, revertSideEffect } from './core/game-state';
 export {
   parseDuration,
   addDuration,

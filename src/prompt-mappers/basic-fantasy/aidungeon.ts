@@ -14,9 +14,8 @@ function getEvent<T extends TurnEvent['type']>(
 
 function mapBasicFantasyAIDungeon(events: TurnEvent[]): PromptChannels {
   const inputEvent = getEvent(events, 'player_input');
-  const diceEvent = getEvent(events, 'dice_resolution');
+  const actionEvent = getEvent(events, 'action_resolution');
   const choicesEvent = getEvent(events, 'available_choices');
-  const cueEvent = getEvent(events, 'narrative_cue');
 
   const emotions = inputEvent && inputEvent.emotions.length > 0
     ? inputEvent.emotions.map(function (signal) { return signal.emotion; }).join(', ')
@@ -24,13 +23,12 @@ function mapBasicFantasyAIDungeon(events: TurnEvent[]): PromptChannels {
 
   const choices = choicesEvent ? choicesEvent.choices.join(', ') : 'none';
 
-  const shortTerm = diceEvent
-    ? 'Immediate render: The player attempts ' + diceEvent.action +
-      (diceEvent.target ? ' targeting ' + diceEvent.target : '') +
-      '. Roll total ' + diceEvent.rollTotal +
-      ' vs difficulty ' + diceEvent.difficulty +
-      '. Outcome: ' + (diceEvent.success ? 'success' : 'failure') + '. ' +
-      (cueEvent ? cueEvent.cue : '')
+  const shortTerm = actionEvent
+    ? 'Immediate render: The player attempts ' + actionEvent.action +
+    (actionEvent.target ? ' targeting ' + actionEvent.target : '') +
+    '. Logs: ' + (actionEvent.mechanicsLogs && actionEvent.mechanicsLogs.length > 0 ? actionEvent.mechanicsLogs.join(' | ') : 'none') +
+    '. Outcome: ' + actionEvent.status + '. ' +
+    (actionEvent.narrationGuidance && actionEvent.narrationGuidance.length > 0 ? actionEvent.narrationGuidance.join(' ') : '')
     : 'Immediate render: narrate the attempted action and consequence.';
 
   const midTerm =

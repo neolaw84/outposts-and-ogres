@@ -2,7 +2,7 @@ import { Character } from '../../character';
 import { GamePlayScript } from '../../systems/game-play-script';
 import { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 import { mapBasicFantasyJanitorAI } from '../../prompt-mappers/basic-fantasy/janitorai';
-import { CharacterSheet } from '../../types';
+import { GameState } from '../../types';
 import { getDow, formatDate12Hr } from '../../utils/time-utils';
 
 class OutpostsAndOgres {
@@ -40,7 +40,7 @@ export {
   GameCartridge,
   OutputPrompt,
   SystemAdapter,
-  CharacterSheet,
+  GameState,
   SideEffect,
   Impact,
   EffectDefinition,
@@ -62,7 +62,7 @@ export {
 } from '../../utils/llm-utils';
 import { extractMatch } from '../../utils/text-utils';
 import { JanitorAIAdapter } from '../../systems/janitorai/index';
-export { applySideEffect, revertSideEffect } from '../../core/character-sheet';
+export { applySideEffect, revertSideEffect } from '../../core/game-state';
 export {
   parseDuration,
   addDuration,
@@ -92,15 +92,15 @@ if (typeof context !== 'undefined') {
 
   // 1. DECODE – Extract state and narration summary from chat history
   const loadedState = adapter.loadState();
-  let rpState: CharacterSheet | null = (loadedState && (loadedState as Record<string, unknown>)['cur_ts'])
-    ? loadedState as unknown as CharacterSheet
+  let rpState: GameState | null = (loadedState && (loadedState as Record<string, unknown>)['cur_ts'])
+    ? loadedState as unknown as GameState
     : null;
   const scenarioUpdate = adapter.getScenarioUpdate();
 
   const dataCorrupted = !rpState || !rpState.cur_ts;
 
   if (!rpState || !rpState.cur_ts) {
-    rpState = JSON.parse(JSON.stringify(cartridge.defaultCharacterSheet)) as CharacterSheet;
+    rpState = JSON.parse(JSON.stringify(cartridge.defaultGameState)) as GameState;
   }
 
   // Build a narration summary in the format expected by processEffects
@@ -118,14 +118,33 @@ if (typeof context !== 'undefined') {
     };
   }
 
-  // 2. PROCESS – Apply time, revert expired effects, process aspect functions
-  const processed = script.processEffects(rpState, naSum);
+  // 2. INPUT & ACTIONS - Resolve player intent and action dice rolls first
+  const playerMsg = adapter.getPlayerMessage();
+  let actionPrompt: import('../../types').OutputPrompt | null = null;
+  let actionResult: import('../../types').ActionResult | null = null;
+
+  if (!dataCorrupted && playerMsg) {
+    let preParsedAction: import('../../types').ParsedAction | null = null;
+    if (adapter.deducePlayerIntent) {
+      const actions = cartridge.availableActions[script.getCondition()] || [];
+      const deduced = adapter.deducePlayerIntent(playerMsg, actions);
+      if (!(deduced instanceof Promise)) {
+        preParsedAction = deduced;
+      }
+    }
+    const turnResult = script.processTurn(playerMsg, rpState, preParsedAction);
+    actionPrompt = turnResult.prompt;
+    rpState = turnResult.newState;
+    actionResult = turnResult.actionResult;
+  }
+
+  // 3. PROCESS EFFECTS - Apply time, revert expired effects, process aspect functions
+  // Crucially, this now receives the actionResult so aspect functions can react (e.g. reducing damage on successful defend)
+  const processed = script.processEffects(rpState, naSum, actionResult);
   rpState = processed.sheet;
   const effectNarrationGuide = processed.narrationGuide;
 
-  // 3. INPUT/OUTPUT – Standard action processing
-  const playerMsg = adapter.getPlayerMessage();
-
+  // 4. ENCODE & INJECT
   if (dataCorrupted) {
     // Handle data corruption
     const character = (context['character'] || {}) as Record<string, unknown>;
@@ -140,23 +159,17 @@ if (typeof context !== 'undefined') {
       const msgs = chat['last_messages'] as Array<Record<string, unknown>> | undefined;
       if (msgs && msgs.length >= 3) {
         const msgToRetry = (msgs[msgs.length - 3]['message'] || '') as string;
-        corruptionInfo += '\n\nHelp the user identify where to retry by quoting this message to delete and retry from:\n"' +
+        corruptionInfo += '\\n\\nHelp the user identify where to retry by quoting this message to delete and retry from:\\n"' +
           msgToRetry.substring(0, 200) + '..."';
       }
     }
     character['scenario'] = corruptionInfo;
     context['character'] = character;
   } else {
-    // Process player action if available
-    let actionPrompt: import('../../types').OutputPrompt | null = null;
-    if (playerMsg) {
-      actionPrompt = script.processTurn(playerMsg);
-    }
-
-    // 4. ENCODE – Save state
+    // Save state
     adapter.saveState(rpState as unknown as Record<string, unknown>);
 
-    // 5. INJECT – Apply prompt with effect narration guide + action prompt
+    // Apply prompt with effect narration guide + action prompt
     if (actionPrompt) {
       adapter.applyPrompt(actionPrompt);
     }

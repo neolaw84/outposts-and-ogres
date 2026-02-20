@@ -6,7 +6,7 @@
  * - revertSideEffect: Checks expired effects against current time and reverts them.
  */
 
-import { CharacterSheet, SideEffect, StoredSideEffect, StoredImpact } from '../types';
+import { GameState, SideEffect, StoredSideEffect, StoredImpact } from '../types';
 import { isPast } from '../utils/time-utils';
 
 /**
@@ -21,8 +21,8 @@ import { isPast } from '../utils/time-utils';
  * If the side effect has an expiry, it is stored in the se[] array
  * with original values for later reversion.
  */
-function applySideEffect(sheet: CharacterSheet, sideEffects: SideEffect | SideEffect[] | null): CharacterSheet {
-  const newSheet: CharacterSheet = JSON.parse(JSON.stringify(sheet));
+function applySideEffect(sheet: GameState, sideEffects: SideEffect | SideEffect[] | null): GameState {
+  const newSheet: GameState = JSON.parse(JSON.stringify(sheet));
 
   if (!sideEffects) return newSheet;
 
@@ -95,8 +95,8 @@ function applySideEffect(sheet: CharacterSheet, sideEffects: SideEffect | SideEf
  *     - "sub": add the val back
  *   - Remove the effect from se[].
  */
-function revertSideEffect(sheet: CharacterSheet): CharacterSheet {
-  const newSheet: CharacterSheet = JSON.parse(JSON.stringify(sheet));
+function revertSideEffect(sheet: GameState): GameState {
+  const newSheet: GameState = JSON.parse(JSON.stringify(sheet));
   const currentTime = newSheet.cur_ts;
 
   if (!newSheet.se) return newSheet;

@@ -10,13 +10,12 @@ function buildGenericPrompt(events: TurnEvent[]): PromptChannels {
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
-    if (event.type === 'dice_resolution') {
+    if (event.type === 'action_resolution') {
       action = event.action;
-      target = event.target;
+      target = event.target || '';
       rollSummary =
-        ' Roll total ' + event.rollTotal +
-        ' vs difficulty ' + event.difficulty +
-        ' (' + (event.success ? 'success' : 'failure') + ').';
+        ' Logs: ' + (event.mechanicsLogs && event.mechanicsLogs.length > 0 ? event.mechanicsLogs.join(' | ') : 'none') +
+        ' Status: ' + event.status + '.';
     }
     if (event.type === 'available_choices') {
       choices = event.choices.join(', ');

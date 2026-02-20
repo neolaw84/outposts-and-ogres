@@ -189,6 +189,10 @@ class JanitorAIAdapter implements SystemAdapter {
       effects: (raw['effects'] as Array<Record<string, unknown>>) || []
     };
   }
+
+  deducePlayerIntent(rawMessage: string, availableActions: string[]): import('../../types').ParsedAction | null {
+    return null; // To be implemented later
+  }
 }
 
 export { JanitorAIAdapter };

@@ -14,9 +14,8 @@ function getEvent<T extends TurnEvent['type']>(
 
 function mapBasicFantasySillyTavern(events: TurnEvent[]): PromptChannels {
   const inputEvent = getEvent(events, 'player_input');
-  const diceEvent = getEvent(events, 'dice_resolution');
+  const actionEvent = getEvent(events, 'action_resolution');
   const choicesEvent = getEvent(events, 'available_choices');
-  const cueEvent = getEvent(events, 'narrative_cue');
 
   const longHorizon =
     'Scene continuity: preserve consistent world logic, prior consequences, and condition transitions. ' +
@@ -25,14 +24,13 @@ function mapBasicFantasySillyTavern(events: TurnEvent[]): PromptChannels {
   const midTerm =
     'Narration plan: describe action outcome, NPC response, and transition to the next decision point for the player.';
 
-  const shortTerm = diceEvent
-    ? 'Action=' + diceEvent.action +
-      (diceEvent.target ? ' target=' + diceEvent.target : '') +
-      '; Roll=' + diceEvent.rollTotal +
-      '; Difficulty=' + diceEvent.difficulty +
-      '; Success=' + (diceEvent.success ? 'yes' : 'no') +
-      '; Cue=' + (cueEvent ? cueEvent.cue : 'none') +
-      '; Choices=' + (choicesEvent ? choicesEvent.choices.join(', ') : 'none') + '.'
+  const shortTerm = actionEvent
+    ? 'Action=' + actionEvent.action +
+    (actionEvent.target ? ' target=' + actionEvent.target : '') +
+    '; Logs=' + (actionEvent.mechanicsLogs && actionEvent.mechanicsLogs.length > 0 ? actionEvent.mechanicsLogs.join(' | ') : 'none') +
+    '; Status=' + actionEvent.status +
+    '; Cue=' + (actionEvent.narrationGuidance && actionEvent.narrationGuidance.length > 0 ? actionEvent.narrationGuidance.join(' | ') : 'none') +
+    '; Choices=' + (choicesEvent ? choicesEvent.choices.join(', ') : 'none') + '.'
     : 'Resolve the immediate turn and present clear follow-up choices.';
 
   return {

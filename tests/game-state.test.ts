@@ -1,7 +1,7 @@
-import { applySideEffect, revertSideEffect } from '../src/core/character-sheet';
-import { CharacterSheet, SideEffect } from '../src/types';
+import { applySideEffect, revertSideEffect } from '../src/core/game-state';
+import { GameState, SideEffect } from '../src/types';
 
-function makeSheet(overrides?: Partial<CharacterSheet>): CharacterSheet {
+function makeSheet(overrides?: Partial<GameState>): GameState {
   return {
     cur_ts: '1000-01-01T08:00:00',
     stats: {

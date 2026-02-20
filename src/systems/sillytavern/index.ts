@@ -80,6 +80,10 @@ class SillyTavernAdapter implements SystemAdapter {
     }
     return null;
   }
+
+  deducePlayerIntent(rawMessage: string, availableActions: string[]): import('../../types').ParsedAction | null {
+    return null; // To be implemented later via SillyTavern hidden prompt injection
+  }
 }
 
 export { SillyTavernAdapter };

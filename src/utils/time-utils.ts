@@ -37,29 +37,60 @@ function parseDuration(durationStr: string): number {
 
 /**
  * Add an ISO 8601 duration (string or ms) to a date string.
+ * Uses strict arithmetic to avoid JavaScript Date timezone shifting bugs on old dates.
  * Returns a date string in "yyyy-MM-ddTHH:mm:ss" format.
  */
 function addDuration(dateStr: string, duration: string | number): string {
-  const date = new Date(dateStr);
-  let msToAdd = 0;
-
+  let msToAdd: number;
   if (typeof duration === 'string') {
     msToAdd = parseDuration(duration);
   } else {
     msToAdd = duration;
   }
 
-  const newTime = date.getTime() + msToAdd;
-  return new Date(newTime).toISOString().split('.')[0];
+  // Parse YYYY-MM-DDTHH:mm:ss manually
+  const parts = dateStr.split('T');
+  if (parts.length !== 2) return dateStr;
+
+  const dateParts = parts[0].split('-');
+  const timeParts = parts[1].split(':');
+
+  if (dateParts.length !== 3 || timeParts.length !== 3) return dateStr;
+
+  let y = parseInt(dateParts[0], 10);
+  let m = parseInt(dateParts[1], 10) - 1; // 0-indexed month
+  let d = parseInt(dateParts[2], 10);
+  let h = parseInt(timeParts[0], 10);
+  let min = parseInt(timeParts[1], 10);
+  let s = parseInt(timeParts[2], 10);
+
+  // UTC Date constructor avoids local time zone shifts across centuries
+  const date = new Date(Date.UTC(y, m, d, h, min, s));
+  // JavaScript has a quirk where year 0-99 is mapped to 1900-1999
+  if (y < 100) {
+    date.setUTCFullYear(y);
+  }
+
+  date.setTime(date.getTime() + msToAdd);
+
+  y = date.getUTCFullYear();
+  m = date.getUTCMonth() + 1;
+  d = date.getUTCDate();
+  h = date.getUTCHours();
+  min = date.getUTCMinutes();
+  s = date.getUTCSeconds();
+
+  const pad = (num: number) => num.toString().padStart(2, '0');
+  const padYear = (num: number) => num.toString().padStart(4, '0');
+
+  return `${padYear(y)}-${pad(m)}-${pad(d)}T${pad(h)}:${pad(min)}:${pad(s)}`;
 }
 
 /**
  * Check if a date is in the past relative to a reference date.
  */
 function isPast(dateStr: string, referenceDateStr: string): boolean {
-  const date = new Date(dateStr);
-  const refDate = new Date(referenceDateStr);
-  return date < refDate;
+  return dateStr < referenceDateStr; // ISO strings sort naturally
 }
 
 /**
@@ -139,8 +170,8 @@ function clampTime(minTime: string | null, maxTime: string | null, inputTime: st
  * Count the number of midnights that have passed between two timestamps.
  */
 function getMidnightsPassed(oldTime: string, newTime: string): number {
-  const oldMs = Date.parse(oldTime);
-  const newMs = Date.parse(newTime);
+  const oldMs = Date.parse(oldTime + 'Z');
+  const newMs = Date.parse(newTime + 'Z');
   const oldDays = Math.floor(oldMs / 86400000);
   const newDays = Math.floor(newMs / 86400000);
   return newDays - oldDays;

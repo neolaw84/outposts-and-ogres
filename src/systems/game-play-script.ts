@@ -13,17 +13,17 @@
 import {
   Message,
   ParsedAction,
-  ActionResult,
   GameCartridge,
   CartridgeRule,
   OutputPrompt,
   TurnEvent,
-  CharacterSheet
+  GameState,
+  AspectFunctionResult,
+  ActionResolutionEvent
 } from '../types';
-import { rollDice, sumRolls } from '../utils/dice';
 import { understandPlayerInput } from '../inputs/player-input-understanding';
 import { PromptMapper } from '../prompt-mappers';
-import { applySideEffect, revertSideEffect } from '../core/character-sheet';
+import { applySideEffect, revertSideEffect } from '../core/game-state';
 import { addDuration, getMidnightsPassed } from '../utils/time-utils';
 import { cleanInput, findEffectByKey } from '../utils/llm-utils';
 
@@ -112,50 +112,23 @@ class GamePlayScript {
     return null;
   }
 
-  /**
-   * Resolve the player's action: roll dice and determine success or failure.
-   */
-  public resolveAction(parsedAction: ParsedAction): ActionResult {
-    const rule = this.findRule(parsedAction.action);
-    if (!rule) {
-      const rolls = rollDice(1, 20);
-      const total = sumRolls(rolls);
-      return {
-        success: total >= 10,
-        action: parsedAction,
-        rolls: rolls,
-        difficulty: 10,
-        rollTotal: total
-      };
-    }
-
-    const rolls = rollDice(rule.diceCount, rule.diceSides);
-    const total = sumRolls(rolls);
-    return {
-      success: total >= rule.difficulty,
-      action: parsedAction,
-      rolls: rolls,
-      difficulty: rule.difficulty,
-      rollTotal: total
-    };
-  }
 
   /**
    * Process effects from a narration summary against the character sheet.
    * Iterates through effectDefinitions in order, calls each aspect function,
    * collects narration guides and applies side effects.
    *
-   * @param sheet - The current character sheet state.
+   * @param sheet - The current state.
    * @param naSum - The parsed narration summary from the LLM.
-   * @returns Updated character sheet and accumulated narration guide.
+   * @returns Updated game state and accumulated narration guide.
    */
   public processEffects(
-    sheet: CharacterSheet,
+    sheet: GameState,
     naSum: Record<string, unknown>
-  ): { sheet: CharacterSheet; narrationGuide: string } {
+  ): { sheet: GameState; narrationGuide: string } {
     const typeChecks = cleanInput(naSum);
     // Deep-clone the input so we never mutate the caller's sheet.
-    let currentSheet: CharacterSheet = JSON.parse(JSON.stringify(sheet));
+    let currentSheet: GameState = JSON.parse(JSON.stringify(sheet));
     let finalNarrationGuide = '';
 
     // Update time
@@ -163,7 +136,7 @@ class GamePlayScript {
     if (typeChecks['elapsed_time']) {
       durationToAdd = naSum['elapsed_time'] as string;
     } else if (naSum['elapsed_time'] && typeof naSum['elapsed_time'] === 'string' &&
-               (naSum['elapsed_time'] as string).indexOf('P') === 0) {
+      (naSum['elapsed_time'] as string).indexOf('P') === 0) {
       durationToAdd = naSum['elapsed_time'] as string;
     }
 
@@ -186,14 +159,21 @@ class GamePlayScript {
       const foundTypeCheck = found.typeCheck;
 
       if (this.cartridge.aspectFunctions && this.cartridge.aspectFunctions[key]) {
-        const result = this.cartridge.aspectFunctions[key](currentSheet, foundEffect, foundTypeCheck);
+        const result = this.cartridge.aspectFunctions[key](currentSheet, {
+          type: 'world_event',
+          effectKey: key,
+          effectData: foundEffect,
+          typeCheck: foundTypeCheck
+        });
 
         if (result) {
-          if (result.narrationGuide) {
-            finalNarrationGuide += result.narrationGuide + '\n';
+          if (result.outcome && result.outcome.narrationGuidance) {
+            finalNarrationGuide += result.outcome.narrationGuidance.join('\n') + '\n';
           }
-          if (result.sideEffect) {
-            currentSheet = applySideEffect(currentSheet, result.sideEffect);
+          if (result.stateMutations && result.stateMutations.length > 0) {
+            for (let j = 0; j < result.stateMutations.length; j++) {
+              currentSheet = applySideEffect(currentSheet, result.stateMutations[j]);
+            }
           }
         }
       }
@@ -217,19 +197,8 @@ class GamePlayScript {
   public buildTurnEvents(
     playerMessage: string,
     parsedAction: ParsedAction,
-    result: ActionResult
+    aspectResult: AspectFunctionResult
   ): TurnEvent[] {
-    const rule = this.findRule(result.action.action);
-    let outcomeFragment = '';
-
-    if (rule) {
-      outcomeFragment = result.success ? rule.successPrompt : rule.failurePrompt;
-    }
-
-    if (!outcomeFragment) {
-      outcomeFragment = result.success ? 'The action succeeds.' : 'The action fails.';
-    }
-
     const actions = this.cartridge.availableActions[this.currentCondition] || [];
     const understanding = understandPlayerInput(
       playerMessage,
@@ -249,18 +218,12 @@ class GamePlayScript {
         scenarioUnderstanding: understanding.scenario
       },
       {
-        type: 'dice_resolution',
-        action: result.action.action,
-        target: result.action.target,
-        success: result.success,
-        rolls: result.rolls,
-        rollTotal: result.rollTotal,
-        difficulty: result.difficulty
-      },
-      {
-        type: 'narrative_cue',
-        success: result.success,
-        cue: outcomeFragment
+        type: 'action_resolution',
+        action: parsedAction.action,
+        target: parsedAction.target,
+        status: aspectResult.outcome.status,
+        mechanicsLogs: aspectResult.outcome.mechanicsLogs,
+        narrationGuidance: aspectResult.outcome.narrationGuidance
       },
       {
         type: 'available_choices',
@@ -270,13 +233,12 @@ class GamePlayScript {
     ];
   }
 
-  public buildPrompt(result: ActionResult, events: TurnEvent[]): OutputPrompt {
+  public buildPrompt(events: TurnEvent[]): OutputPrompt {
     const channels = this.promptMapper(events);
     return {
       text: channels.combined,
       channels: channels,
-      events: events,
-      result: result
+      events: events
     };
   }
 
@@ -288,24 +250,60 @@ class GamePlayScript {
    * Run the complete 3-phase turn for a player message.
    *
    * @param playerMessage The player's raw free-text input.
-   * @returns An OutputPrompt to send to the AI, or null if no action was found.
+   * @param currentState The current game state.
+   * @param preParsedAction Optional parsed action provided by a system adapter.
+   * @returns An OutputPrompt to send to the AI and the new game state.
    */
-  public processTurn(playerMessage: string): OutputPrompt | null {
+  public processTurn(
+    playerMessage: string,
+    currentState: GameState,
+    preParsedAction?: ParsedAction | null
+  ): { prompt: OutputPrompt | null; newState: GameState; aspectResult: AspectFunctionResult | null } {
     // Record the player's message
     this.addMessage({ role: 'player', content: playerMessage });
 
     // Phase 1 – Input
-    const parsed = this.extractAction(playerMessage);
+    const parsed = preParsedAction || this.extractAction(playerMessage);
     if (!parsed) {
-      return null;
+      return { prompt: null, newState: currentState, aspectResult: null };
     }
 
-    // Phase 2 – Process
-    const result = this.resolveAction(parsed);
+    // Phase 2 – Process Action via unified AspectFunction
+    let newState = JSON.parse(JSON.stringify(currentState));
+    const rule = this.findRule(parsed.action);
+    let aspectResult: AspectFunctionResult;
+
+    if (rule && rule.aspectFunction) {
+      aspectResult = rule.aspectFunction(newState, {
+        type: 'player_action',
+        action: parsed
+      });
+
+      if (aspectResult.stateMutations && aspectResult.stateMutations.length > 0) {
+        for (let i = 0; i < aspectResult.stateMutations.length; i++) {
+          newState = applySideEffect(newState, aspectResult.stateMutations[i]);
+        }
+      }
+    } else {
+      // Fallback for missing rules / unhandled actions
+      aspectResult = {
+        outcome: {
+          status: 'neutral',
+          mechanicsLogs: ['Action was not recognised by any specific rule.'],
+          narrationGuidance: ['Narrate the attempt to ' + parsed.action + ' vaguely.']
+        },
+        stateMutations: []
+      };
+    }
 
     // Phase 3 – Output
-    const events = this.buildTurnEvents(playerMessage, parsed, result);
-    return this.buildPrompt(result, events);
+    const events = this.buildTurnEvents(playerMessage, parsed, aspectResult);
+
+    return {
+      prompt: this.buildPrompt(events),
+      newState: newState,
+      aspectResult: aspectResult
+    };
   }
 }
 

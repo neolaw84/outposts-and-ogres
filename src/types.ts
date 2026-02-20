@@ -26,26 +26,21 @@ interface ParsedAction {
   raw: string;
 }
 
-/** Outcome of a single dice roll. */
-interface DiceRollResult {
-  /** Number of sides on the die. */
-  sides: number;
-  /** The value that was rolled. */
-  value: number;
+/**
+ * Represents the context in which an AspectFunction is triggered.
+ */
+export type AspectContext = PlayerActionContext | WorldEventContext;
+
+export interface PlayerActionContext {
+  type: 'player_action';
+  action: ParsedAction;
 }
 
-/** Result produced by the process phase. */
-interface ActionResult {
-  /** Whether the player's action succeeded. */
-  success: boolean;
-  /** The parsed action that was attempted. */
-  action: ParsedAction;
-  /** Dice rolls that were made. */
-  rolls: DiceRollResult[];
-  /** Difficulty threshold that had to be met. */
-  difficulty: number;
-  /** Sum of all dice rolls. */
-  rollTotal: number;
+export interface WorldEventContext {
+  type: 'world_event';
+  effectKey: string;
+  effectData: Record<string, unknown> | null;
+  typeCheck: Record<string, unknown> | null;
 }
 
 /**
@@ -57,16 +52,11 @@ interface CartridgeRule {
   condition: string;
   /** Action keyword this rule handles. */
   action: string;
-  /** Number of dice to roll. */
-  diceCount: number;
-  /** Number of sides per die. */
-  diceSides: number;
-  /** Minimum roll total needed for success. */
-  difficulty: number;
-  /** Prompt fragment sent to AI on success. */
-  successPrompt: string;
-  /** Prompt fragment sent to AI on failure. */
-  failurePrompt: string;
+  /**
+   * Turing-complete logic to execute when this rule is triggered.
+   * Handles mechanics, status outcomes, and side-effects.
+   */
+  aspectFunction: ActionAspectFunction;
 }
 
 /* GameCartridge is defined below together with effect-driven types. */
@@ -81,8 +71,6 @@ interface OutputPrompt {
   channels: PromptChannels;
   /** Structured turn events used to build platform prompts. */
   events: TurnEvent[];
-  /** The action result that informed the prompt. */
-  result: ActionResult;
 }
 
 /** Prompt fragments for systems that support separate memory channels. */
@@ -119,17 +107,6 @@ interface PlayerInputEvent {
   };
 }
 
-/** Dice resolution event emitted after process phase. */
-interface DiceResolutionEvent {
-  type: 'dice_resolution';
-  action: string;
-  target: string;
-  success: boolean;
-  rolls: DiceRollResult[];
-  rollTotal: number;
-  difficulty: number;
-}
-
 /** Event emitted to expose what the player can do next. */
 interface AvailableChoicesEvent {
   type: 'available_choices';
@@ -137,19 +114,24 @@ interface AvailableChoicesEvent {
   choices: string[];
 }
 
-/** Event emitted to provide cartridge-authored narration cue text. */
-interface NarrativeCueEvent {
-  type: 'narrative_cue';
-  success: boolean;
-  cue: string;
+/** 
+ * Event emitted after the unified resolution phase. 
+ * Replaces old DiceResolution and NarrativeCue events. 
+ */
+interface ActionResolutionEvent {
+  type: 'action_resolution';
+  action: string;
+  target?: string;
+  status: 'success' | 'failure' | 'mixed' | 'neutral';
+  mechanicsLogs: string[];
+  narrationGuidance: string[];
 }
 
 /** Union of all gameplay events used by prompt mappers. */
 type TurnEvent =
   | PlayerInputEvent
-  | DiceResolutionEvent
-  | AvailableChoicesEvent
-  | NarrativeCueEvent;
+  | ActionResolutionEvent
+  | AvailableChoicesEvent;
 
 /**
  * Structured scenario-update block returned by the LLM at the end of each
@@ -226,6 +208,16 @@ interface SystemAdapter {
    * Returns null if no valid block is found.
    */
   getScenarioUpdate(): ScenarioUpdate | null;
+
+  /**
+   * Attempts to deduce the player's structured intent from their raw chat message.
+   * Useful for platforms that allow hidden LLM prompts (like SillyTavern).
+   * Returns null if the platform does not support advanced intent deduction.
+   */
+  deducePlayerIntent?(
+    rawMessage: string,
+    availableActions: string[]
+  ): Promise<ParsedAction | null> | ParsedAction | null;
 }
 
 // ---- Effect-driven state management types ----
@@ -259,14 +251,23 @@ interface SideEffect {
 
 /** The result returned by an aspect function. */
 interface AspectFunctionResult {
-  /** Instructions for the LLM narration guide. */
-  narrationGuide: string;
-  /** Side effect(s) to apply to the character sheet, or null if no change. */
-  sideEffect: SideEffect | SideEffect[] | null;
+  outcome: {
+    /** High-level resolution state for the action. */
+    status: 'success' | 'failure' | 'mixed' | 'neutral';
+    /** Optional mechanical logs, e.g. "Rolled 15 vs 12" or "Consumed 5 mana". */
+    mechanicsLogs: string[];
+    /** Direct instructions for the LLM on how to narrate this specific outcome. */
+    narrationGuidance: string[];
+  };
+  /** Side effect(s) to apply to the game state. */
+  stateMutations: SideEffect[];
 }
 
-/** The character sheet state persisted across turns. */
-interface CharacterSheet {
+/** Action aspect function signature. */
+type ActionAspectFunction = (state: GameState, context: AspectContext) => AspectFunctionResult;
+
+/** The game state persisted across turns. */
+interface GameState {
   /** Current in-game timestamp in ISO format. */
   cur_ts: string;
   /** All tracked stat values (hp, gold, strength, custom flags, etc.). */
@@ -277,7 +278,7 @@ interface CharacterSheet {
   flags: string[];
 }
 
-/** A stored side effect entry in the character sheet's se[] array. */
+/** A stored side effect entry in the game state's se[] array. */
 interface StoredSideEffect {
   /** Description of the effect. */
   desc: string;
@@ -322,19 +323,16 @@ interface EffectDefinition {
 }
 
 /**
- * Signature for aspect functions.
- * Each aspect function processes one effect type and returns narration guidance
- * and optional side effects to apply to the character sheet.
+ * Signature for unified aspect functions.
+ * Handles both user input actions and world simulation events.
  *
- * @param sheet - The current character sheet state.
- * @param effect - The matching effect from the narration summary, or null if not reported.
- * @param typeCheck - Validation flags for the effect fields, or null.
+ * @param state - The current game state.
+ * @param context - Context explaining why this function is being called.
  * @returns The narration guide text and side effects to apply.
  */
 type AspectFunction = (
-  sheet: CharacterSheet,
-  effect: Record<string, unknown> | null,
-  typeCheck: Record<string, unknown> | null
+  state: GameState,
+  context: AspectContext
 ) => AspectFunctionResult;
 
 /**
@@ -358,7 +356,7 @@ interface GameCartridge {
   rules: CartridgeRule[];
 
   /** Default character sheet used when no prior state exists. */
-  defaultCharacterSheet: CharacterSheet;
+  defaultGameState: GameState;
   /** Definitions of effects the LLM can report in NARRATION_SUMMARY. */
   effectDefinitions: EffectDefinition[];
   /** Aspect functions keyed by effect definition key. Called in effectDefinitions order. */
@@ -370,23 +368,20 @@ interface GameCartridge {
 export {
   Message,
   ParsedAction,
-  DiceRollResult,
-  ActionResult,
   CartridgeRule,
   GameCartridge,
   OutputPrompt,
   PromptChannels,
   PlayerEmotionSignal,
   PlayerInputEvent,
-  DiceResolutionEvent,
+  ActionResolutionEvent,
   AvailableChoicesEvent,
-  NarrativeCueEvent,
   TurnEvent,
   SystemAdapter,
   Impact,
   SideEffect,
   AspectFunctionResult,
-  CharacterSheet,
+  GameState,
   StoredSideEffect,
   StoredImpact,
   EffectDefinition,

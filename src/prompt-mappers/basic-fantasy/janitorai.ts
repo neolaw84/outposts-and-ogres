@@ -21,8 +21,7 @@ function getEvent<T extends TurnEvent['type']>(
  * - Keep the narration aligned with the dice result.
  */
 function buildNarrationGuide(
-  diceEvent: Extract<TurnEvent, { type: 'dice_resolution' }> | null,
-  cueEvent: Extract<TurnEvent, { type: 'narrative_cue' }> | null,
+  actionEvent: Extract<TurnEvent, { type: 'action_resolution' }> | null,
   choicesEvent: Extract<TurnEvent, { type: 'available_choices' }> | null,
   effectNarrationGuide?: string,
   turnEndTriggers?: string[],
@@ -36,28 +35,30 @@ function buildNarrationGuide(
     lines.push('');
   }
 
-  if (diceEvent) {
+  if (actionEvent) {
     lines.push(
-      '{{user}} attempted to ' + diceEvent.action +
-      (diceEvent.target ? ' on ' + diceEvent.target : '') + '.'
-    );
-    lines.push(
-      'Dice result: ' + diceEvent.rollTotal + ' vs difficulty ' + diceEvent.difficulty +
-      ' => ' + (diceEvent.success ? 'SUCCESS' : 'FAILURE') + '.'
+      '{{user}} attempted to ' + actionEvent.action +
+      (actionEvent.target ? ' on ' + actionEvent.target : '') + '.'
     );
 
-    if (diceEvent.action === 'attack' || diceEvent.action === 'cast' ||
-        diceEvent.action === 'dodge' || diceEvent.action === 'defend' ||
-        diceEvent.action === 'flee') {
+    if (actionEvent.mechanicsLogs && actionEvent.mechanicsLogs.length > 0) {
+      lines.push('Mechanics logs: ' + actionEvent.mechanicsLogs.join(' '));
+    }
+
+    lines.push('Outcome status: ' + actionEvent.status.toUpperCase() + '.');
+
+    if (actionEvent.narrationGuidance && actionEvent.narrationGuidance.length > 0) {
+      lines.push('Narration guidance: ' + actionEvent.narrationGuidance.join(' '));
+    }
+
+    if (actionEvent.action === 'attack' || actionEvent.action === 'cast' ||
+      actionEvent.action === 'dodge' || actionEvent.action === 'defend' ||
+      actionEvent.action === 'flee') {
       lines.push(
         'DO NOT resolve the final outcome of this combat action for {{user}}. ' +
         'Narrate {{user}}\'s action and the NPC\'s reaction/counter-action.'
       );
     }
-  }
-
-  if (cueEvent) {
-    lines.push(cueEvent.cue);
   }
 
   if (effectNarrationGuide) {
@@ -95,7 +96,7 @@ function buildNarrationGuide(
  * Includes effect-based instructions from the cartridge.
  */
 function buildNarrationSummaryInstructions(
-  diceEvent: Extract<TurnEvent, { type: 'dice_resolution' }> | null,
+  actionEvent: Extract<TurnEvent, { type: 'action_resolution' }> | null,
   effectDefinitions?: EffectDefinition[]
 ): string {
   const lines: string[] = [];
@@ -133,7 +134,7 @@ function buildNarrationSummaryInstructions(
     }
   }
 
-  if (diceEvent) {
+  if (actionEvent) {
     lines.push('');
     lines.push('NPC action type instructions:');
     lines.push(
@@ -158,9 +159,8 @@ function buildNarrationSummaryInstructions(
 
 function mapBasicFantasyJanitorAI(events: TurnEvent[]): PromptChannels {
   const inputEvent = getEvent(events, 'player_input');
-  const diceEvent = getEvent(events, 'dice_resolution');
+  const actionEvent = getEvent(events, 'action_resolution');
   const choicesEvent = getEvent(events, 'available_choices');
-  const cueEvent = getEvent(events, 'narrative_cue');
 
   // Long-horizon: persistent guidance prepended to personality.
   const personalityText =
@@ -176,8 +176,8 @@ function mapBasicFantasyJanitorAI(events: TurnEvent[]): PromptChannels {
 
   // Short-term: [NARRATION_GUIDE] + NARRATION_SUMMARY instructions,
   // prepended/appended to scenario.
-  const narrationGuide = buildNarrationGuide(diceEvent, cueEvent, choicesEvent);
-  const summaryInstructions = buildNarrationSummaryInstructions(diceEvent);
+  const narrationGuide = buildNarrationGuide(actionEvent, choicesEvent);
+  const summaryInstructions = buildNarrationSummaryInstructions(actionEvent);
   const scenarioText = narrationGuide + '\n\n' + summaryInstructions;
 
   return {

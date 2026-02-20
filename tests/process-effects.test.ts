@@ -1,19 +1,19 @@
 import { GamePlayScript } from '../src/systems/game-play-script';
 import { basicFantasyCartridge } from '../src/cartridges/basic-fantasy';
 import { mapBasicFantasyJanitorAI } from '../src/prompt-mappers/basic-fantasy/janitorai';
-import { CharacterSheet } from '../src/types';
-import { applySideEffect } from '../src/core/character-sheet';
+import { GameState } from '../src/types';
+import { applySideEffect } from '../src/core/game-state';
 
 function createScript(): GamePlayScript {
   return new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
 }
 
-function makeSheet(overrides?: Partial<CharacterSheet>): CharacterSheet {
+function makeSheet(overrides?: Partial<GameState>): GameState {
   return JSON.parse(JSON.stringify({
-    ...basicFantasyCartridge.defaultCharacterSheet,
+    ...basicFantasyCartridge.defaultGameState,
     ...overrides,
     stats: {
-      ...basicFantasyCartridge.defaultCharacterSheet.stats,
+      ...basicFantasyCartridge.defaultGameState.stats,
       ...(overrides && overrides.stats ? overrides.stats : {})
     }
   }));
@@ -22,7 +22,7 @@ function makeSheet(overrides?: Partial<CharacterSheet>): CharacterSheet {
 describe('processEffects integration', () => {
   test('should process healing potion effect from narration summary', () => {
     const script = createScript();
-    const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultCharacterSheet.stats, hp: 50 } });
+    const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 50 } });
     const naSum = {
       elapsed_time: 'PT5M',
       effects: [
@@ -56,7 +56,7 @@ describe('processEffects integration', () => {
   test('should revert expired side effects before processing new ones', () => {
     const script = createScript();
     const sheet = makeSheet({
-      stats: { ...basicFantasyCartridge.defaultCharacterSheet.stats, strength: 20 },
+      stats: { ...basicFantasyCartridge.defaultGameState.stats, strength: 20 },
       se: [{
         desc: 'strength potion',
         expiry: '1000-01-01T08:10:00', // will be expired after time update
@@ -103,7 +103,7 @@ describe('processEffects integration', () => {
 
   test('should process multiple effects in order', () => {
     const script = createScript();
-    const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultCharacterSheet.stats, hp: 80 } });
+    const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 80 } });
     const naSum = {
       elapsed_time: 'PT5M',
       effects: [
@@ -146,7 +146,7 @@ describe('processEffects integration', () => {
     const script = createScript();
     const sheet = makeSheet({
       cur_ts: '1000-01-01T23:00:00',
-      stats: { ...basicFantasyCartridge.defaultCharacterSheet.stats, num_day: 0 }
+      stats: { ...basicFantasyCartridge.defaultGameState.stats, num_day: 0 }
     });
     const naSum = {
       elapsed_time: 'PT8H', // crosses midnight
