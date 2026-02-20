@@ -69,25 +69,7 @@ interface CartridgeRule {
   failurePrompt: string;
 }
 
-/**
- * A game play cartridge defines the rules for one game system.
- * Cartridges are swappable so different RPG rule-sets can be used.
- */
-interface GameCartridge {
-  /** Human-readable name of this game system. */
-  name: string;
-  /** Version string. */
-  version: string;
-  /** Conditions under which the AI should stop narrating and hand control to the player. */
-  stopConditions: string[];
-  /**
-   * Map from condition name to the list of actions the player may attempt.
-   * E.g. { "combat": ["attack", "dodge", "cast"] }
-   */
-  availableActions: Record<string, string[]>;
-  /** The full set of rules. */
-  rules: CartridgeRule[];
-}
+/* GameCartridge is defined below together with effect-driven types. */
 
 /**
  * The prompt that the output phase produces for the AI.
@@ -195,6 +177,8 @@ export interface ScenarioUpdate {
   tags: Record<string, string>;
   /** Numeric meters emitted by the LLM (e.g. tension, distance). */
   meters: Record<string, number>;
+  /** Structured effects array reported by the LLM for aspect-function processing. */
+  effects?: Array<Record<string, unknown>>;
 }
 
 /**
@@ -213,7 +197,7 @@ interface SystemAdapter {
    * Extract the player's latest message from the platform's context.
    * Each platform stores conversation history differently.
    */
-  getPlayerMessage(context: Record<string, unknown>): string | null;
+  getPlayerMessage(): string | null;
 
   /**
    * Apply the generated prompt to the platform's context so that the
@@ -221,19 +205,19 @@ interface SystemAdapter {
    * allows modifying `context.character.personality` and
    * `context.character.scenario`.
    */
-  applyPrompt(context: Record<string, unknown>, prompt: OutputPrompt): void;
+  applyPrompt(prompt: OutputPrompt): void;
 
   /**
    * Load persisted game state from the platform's storage mechanism.
    * Returns an empty object if no state exists yet.
    */
-  loadState(context: Record<string, unknown>): Record<string, unknown>;
+  loadState(): Record<string, unknown>;
 
   /**
    * Save game state using the platform's storage mechanism.
    * E.g. AI Dungeon uses a global `state` JSON object.
    */
-  saveState(context: Record<string, unknown>, state: Record<string, unknown>): void;
+  saveState(state: Record<string, unknown>): void;
 
   /**
    * Extract the structured scenario-update JSON emitted by the LLM in its
@@ -241,7 +225,146 @@ interface SystemAdapter {
    * The exact field / mechanism used to locate the block differs per platform.
    * Returns null if no valid block is found.
    */
-  getScenarioUpdate(context: Record<string, unknown>): ScenarioUpdate | null;
+  getScenarioUpdate(): ScenarioUpdate | null;
+}
+
+// ---- Effect-driven state management types ----
+
+/** A single stat impact: which stat to change, what operation, and what value. */
+interface Impact {
+  /** Key into the character sheet stats object. */
+  stats: string;
+  /** Operation: "set" replaces the value, "add" adds to it, "sub" subtracts. */
+  op: 'set' | 'add' | 'sub';
+  /** The numeric value to apply. */
+  val: number;
+}
+
+/**
+ * A side effect produced by an aspect function.
+ * Represents a change to the character sheet stats.
+ */
+interface SideEffect {
+  /** Description of the side effect. */
+  what: string;
+  /** True if the effect is temporary (will be reverted after expiry). */
+  temp: boolean;
+  /** Array of stat impacts to apply. */
+  impacts: Impact[];
+  /** ISO datetime when a temporary effect expires. Only required when temp is true. */
+  expiry?: string;
+  /** Stat keys that prevent this effect from expiring while they are truthy. */
+  re_lock?: string[];
+}
+
+/** The result returned by an aspect function. */
+interface AspectFunctionResult {
+  /** Instructions for the LLM narration guide. */
+  narrationGuide: string;
+  /** Side effect(s) to apply to the character sheet, or null if no change. */
+  sideEffect: SideEffect | SideEffect[] | null;
+}
+
+/** The character sheet state persisted across turns. */
+interface CharacterSheet {
+  /** Current in-game timestamp in ISO format. */
+  cur_ts: string;
+  /** All tracked stat values (hp, gold, strength, custom flags, etc.). */
+  stats: Record<string, number>;
+  /** Array of active temporary side effects with expiry tracking. */
+  se: StoredSideEffect[];
+  /** Boolean flags for game state tracking. */
+  flags: string[];
+}
+
+/** A stored side effect entry in the character sheet's se[] array. */
+interface StoredSideEffect {
+  /** Description of the effect. */
+  desc: string;
+  /** ISO datetime when the effect expires. */
+  expiry: string | null;
+  /** Stat keys that prevent this effect from expiring while they are truthy. */
+  re_lock: string[] | null;
+  /** Array of impacts with original values for reversion. */
+  impacts: StoredImpact[];
+}
+
+/** An impact entry stored for later reversion, includes original value. */
+interface StoredImpact {
+  stats: string;
+  op: 'set' | 'add' | 'sub';
+  val: number;
+  /** Original value before the impact was applied, used for reversion. */
+  oriVal: number;
+}
+
+/**
+ * An effect definition that tells the LLM when and how to report game events.
+ * Each definition produces an entry in the NARRATION_SUMMARY "effects" array.
+ */
+interface EffectDefinition {
+  /** Unique identifier for this effect type. */
+  key: string;
+  /** Description of allowed values for "what" field. */
+  what: string;
+  /** Description of "when" field format. */
+  when?: string;
+  /** Descriptions of numeric meter fields. */
+  meters?: Record<string, string>;
+  /** Descriptions of boolean flag fields. */
+  flags?: Record<string, string>;
+  /** Descriptions of string tag fields. */
+  tags?: Record<string, string>;
+  /** When the LLM should report this event. */
+  condition: string;
+  /** Allow dynamic property access for JSON serialisation. */
+  [prop: string]: unknown;
+}
+
+/**
+ * Signature for aspect functions.
+ * Each aspect function processes one effect type and returns narration guidance
+ * and optional side effects to apply to the character sheet.
+ *
+ * @param sheet - The current character sheet state.
+ * @param effect - The matching effect from the narration summary, or null if not reported.
+ * @param typeCheck - Validation flags for the effect fields, or null.
+ * @returns The narration guide text and side effects to apply.
+ */
+type AspectFunction = (
+  sheet: CharacterSheet,
+  effect: Record<string, unknown> | null,
+  typeCheck: Record<string, unknown> | null
+) => AspectFunctionResult;
+
+/**
+ * Extended game cartridge that includes effect-driven state management.
+ * Adds effect definitions, aspect functions, a default character sheet,
+ * and turn-end triggers on top of the base GameCartridge.
+ */
+interface GameCartridge {
+  /** Human-readable name of this game system. */
+  name: string;
+  /** Version string. */
+  version: string;
+  /** Conditions under which the AI should stop narrating and hand control to the player. */
+  stopConditions: string[];
+  /**
+   * Map from condition name to the list of actions the player may attempt.
+   * E.g. { "combat": ["attack", "dodge", "cast"] }
+   */
+  availableActions: Record<string, string[]>;
+  /** The full set of rules. */
+  rules: CartridgeRule[];
+
+  /** Default character sheet used when no prior state exists. */
+  defaultCharacterSheet: CharacterSheet;
+  /** Definitions of effects the LLM can report in NARRATION_SUMMARY. */
+  effectDefinitions: EffectDefinition[];
+  /** Aspect functions keyed by effect definition key. Called in effectDefinitions order. */
+  aspectFunctions: Record<string, AspectFunction>;
+  /** Events that force the LLM to end the turn immediately. */
+  turnEndTriggers: string[];
 }
 
 export {
@@ -259,5 +382,13 @@ export {
   AvailableChoicesEvent,
   NarrativeCueEvent,
   TurnEvent,
-  SystemAdapter
+  SystemAdapter,
+  Impact,
+  SideEffect,
+  AspectFunctionResult,
+  CharacterSheet,
+  StoredSideEffect,
+  StoredImpact,
+  EffectDefinition,
+  AspectFunction
 };

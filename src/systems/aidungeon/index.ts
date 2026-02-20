@@ -18,41 +18,46 @@ interface HistoryEntry {
 
 class AIDungeonAdapter implements SystemAdapter {
   readonly name: string = 'AI Dungeon';
+  private context: Record<string, unknown>;
 
-  getPlayerMessage(context: Record<string, unknown>): string | null {
+  constructor(context: Record<string, unknown>) {
+    this.context = context;
+  }
+
+  getPlayerMessage(): string | null {
     // AI Dungeon provides the latest player input as `text`
-    const text = context['text'] as string | undefined;
+    const text = this.context['text'] as string | undefined;
     return text || null;
   }
 
-  applyPrompt(context: Record<string, unknown>, prompt: OutputPrompt): void {
+  applyPrompt(prompt: OutputPrompt): void {
     // AI Dungeon supports segmented memory channels
-    const state = (context['state'] || {}) as Record<string, unknown>;
+    const state = (this.context['state'] || {}) as Record<string, unknown>;
     const memory = (state['memory'] || {}) as Record<string, unknown>;
     memory['context'] = prompt.channels.longHorizon;
     memory['authorsNote'] = prompt.channels.midTerm;
     memory['frontMemory'] = prompt.channels.shortTerm;
     state['memory'] = memory;
-    context['state'] = state;
+    this.context['state'] = state;
 
     // Keep a single-field fallback for compatibility
-    context['memory'] = prompt.text;
+    this.context['memory'] = prompt.text;
   }
 
-  loadState(context: Record<string, unknown>): Record<string, unknown> {
+  loadState(): Record<string, unknown> {
     // AI Dungeon provides persistent state via the `state` global object
-    const state = context['state'] as Record<string, unknown> | undefined;
+    const state = this.context['state'] as Record<string, unknown> | undefined;
     if (state && state['gameState']) {
       return state['gameState'] as Record<string, unknown>;
     }
     return {};
   }
 
-  saveState(context: Record<string, unknown>, state: Record<string, unknown>): void {
+  saveState(state: Record<string, unknown>): void {
     // AI Dungeon persists via the `state` global object
-    const globalState = (context['state'] || {}) as Record<string, unknown>;
+    const globalState = (this.context['state'] || {}) as Record<string, unknown>;
     globalState['gameState'] = state;
-    context['state'] = globalState;
+    this.context['state'] = globalState;
   }
 
   /**
@@ -62,8 +67,8 @@ class AIDungeonAdapter implements SystemAdapter {
    * `type === 'story'` are AI-generated.
    * Returns null if no valid block is found.
    */
-  getScenarioUpdate(context: Record<string, unknown>): ScenarioUpdate | null {
-    const history = context['history'] as Array<HistoryEntry> | undefined;
+  getScenarioUpdate(): ScenarioUpdate | null {
+    const history = this.context['history'] as Array<HistoryEntry> | undefined;
     if (!history || !Array.isArray(history)) {
       return null;
     }
@@ -78,7 +83,8 @@ class AIDungeonAdapter implements SystemAdapter {
           elapsed_time: (raw['elapsed_time'] as string) || 'PT0S',
           flags: (raw['flags'] as Record<string, number>) || {},
           tags: (raw['tags'] as Record<string, string>) || {},
-          meters: (raw['meters'] as Record<string, number>) || {}
+          meters: (raw['meters'] as Record<string, number>) || {},
+          effects: (raw['effects'] as Array<Record<string, unknown>>) || []
         };
       }
     }

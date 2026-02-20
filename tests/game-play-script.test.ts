@@ -28,7 +28,11 @@ describe('GamePlayScript', () => {
       version: '0.1.0',
       stopConditions: ['puzzle'],
       availableActions: { puzzle: ['solve', 'hint'] },
-      rules: []
+      rules: [],
+      defaultCharacterSheet: { cur_ts: '1000-01-01T08:00:00', stats: {}, se: [], flags: [] },
+      effectDefinitions: [],
+      aspectFunctions: {},
+      turnEndTriggers: []
     };
     script.setCartridge(custom);
     expect(script.getCartridge().name).toBe('Custom');

@@ -89,7 +89,7 @@ describe('AIDungeonAdapter', () => {
         { type: 'story', text: 'The goblin falls. [NARRATION_SUMMARY]' + JSON.stringify(update) + '[/NARRATION_SUMMARY]' }
       ]
     };
-    expect(adapter.getScenarioUpdate(context)).toEqual(update);
+    expect(adapter.getScenarioUpdate(context)).toEqual({ ...update, effects: [] });
   });
 
   test('should return null when history has no story entry with a summary', () => {
@@ -123,7 +123,7 @@ describe('AIDungeonAdapter', () => {
         { type: 'story', text: 'The goblin dodges.' } // no summary
       ]
     };
-    expect(adapter.getScenarioUpdate(context)).toEqual(update);
+    expect(adapter.getScenarioUpdate(context)).toEqual({ ...update, effects: [] });
   });
 
   test('should use defaults for missing ScenarioUpdate fields', () => {

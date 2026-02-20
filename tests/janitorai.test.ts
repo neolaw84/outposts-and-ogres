@@ -27,8 +27,8 @@ describe('JanitorAIAdapter', function () {
     var context = {
       chat: {
         last_messages: [
-          { content: 'Welcome adventurer.' },
-          { content: '<attack goblin>' }
+          { message: 'Welcome adventurer.' },
+          { message: '<attack goblin>' }
         ]
       }
     };
@@ -41,8 +41,8 @@ describe('JanitorAIAdapter', function () {
       chat: {
         last_message: 'from singular',
         last_messages: [
-          { content: 'Welcome adventurer.' },
-          { content: 'from array' }
+          { message: 'Welcome adventurer.' },
+          { message: 'from array' }
         ]
       }
     };
@@ -144,7 +144,7 @@ describe('JanitorAIAdapter', function () {
     var context = {
       chat: {
         last_messages: [
-          { content: 'Only one message' }
+          { message: 'Only one message' }
         ]
       }
     };
@@ -159,8 +159,8 @@ describe('JanitorAIAdapter', function () {
     var context = {
       chat: {
         last_messages: [
-          { content: 'Some narration with ' + stateBlock + ' in it.' },
-          { content: 'Player says something' }
+          { message: 'Some narration with ' + stateBlock + ' in it.' },
+          { message: 'Player says something' }
         ]
       }
     };
@@ -172,8 +172,8 @@ describe('JanitorAIAdapter', function () {
     var context = {
       chat: {
         last_messages: [
-          { content: 'Narration without state block' },
-          { content: 'Player says something' }
+          { message: 'Narration without state block' },
+          { message: 'Player says something' }
         ]
       }
     };
@@ -211,8 +211,8 @@ describe('JanitorAIAdapter', function () {
     var loadContext = {
       chat: {
         last_messages: [
-          { content: personality },
-          { content: 'Player message' }
+          { message: personality },
+          { message: 'Player message' }
         ]
       }
     };
@@ -237,8 +237,8 @@ describe('JanitorAIAdapter', function () {
     var loadContext = {
       chat: {
         last_messages: [
-          { content: personality },
-          { content: 'Player message' }
+          { message: personality },
+          { message: 'Player message' }
         ]
       }
     };
@@ -260,12 +260,12 @@ describe('JanitorAIAdapter', function () {
     var context = {
       chat: {
         last_messages: [
-          { content: 'Narration text [NARRATION_SUMMARY]' + JSON.stringify(update) + '[/NARRATION_SUMMARY]' },
-          { content: 'Player message' }
+          { message: 'Narration text [NARRATION_SUMMARY]' + JSON.stringify(update) + '[/NARRATION_SUMMARY]' },
+          { message: 'Player message' }
         ]
       }
     };
-    expect(adapter.getScenarioUpdate(context)).toEqual(update);
+    expect(adapter.getScenarioUpdate(context)).toEqual({ ...update, effects: [] });
   });
 
   test('should return null when no narration summary exists', function () {
@@ -273,8 +273,8 @@ describe('JanitorAIAdapter', function () {
     var context = {
       chat: {
         last_messages: [
-          { content: 'Narration without summary' },
-          { content: 'Player message' }
+          { message: 'Narration without summary' },
+          { message: 'Player message' }
         ]
       }
     };
@@ -286,8 +286,8 @@ describe('JanitorAIAdapter', function () {
     var context = {
       chat: {
         last_messages: [
-          { content: 'Narration [NARRATION_SUMMARY]{}[/NARRATION_SUMMARY]' },
-          { content: 'Player message' }
+          { message: 'Narration [NARRATION_SUMMARY]{}[/NARRATION_SUMMARY]' },
+          { message: 'Player message' }
         ]
       }
     };
@@ -297,5 +297,29 @@ describe('JanitorAIAdapter', function () {
     expect(result!.flags).toEqual({});
     expect(result!.tags).toEqual({});
     expect(result!.meters).toEqual({});
+    expect(result!.effects).toEqual([]);
+  });
+
+  test('should include effects array in scenario update', function () {
+    var adapter = new JanitorAIAdapter();
+    var summary = {
+      elapsed_time: 'PT5M',
+      effects: [
+        { key: 'drink_potion', what: 'healing', meters: { potency: 3 } }
+      ]
+    };
+    var context = {
+      chat: {
+        last_messages: [
+          { message: 'Narration [NARRATION_SUMMARY]' + JSON.stringify(summary) + '[/NARRATION_SUMMARY]' },
+          { message: 'Player message' }
+        ]
+      }
+    };
+    var result = adapter.getScenarioUpdate(context);
+    expect(result).not.toBeNull();
+    expect(result!.effects).toBeDefined();
+    expect(result!.effects!.length).toBe(1);
+    expect(result!.effects![0]['key']).toBe('drink_potion');
   });
 });

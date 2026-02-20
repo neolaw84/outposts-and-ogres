@@ -78,7 +78,7 @@ describe('SillyTavernAdapter', () => {
         { is_user: 'true', mes: '<search room>' }
       ]
     };
-    expect(adapter.getScenarioUpdate(context)).toEqual(update);
+    expect(adapter.getScenarioUpdate(context)).toEqual({ ...update, effects: [] });
   });
 
   test('should return null when last AI message has no summary', () => {
@@ -112,7 +112,7 @@ describe('SillyTavernAdapter', () => {
         { is_user: 'false', mes: 'The chest is already open.' } // no summary
       ]
     };
-    expect(adapter.getScenarioUpdate(context)).toEqual(update);
+    expect(adapter.getScenarioUpdate(context)).toEqual({ ...update, effects: [] });
   });
 
   test('should use defaults for missing ScenarioUpdate fields', () => {

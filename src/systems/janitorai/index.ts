@@ -43,13 +43,18 @@ interface ChatMessage {
 
 class JanitorAIAdapter implements SystemAdapter {
   readonly name: string = 'Janitor AI';
+  private context: Record<string, unknown>;
+
+  constructor(context: Record<string, unknown>) {
+    this.context = context;
+  }
 
   // ------------------------------------------------------------------
   // Player input
   // ------------------------------------------------------------------
 
-  getPlayerMessage(context: Record<string, unknown>): string | null {
-    const chat = context['chat'] as Record<string, unknown> | undefined;
+  getPlayerMessage(): string | null {
+    const chat = this.context['chat'] as Record<string, unknown> | undefined;
     if (!chat) {
       return null;
     }
@@ -76,8 +81,8 @@ class JanitorAIAdapter implements SystemAdapter {
   // Prompt application
   // ------------------------------------------------------------------
 
-  applyPrompt(context: Record<string, unknown>, prompt: OutputPrompt): void {
-    const character = (context['character'] || {}) as Record<string, unknown>;
+  applyPrompt(prompt: OutputPrompt): void {
+    const character = (this.context['character'] || {}) as Record<string, unknown>;
     const existingPersonality = (character['personality'] || '') as string;
     const existingScenario = (character['scenario'] || '') as string;
 
@@ -94,15 +99,15 @@ class JanitorAIAdapter implements SystemAdapter {
       prompt.channels.shortTerm + '\n\n' +
       existingScenario;
 
-    context['character'] = character;
+    this.context['character'] = character;
   }
 
   // ------------------------------------------------------------------
   // State persistence (Base64 inside [RP_STATE] tags)
   // ------------------------------------------------------------------
 
-  loadState(context: Record<string, unknown>): Record<string, unknown> {
-    const chat = context['chat'] as Record<string, unknown> | undefined;
+  loadState(): Record<string, unknown> {
+    const chat = this.context['chat'] as Record<string, unknown> | undefined;
     if (!chat) {
       return {};
     }
@@ -122,8 +127,8 @@ class JanitorAIAdapter implements SystemAdapter {
     return decoded || {};
   }
 
-  saveState(context: Record<string, unknown>, state: Record<string, unknown>): void {
-    const character = (context['character'] || {}) as Record<string, unknown>;
+  saveState(state: Record<string, unknown>): void {
+    const character = (this.context['character'] || {}) as Record<string, unknown>;
     let personality = (character['personality'] || '') as string;
 
     const stateBlock = buildRpStateBlock(state);
@@ -144,7 +149,7 @@ class JanitorAIAdapter implements SystemAdapter {
     }
 
     character['personality'] = personality;
-    context['character'] = character;
+    this.context['character'] = character;
   }
 
   // ------------------------------------------------------------------
@@ -156,8 +161,8 @@ class JanitorAIAdapter implements SystemAdapter {
    * return it as a `ScenarioUpdate`.
    * Returns null if no valid block is found.
    */
-  getScenarioUpdate(context: Record<string, unknown>): ScenarioUpdate | null {
-    const chat = context['chat'] as Record<string, unknown> | undefined;
+  getScenarioUpdate(): ScenarioUpdate | null {
+    const chat = this.context['chat'] as Record<string, unknown> | undefined;
     if (!chat) {
       return null;
     }
@@ -180,7 +185,8 @@ class JanitorAIAdapter implements SystemAdapter {
       elapsed_time: (raw['elapsed_time'] as string) || 'PT0S',
       flags: (raw['flags'] as Record<string, number>) || {},
       tags: (raw['tags'] as Record<string, string>) || {},
-      meters: (raw['meters'] as Record<string, number>) || {}
+      meters: (raw['meters'] as Record<string, number>) || {},
+      effects: (raw['effects'] as Array<Record<string, unknown>>) || []
     };
   }
 }

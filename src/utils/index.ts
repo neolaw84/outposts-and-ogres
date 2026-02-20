@@ -11,6 +11,19 @@ export {
   buildRpStateBlock,
   extractNarrationSummary,
   generateEffectInstruction,
-  findEffectByKey
+  findEffectByKey,
+  cleanInput
 } from './llm-utils';
 export { extractMatch } from './text-utils';
+export {
+  parseDuration,
+  addDuration,
+  isPast,
+  isValidDateStr,
+  isValidDurationStr,
+  formatDate,
+  formatDate12Hr,
+  getDow,
+  clampTime,
+  getMidnightsPassed
+} from './time-utils';

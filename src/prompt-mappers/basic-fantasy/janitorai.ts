@@ -1,4 +1,4 @@
-import { PromptChannels, TurnEvent } from '../../types';
+import { PromptChannels, TurnEvent, EffectDefinition } from '../../types';
 
 function getEvent<T extends TurnEvent['type']>(
   events: TurnEvent[],
@@ -23,10 +23,18 @@ function getEvent<T extends TurnEvent['type']>(
 function buildNarrationGuide(
   diceEvent: Extract<TurnEvent, { type: 'dice_resolution' }> | null,
   cueEvent: Extract<TurnEvent, { type: 'narrative_cue' }> | null,
-  choicesEvent: Extract<TurnEvent, { type: 'available_choices' }> | null
+  choicesEvent: Extract<TurnEvent, { type: 'available_choices' }> | null,
+  effectNarrationGuide?: string,
+  turnEndTriggers?: string[],
+  inGameDateTime?: string
 ): string {
   const lines: string[] = [];
   lines.push('[NARRATION_GUIDE]');
+
+  if (inGameDateTime) {
+    lines.push('"In-Game Date/Time: ' + inGameDateTime + '."');
+    lines.push('');
+  }
 
   if (diceEvent) {
     lines.push(
@@ -52,6 +60,20 @@ function buildNarrationGuide(
     lines.push(cueEvent.cue);
   }
 
+  if (effectNarrationGuide) {
+    lines.push('');
+    lines.push(effectNarrationGuide);
+  }
+
+  if (turnEndTriggers && turnEndTriggers.length > 0) {
+    lines.push('');
+    lines.push('If any of the following events occur, you MUST narrate it briefly and then IMMEDIATELY END this turn (provide NARRATION_SUMMARY):');
+    for (let i = 0; i < turnEndTriggers.length; i++) {
+      lines.push('- ' + turnEndTriggers[i]);
+    }
+    lines.push('Do not narrate past these events. Wait for the script to process them.');
+  }
+
   if (choicesEvent && choicesEvent.choices.length > 0) {
     lines.push(
       'After narrating, present the following options to {{user}}: ' +
@@ -60,38 +82,56 @@ function buildNarrationGuide(
   }
 
   lines.push('[/NARRATION_GUIDE]');
+  lines.push('');
+  lines.push('**YOU MUST NEVER CONTRADICT OR CONFLICT WITH ANY PART OF THE NARRATION GUIDE.**');
+  lines.push('');
+  lines.push("However, feel free to be creative and add more details to the story as long as it doesn't conflict with the narration guide.");
   return lines.join('\n');
 }
 
 /**
  * Build instructions that tell the LLM how to construct a
  * [NARRATION_SUMMARY] JSON block at the end of its response.
- * Each NPC action type has its own schema fragment so the LLM
- * knows exactly what JSON to produce.
+ * Includes effect-based instructions from the cartridge.
  */
 function buildNarrationSummaryInstructions(
-  diceEvent: Extract<TurnEvent, { type: 'dice_resolution' }> | null
+  diceEvent: Extract<TurnEvent, { type: 'dice_resolution' }> | null,
+  effectDefinitions?: EffectDefinition[]
 ): string {
   const lines: string[] = [];
   lines.push(
     'At the END of your narration, include a [NARRATION_SUMMARY] block ' +
-    'containing a JSON object that summarises what NPCs did this turn. ' +
+    'containing a JSON object that summarises what happened this turn. ' +
     'The JSON must be valid and plain (no encoding). Format:'
   );
   lines.push('');
   lines.push('[NARRATION_SUMMARY]');
   lines.push('{');
   lines.push('  "elapsed_time": "<ISO 8601 duration, e.g. PT10M>",');
-  lines.push('  "npc_actions": [');
-  lines.push('    {');
-  lines.push('      "npc": "<NPC name>",');
-  lines.push('      "action": "<what the NPC did>",');
-  lines.push('      "target": "<target of the action or null>"');
-  lines.push('    }');
-  lines.push('  ],');
-  lines.push('  "outcome": "<brief description of what happened>"');
+  lines.push('  "effects": [');
+  lines.push('    // Include effect entries as described below');
+  lines.push('  ]');
   lines.push('}');
   lines.push('[/NARRATION_SUMMARY]');
+
+  // Add effect definition instructions
+  if (effectDefinitions && effectDefinitions.length > 0) {
+    lines.push('');
+    lines.push('Effect instructions - include matching entries in the "effects" array when conditions are met:');
+    for (let i = 0; i < effectDefinitions.length; i++) {
+      const def = effectDefinitions[i];
+      const jsonBlock: Record<string, unknown> = {};
+      const keys = Object.keys(def);
+      for (let j = 0; j < keys.length; j++) {
+        if (keys[j] !== 'condition') {
+          jsonBlock[keys[j]] = def[keys[j]];
+        }
+      }
+      lines.push('');
+      lines.push('If and only if ' + def.condition + ', include:');
+      lines.push(JSON.stringify(jsonBlock, null, 4));
+    }
+  }
 
   if (diceEvent) {
     lines.push('');
@@ -148,4 +188,4 @@ function mapBasicFantasyJanitorAI(events: TurnEvent[]): PromptChannels {
   };
 }
 
-export { mapBasicFantasyJanitorAI };
+export { mapBasicFantasyJanitorAI, buildNarrationGuide, buildNarrationSummaryInstructions };

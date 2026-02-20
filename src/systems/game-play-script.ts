@@ -3,10 +3,11 @@
  *
  * Phase 1 – Input:   Extract the player's intended action.
  * Phase 2 – Process: Roll dice and apply cartridge rules.
+ *                     Process effect-driven side effects from narration summary.
  * Phase 3 – Output:  Build the AI narration prompt.
  *
  * The script is driven by a swappable GameCartridge that defines conditions,
- * available actions, and resolution rules.
+ * available actions, resolution rules, effect definitions, and aspect functions.
  */
 
 import {
@@ -16,11 +17,15 @@ import {
   GameCartridge,
   CartridgeRule,
   OutputPrompt,
-  TurnEvent
+  TurnEvent,
+  CharacterSheet
 } from '../types';
 import { rollDice, sumRolls } from '../utils/dice';
 import { understandPlayerInput } from '../inputs/player-input-understanding';
 import { PromptMapper } from '../prompt-mappers';
+import { applySideEffect, revertSideEffect } from '../core/character-sheet';
+import { addDuration, getMidnightsPassed } from '../utils/time-utils';
+import { cleanInput, findEffectByKey } from '../utils/llm-utils';
 
 class GamePlayScript {
   private cartridge: GameCartridge;
@@ -133,6 +138,68 @@ class GamePlayScript {
       difficulty: rule.difficulty,
       rollTotal: total
     };
+  }
+
+  /**
+   * Process effects from a narration summary against the character sheet.
+   * Iterates through effectDefinitions in order, calls each aspect function,
+   * collects narration guides and applies side effects.
+   *
+   * @param sheet - The current character sheet state.
+   * @param naSum - The parsed narration summary from the LLM.
+   * @returns Updated character sheet and accumulated narration guide.
+   */
+  public processEffects(
+    sheet: CharacterSheet,
+    naSum: Record<string, unknown>
+  ): { sheet: CharacterSheet; narrationGuide: string } {
+    const typeChecks = cleanInput(naSum);
+    // Deep-clone the input so we never mutate the caller's sheet.
+    let currentSheet: CharacterSheet = JSON.parse(JSON.stringify(sheet));
+    let finalNarrationGuide = '';
+
+    // Update time
+    let durationToAdd = 'PT0M';
+    if (typeChecks['elapsed_time']) {
+      durationToAdd = naSum['elapsed_time'] as string;
+    } else if (naSum['elapsed_time'] && typeof naSum['elapsed_time'] === 'string' &&
+               (naSum['elapsed_time'] as string).indexOf('P') === 0) {
+      durationToAdd = naSum['elapsed_time'] as string;
+    }
+
+    const newCurrentTime = addDuration(currentSheet.cur_ts, durationToAdd);
+    currentSheet.stats['num_day'] = (currentSheet.stats['num_day'] || 0) +
+      getMidnightsPassed(currentSheet.cur_ts, newCurrentTime);
+    currentSheet.cur_ts = newCurrentTime;
+
+    // Revert expired side effects
+    currentSheet = revertSideEffect(currentSheet);
+
+    // Process each effect definition
+    const effectDefs = this.cartridge.effectDefinitions;
+    for (let i = 0; i < effectDefs.length; i++) {
+      const def = effectDefs[i];
+      const key = def.key;
+
+      const found = findEffectByKey(key, naSum, typeChecks);
+      const foundEffect = found.effect;
+      const foundTypeCheck = found.typeCheck;
+
+      if (this.cartridge.aspectFunctions && this.cartridge.aspectFunctions[key]) {
+        const result = this.cartridge.aspectFunctions[key](currentSheet, foundEffect, foundTypeCheck);
+
+        if (result) {
+          if (result.narrationGuide) {
+            finalNarrationGuide += result.narrationGuide + '\n';
+          }
+          if (result.sideEffect) {
+            currentSheet = applySideEffect(currentSheet, result.sideEffect);
+          }
+        }
+      }
+    }
+
+    return { sheet: currentSheet, narrationGuide: finalNarrationGuide };
   }
 
   // ----------------------------------------------------------------

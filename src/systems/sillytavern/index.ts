@@ -11,10 +11,15 @@ import { extractNarrationSummary } from '../../utils/llm-utils';
 
 class SillyTavernAdapter implements SystemAdapter {
   readonly name: string = 'SillyTavern';
+  private context: Record<string, unknown>;
 
-  getPlayerMessage(context: Record<string, unknown>): string | null {
+  constructor(context: Record<string, unknown>) {
+    this.context = context;
+  }
+
+  getPlayerMessage(): string | null {
     // SillyTavern provides chat as an array of message objects
-    const chat = context['chat'] as Array<Record<string, string>> | undefined;
+    const chat = this.context['chat'] as Array<Record<string, string>> | undefined;
     if (!chat || chat.length === 0) {
       return null;
     }
@@ -25,24 +30,24 @@ class SillyTavernAdapter implements SystemAdapter {
     return null;
   }
 
-  applyPrompt(context: Record<string, unknown>, prompt: OutputPrompt): void {
+  applyPrompt(prompt: OutputPrompt): void {
     // SillyTavern allows modifying the system prompt and character description
-    context['systemPrompt'] = prompt.channels.combined;
+    this.context['systemPrompt'] = prompt.channels.combined;
   }
 
-  loadState(context: Record<string, unknown>): Record<string, unknown> {
+  loadState(): Record<string, unknown> {
     // SillyTavern extension data for persistence
-    const extensionData = context['extensionData'] as Record<string, unknown> | undefined;
+    const extensionData = this.context['extensionData'] as Record<string, unknown> | undefined;
     if (extensionData && extensionData['gameState']) {
       return extensionData['gameState'] as Record<string, unknown>;
     }
     return {};
   }
 
-  saveState(context: Record<string, unknown>, state: Record<string, unknown>): void {
-    const extensionData = (context['extensionData'] || {}) as Record<string, unknown>;
+  saveState(state: Record<string, unknown>): void {
+    const extensionData = (this.context['extensionData'] || {}) as Record<string, unknown>;
     extensionData['gameState'] = state;
-    context['extensionData'] = extensionData;
+    this.context['extensionData'] = extensionData;
   }
 
   /**
@@ -51,8 +56,8 @@ class SillyTavernAdapter implements SystemAdapter {
    * SillyTavern chat messages use `is_user` ('true'/'false') and `mes` fields.
    * Returns null if no valid block is found.
    */
-  getScenarioUpdate(context: Record<string, unknown>): ScenarioUpdate | null {
-    const chat = context['chat'] as Array<Record<string, string>> | undefined;
+  getScenarioUpdate(): ScenarioUpdate | null {
+    const chat = this.context['chat'] as Array<Record<string, string>> | undefined;
     if (!chat || chat.length === 0) {
       return null;
     }
@@ -68,7 +73,8 @@ class SillyTavernAdapter implements SystemAdapter {
           elapsed_time: (raw['elapsed_time'] as string) || 'PT0S',
           flags: (raw['flags'] as Record<string, number>) || {},
           tags: (raw['tags'] as Record<string, string>) || {},
-          meters: (raw['meters'] as Record<string, number>) || {}
+          meters: (raw['meters'] as Record<string, number>) || {},
+          effects: (raw['effects'] as Array<Record<string, unknown>>) || []
         };
       }
     }
