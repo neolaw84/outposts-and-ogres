@@ -399,83 +399,830 @@ const basicFantasyCartridge: GameCartridge = {
   }
 };
 
-const logicMap: Array<{ condition: string, action: string, stat: string, diff: number, success: string, failure: string }> = [
-  { condition: 'combat', action: 'attack', stat: 'strength', diff: 10, success: `You attack decisively.`, failure: 'Your attack misses the mark.' },
-  { condition: 'combat', action: 'cast', stat: 'intelligence', diff: 12, success: 'Your spell erupts with power.', failure: 'Your spell fizzles harmlessly.' },
-  { condition: 'combat', action: 'defend', stat: 'constitution', diff: 10, success: 'You brace and deflect the blow.', failure: 'Your guard is broken.' },
-  { condition: 'combat', action: 'dodge', stat: 'dexterity', diff: 12, success: 'You gracefully evade the danger.', failure: 'You fail to get out of the way in time.' },
-  { condition: 'combat', action: 'flee', stat: 'dexterity', diff: 15, success: 'You manage to escape the encounter.', failure: 'Your escape route is blocked.' },
+basicFantasyCartridge.gameRules['attack'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'attack');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing attack unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
 
-  { condition: 'social', action: 'persuade', stat: 'charisma', diff: 10, success: 'They listen intently to your words.', failure: 'Your words fall on deaf ears.' },
-  { condition: 'social', action: 'intimidate', stat: 'strength', diff: 12, success: 'They shrink back from your imposing stance.', failure: 'They stand their ground, unimpressed.' },
-  { condition: 'social', action: 'deceive', stat: 'charisma', diff: 15, success: 'They buy your deception completely.', failure: 'They see right through your lies.' },
-  { condition: 'social', action: 'barter', stat: 'charisma', diff: 12, success: 'You strike a favourable deal.', failure: 'The negotiation goes poorly.' },
-  { condition: 'social', action: 'ask', stat: 'wisdom', diff: 10, success: 'You gather useful information.', failure: 'They refuse to tell you anything.' },
-
-  { condition: 'exploration', action: 'inspect', stat: 'wisdom', diff: 12, success: 'You spot danger or hidden secrets.', failure: 'You notice nothing unusual.' },
-  { condition: 'exploration', action: 'search', stat: 'intelligence', diff: 15, success: 'You uncover hidden loot or mechanics.', failure: 'You find only dust and cobwebs.' },
-  { condition: 'exploration', action: 'move', stat: 'constitution', diff: 5, success: 'You make good progress.', failure: 'The path is grueling and slow.' },
-  { condition: 'exploration', action: 'use', stat: 'intelligence', diff: 10, success: `You handle the item properly.`, failure: 'You fumble with the item.' }
-];
-
-logicMap.forEach(match => {
-  basicFantasyCartridge.gameRules[match.action] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-    const parentIntent = context.action?.find(a => a.action === match.action);
-    if (!parentIntent) {
-      return {
-        outcome: {
-          status: 'neutral', mechanicsLogs: [],
-          mustHappen: [],
-          mustNotHappen: ['Do not narrate {{user}} performing ' + match.action + ' unless the player explicitly says so.'],
-          mayHappen: []
-        },
-        stateMutations: []
-      };
-    }
-
-    if (context.currentCondition !== match.condition) {
-      return {
-        outcome: {
-          actionName: parentIntent.action,
-          actionTarget: parentIntent.target,
-          status: 'neutral',
-          mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
-          mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
-          mustNotHappen: [],
-          mayHappen: []
-        },
-        stateMutations: []
-      };
-    }
-
-    let statValue = sheet.stats[match.stat];
-    if (typeof statValue !== 'number') statValue = 10;
-
-    let bonus = 0;
-    if (statValue > 10) {
-      bonus = Math.floor((statValue - 10) / 2);
-    } else if (statValue < 10) {
-      bonus = Math.floor((statValue - 10) / 2); // Negative stat mod
-    }
-
-    const rolls = rollDice(1, 20);
-    const total = sumRolls(rolls);
-    const isSuccess = (total + bonus) >= match.diff;
-
+  if (context.currentCondition !== 'combat') {
     return {
       outcome: {
         actionName: parentIntent.action,
         actionTarget: parentIntent.target,
-        status: isSuccess ? 'success' : 'failure',
-        mechanicsLogs: [
-          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty ${match.diff}.`
-        ],
-        mustHappen: [isSuccess ? match.success : match.failure],
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
         mustNotHappen: [],
         mayHappen: []
       },
       stateMutations: []
     };
+  }
+
+  let statValue = sheet.stats['strength'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 10;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
+      ],
+      mustHappen: [isSuccess ? 'You attack decisively.' : 'Your attack misses the mark.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
   };
-});
+};
+
+basicFantasyCartridge.gameRules['cast'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'cast');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing cast unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  if (context.currentCondition !== 'combat') {
+    return {
+      outcome: {
+        actionName: parentIntent.action,
+        actionTarget: parentIntent.target,
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+        mustNotHappen: [],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  let statValue = sheet.stats['intelligence'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 12;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
+      ],
+      mustHappen: [isSuccess ? 'Your spell erupts with power.' : 'Your spell fizzles harmlessly.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
+  };
+};
+
+basicFantasyCartridge.gameRules['defend'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'defend');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing defend unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  if (context.currentCondition !== 'combat') {
+    return {
+      outcome: {
+        actionName: parentIntent.action,
+        actionTarget: parentIntent.target,
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+        mustNotHappen: [],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  let statValue = sheet.stats['constitution'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 10;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
+      ],
+      mustHappen: [isSuccess ? 'You brace and deflect the blow.' : 'Your guard is broken.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
+  };
+};
+
+basicFantasyCartridge.gameRules['dodge'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'dodge');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing dodge unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  if (context.currentCondition !== 'combat') {
+    return {
+      outcome: {
+        actionName: parentIntent.action,
+        actionTarget: parentIntent.target,
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+        mustNotHappen: [],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  let statValue = sheet.stats['dexterity'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 12;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
+      ],
+      mustHappen: [isSuccess ? 'You gracefully evade the danger.' : 'You fail to get out of the way in time.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
+  };
+};
+
+basicFantasyCartridge.gameRules['flee'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'flee');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing flee unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  if (context.currentCondition !== 'combat') {
+    return {
+      outcome: {
+        actionName: parentIntent.action,
+        actionTarget: parentIntent.target,
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+        mustNotHappen: [],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  let statValue = sheet.stats['dexterity'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 15;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 15.`
+      ],
+      mustHappen: [isSuccess ? 'You manage to escape the encounter.' : 'Your escape route is blocked.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
+  };
+};
+
+basicFantasyCartridge.gameRules['persuade'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'persuade');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing persuade unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  if (context.currentCondition !== 'social') {
+    return {
+      outcome: {
+        actionName: parentIntent.action,
+        actionTarget: parentIntent.target,
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+        mustNotHappen: [],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  let statValue = sheet.stats['charisma'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 10;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
+      ],
+      mustHappen: [isSuccess ? 'They listen intently to your words.' : 'Your words fall on deaf ears.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
+  };
+};
+
+basicFantasyCartridge.gameRules['intimidate'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'intimidate');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing intimidate unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  if (context.currentCondition !== 'social') {
+    return {
+      outcome: {
+        actionName: parentIntent.action,
+        actionTarget: parentIntent.target,
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+        mustNotHappen: [],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  let statValue = sheet.stats['strength'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 12;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
+      ],
+      mustHappen: [isSuccess ? 'They shrink back from your imposing stance.' : 'They stand their ground, unimpressed.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
+  };
+};
+
+basicFantasyCartridge.gameRules['deceive'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'deceive');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing deceive unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  if (context.currentCondition !== 'social') {
+    return {
+      outcome: {
+        actionName: parentIntent.action,
+        actionTarget: parentIntent.target,
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+        mustNotHappen: [],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  let statValue = sheet.stats['charisma'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 15;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 15.`
+      ],
+      mustHappen: [isSuccess ? 'They buy your deception completely.' : 'They see right through your lies.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
+  };
+};
+
+basicFantasyCartridge.gameRules['barter'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'barter');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing barter unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  if (context.currentCondition !== 'social') {
+    return {
+      outcome: {
+        actionName: parentIntent.action,
+        actionTarget: parentIntent.target,
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+        mustNotHappen: [],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  let statValue = sheet.stats['charisma'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 12;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
+      ],
+      mustHappen: [isSuccess ? 'You strike a favourable deal.' : 'The negotiation goes poorly.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
+  };
+};
+
+basicFantasyCartridge.gameRules['ask'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'ask');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing ask unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  if (context.currentCondition !== 'social') {
+    return {
+      outcome: {
+        actionName: parentIntent.action,
+        actionTarget: parentIntent.target,
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+        mustNotHappen: [],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  let statValue = sheet.stats['wisdom'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 10;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
+      ],
+      mustHappen: [isSuccess ? 'You gather useful information.' : 'They refuse to tell you anything.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
+  };
+};
+
+basicFantasyCartridge.gameRules['inspect'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'inspect');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing inspect unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  if (context.currentCondition !== 'exploration') {
+    return {
+      outcome: {
+        actionName: parentIntent.action,
+        actionTarget: parentIntent.target,
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+        mustNotHappen: [],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  let statValue = sheet.stats['wisdom'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 12;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
+      ],
+      mustHappen: [isSuccess ? 'You spot danger or hidden secrets.' : 'You notice nothing unusual.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
+  };
+};
+
+basicFantasyCartridge.gameRules['search'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'search');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing search unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  if (context.currentCondition !== 'exploration') {
+    return {
+      outcome: {
+        actionName: parentIntent.action,
+        actionTarget: parentIntent.target,
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+        mustNotHappen: [],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  let statValue = sheet.stats['intelligence'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 15;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 15.`
+      ],
+      mustHappen: [isSuccess ? 'You uncover hidden loot or mechanics.' : 'You find only dust and cobwebs.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
+  };
+};
+
+basicFantasyCartridge.gameRules['move'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'move');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing move unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  if (context.currentCondition !== 'exploration') {
+    return {
+      outcome: {
+        actionName: parentIntent.action,
+        actionTarget: parentIntent.target,
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+        mustNotHappen: [],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  let statValue = sheet.stats['constitution'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 5;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 5.`
+      ],
+      mustHappen: [isSuccess ? 'You make good progress.' : 'The path is grueling and slow.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
+  };
+};
+
+basicFantasyCartridge.gameRules['use'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
+  const parentIntent = context.action?.find(a => a.action === 'use');
+  if (!parentIntent) {
+    return {
+      outcome: {
+        status: 'neutral', mechanicsLogs: [],
+        mustHappen: [],
+        mustNotHappen: ['Do not narrate {{user}} performing use unless the player explicitly says so.'],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  if (context.currentCondition !== 'exploration') {
+    return {
+      outcome: {
+        actionName: parentIntent.action,
+        actionTarget: parentIntent.target,
+        status: 'neutral',
+        mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
+        mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+        mustNotHappen: [],
+        mayHappen: []
+      },
+      stateMutations: []
+    };
+  }
+
+  let statValue = sheet.stats['intelligence'];
+  if (typeof statValue !== 'number') statValue = 10;
+
+  let bonus = 0;
+  if (statValue > 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  } else if (statValue < 10) {
+    bonus = Math.floor((statValue - 10) / 2);
+  }
+
+  const rolls = rollDice(1, 20);
+  const total = sumRolls(rolls);
+  const isSuccess = (total + bonus) >= 10;
+
+  return {
+    outcome: {
+      actionName: parentIntent.action,
+      actionTarget: parentIntent.target,
+      status: isSuccess ? 'success' : 'failure',
+      mechanicsLogs: [
+        `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
+      ],
+      mustHappen: [isSuccess ? 'You handle the item properly.' : 'You fumble with the item.'],
+      mustNotHappen: [],
+      mayHappen: []
+    },
+    stateMutations: []
+  };
+};
+
 export { basicFantasyCartridge };
