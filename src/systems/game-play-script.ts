@@ -2,7 +2,7 @@
  * GamePlayScript – the core engine that executes the three-phase loop.
  *
  * Phase 1 – Input:   Extract the player's intended action.
- * Phase 2 – Process: Process the turn based on the cartridge's `aspectSequence`.
+ * Phase 2 – Process: Process the turn based on the cartridge's `ruleSequence`.
  *                    This incorporates both the player's action and world effects.
  * Phase 3 – Output:  Build the AI narration prompt.
  *
@@ -17,9 +17,9 @@ import {
   OutputPrompt,
   TurnEvent,
   GameState,
-  AspectFunctionResult,
+  RuleResolution,
   ActionResolutionEvent,
-  AspectContext
+  RuleContext
 } from '../types';
 import { understandPlayerInput } from '../inputs/player-input-understanding';
 import { PromptMapper } from '../prompt-mappers';
@@ -74,6 +74,12 @@ class GamePlayScript {
    */
   public extractAction(playerMessage: string): ParsedAction[] | null {
     const actions = this.cartridge.availableActions[this.currentCondition] || [];
+
+    if (this.cartridge.parseInput) {
+      const customUnderstanding = this.cartridge.parseInput(playerMessage, actions, this.currentCondition);
+      return customUnderstanding.parsedActions;
+    }
+
     const understanding = understandPlayerInput(
       playerMessage,
       actions,
@@ -89,18 +95,18 @@ class GamePlayScript {
   /**
    * Run the complete 3-phase turn for a player message.
    * Modifies the game state by processing the player action and world events
-   * in the exact order specified by `cartridge.aspectSequence`.
+   * in the exact order specified by `cartridge.ruleSequence`.
    *
    * @param playerMessage The player's raw free-text input.
    * @param currentState The current game state.
-   * @param naSum The parsed narration summary from the LLM.
+   * @param narrationSummary The parsed narration summary from the LLM.
    * @param preParsedAction Optional parsed action provided by a system adapter.
    * @returns An OutputPrompt to send to the AI, the new game state, and the accumulated narration guide.
    */
   public executeTurn(
     playerMessage: string,
     currentState: GameState,
-    naSum: Record<string, unknown>,
+    narrationSummary: Record<string, unknown>,
     preParsedActions?: ParsedAction[] | null
   ): { prompt: OutputPrompt | null; newState: GameState; narrationGuide: string } {
     // Phase 1 – Input
@@ -111,30 +117,30 @@ class GamePlayScript {
     let finalNarrationGuide = '';
 
     // First: Handle Time Advance and Expired Effects (Always happens first)
-    const typeChecks = cleanInput(naSum);
+    const typeChecks = cleanInput(narrationSummary);
     let durationToAdd = 'PT0M';
     if (typeChecks['elapsed_time']) {
-      durationToAdd = naSum['elapsed_time'] as string;
-    } else if (naSum['elapsed_time'] && typeof naSum['elapsed_time'] === 'string' &&
-      (naSum['elapsed_time'] as string).indexOf('P') === 0) {
-      durationToAdd = naSum['elapsed_time'] as string;
+      durationToAdd = narrationSummary['elapsed_time'] as string;
+    } else if (narrationSummary['elapsed_time'] && typeof narrationSummary['elapsed_time'] === 'string' &&
+      (narrationSummary['elapsed_time'] as string).indexOf('P') === 0) {
+      durationToAdd = narrationSummary['elapsed_time'] as string;
     }
-    const newCurrentTime = addDuration(newState.cur_ts, durationToAdd);
+    const newCurrentTime = addDuration(newState.timestamp, durationToAdd);
     newState.stats['num_day'] = (newState.stats['num_day'] || 0) +
-      getMidnightsPassed(newState.cur_ts, newCurrentTime);
-    newState.cur_ts = newCurrentTime;
+      getMidnightsPassed(newState.timestamp, newCurrentTime);
+    newState.timestamp = newCurrentTime;
     newState = revertSideEffect(newState);
 
     const aspectEvents: TurnEvent[] = [];
     let worldEventFired = false;
 
     // Iterate through the cartridge-defined aspect sequence
-    const sequence = this.cartridge.aspectSequence || [];
+    const sequence = this.cartridge.ruleSequence || [];
     for (const key of sequence) {
-      if (this.cartridge.aspectFunctions && this.cartridge.aspectFunctions[key]) {
+      if (this.cartridge.gameRules && this.cartridge.gameRules[key]) {
         // Prepare context
         // If it's a world effect, grab data if it exists
-        const def = this.cartridge.effectDefinitions.find(d => d.key === key);
+        const def = this.cartridge.worldEventTrackers.find(d => d.key === key);
         const isWorldEvent = def !== undefined;
         const isPlayerAction = parsedActions ? parsedActions.some(a => a.action === key) : false;
 
@@ -146,21 +152,21 @@ class GamePlayScript {
         let foundEffect: Record<string, unknown> | null = null;
         let foundTypeCheck: Record<string, unknown> | null = null;
         if (def) {
-          const found = findEffectByKey(key, naSum, typeChecks);
+          const found = findEffectByKey(key, narrationSummary, typeChecks);
           foundEffect = found.effect;
           foundTypeCheck = found.typeCheck;
         }
 
-        const context: AspectContext = {
+        const context: RuleContext = {
           action: parsedActions,
           currentCondition: this.currentCondition,
-          aspectKey: key,
+          ruleKey: key,
           effectData: foundEffect,
           typeCheck: foundTypeCheck,
-          naSum: naSum
+          narrationSummary: narrationSummary
         };
 
-        const result = this.cartridge.aspectFunctions[key](newState, context);
+        const result = this.cartridge.gameRules[key](newState, context);
 
         if (result) {
           if (result.stateMutations && result.stateMutations.length > 0) {
@@ -228,11 +234,14 @@ class GamePlayScript {
     aspectEvents: TurnEvent[]
   ): TurnEvent[] {
     const actions = this.cartridge.availableActions[this.currentCondition] || [];
-    const understanding = understandPlayerInput(
-      playerMessage,
-      actions,
-      this.cartridge.stopConditions
-    );
+
+    const understanding = this.cartridge.parseInput
+      ? this.cartridge.parseInput(playerMessage, actions, this.currentCondition)
+      : understandPlayerInput(
+        playerMessage,
+        actions,
+        this.cartridge.stopConditions
+      );
 
     const availableActions = this.cartridge.availableActions[this.currentCondition] || [];
     const eventsList: TurnEvent[] = [];

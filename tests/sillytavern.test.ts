@@ -29,9 +29,9 @@ describe('SillyTavernAdapter', () => {
     const prompt: OutputPrompt = {
       text: 'Narrate the attack.',
       channels: {
-        longHorizon: 'Long horizon',
-        midTerm: 'Mid term',
-        shortTerm: 'Short term',
+        campaignContinuity: 'Long horizon',
+        sceneGuidance: 'Mid term',
+        immediateInstruction: 'Short term',
         combined: 'Combined prompt text'
       },
       events: []
@@ -108,7 +108,7 @@ describe('SillyTavernAdapter', () => {
     expect(adapter.getScenarioUpdate()).toEqual({ ...update, effects: [] });
   });
 
-  test('should use defaults for missing ScenarioUpdate fields', () => {
+  test('should use defaults for missing WorldSimulationUpdate fields', () => {
     const context = {
       chat: [
         { is_user: 'false', mes: 'Narration [NARRATION_SUMMARY]{}[/NARRATION_SUMMARY]' }

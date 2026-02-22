@@ -6,7 +6,7 @@
  * State can be persisted via the extension data mechanism.
  */
 
-import { SystemAdapter, OutputPrompt, ScenarioUpdate } from '../../types';
+import { SystemAdapter, OutputPrompt, WorldSimulationUpdate } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 
 class SillyTavernAdapter implements SystemAdapter {
@@ -52,11 +52,11 @@ class SillyTavernAdapter implements SystemAdapter {
 
   /**
    * Extract the [NARRATION_SUMMARY] JSON from the last AI message in the
-   * SillyTavern chat array and return it as a `ScenarioUpdate`.
+   * SillyTavern chat array and return it as a `WorldSimulationUpdate`.
    * SillyTavern chat messages use `is_user` ('true'/'false') and `mes` fields.
    * Returns null if no valid block is found.
    */
-  getScenarioUpdate(): ScenarioUpdate | null {
+  getScenarioUpdate(): WorldSimulationUpdate | null {
     const chat = this.context['chat'] as Array<Record<string, string>> | undefined;
     if (!chat || chat.length === 0) {
       return null;

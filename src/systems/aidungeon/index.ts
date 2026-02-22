@@ -6,7 +6,7 @@
  * fields for influencing AI behaviour.
  */
 
-import { SystemAdapter, OutputPrompt, ScenarioUpdate } from '../../types';
+import { SystemAdapter, OutputPrompt, WorldSimulationUpdate } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 
 /** A single entry in the AI Dungeon action history. */
@@ -34,9 +34,9 @@ class AIDungeonAdapter implements SystemAdapter {
     // AI Dungeon supports segmented memory channels
     const state = (this.context['state'] || {}) as Record<string, unknown>;
     const memory = (state['memory'] || {}) as Record<string, unknown>;
-    memory['context'] = prompt.channels.longHorizon;
-    memory['authorsNote'] = prompt.channels.midTerm;
-    memory['frontMemory'] = prompt.channels.shortTerm;
+    memory['context'] = prompt.channels.campaignContinuity;
+    memory['authorsNote'] = prompt.channels.sceneGuidance;
+    memory['frontMemory'] = prompt.channels.immediateInstruction;
     state['memory'] = memory;
     this.context['state'] = state;
 
@@ -62,12 +62,12 @@ class AIDungeonAdapter implements SystemAdapter {
 
   /**
    * Extract the [NARRATION_SUMMARY] JSON from the last AI-authored history
-   * entry and return it as a `ScenarioUpdate`.
+   * entry and return it as a `WorldSimulationUpdate`.
    * AI Dungeon exposes narration via `context.history` where entries with
    * `type === 'story'` are AI-generated.
    * Returns null if no valid block is found.
    */
-  getScenarioUpdate(): ScenarioUpdate | null {
+  getScenarioUpdate(): WorldSimulationUpdate | null {
     const history = this.context['history'] as Array<HistoryEntry> | undefined;
     if (!history || !Array.isArray(history)) {
       return null;

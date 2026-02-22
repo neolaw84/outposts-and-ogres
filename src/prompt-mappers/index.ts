@@ -1,8 +1,8 @@
-import { PromptChannels, TurnEvent } from '../types';
+import { PromptInstructions, TurnEvent } from '../types';
 
-type PromptMapper = (events: TurnEvent[]) => PromptChannels;
+type PromptMapper = (events: TurnEvent[]) => PromptInstructions;
 
-function buildGenericPrompt(events: TurnEvent[]): PromptChannels {
+function buildGenericPrompt(events: TurnEvent[]): PromptInstructions {
   let action = 'an action';
   let target = '';
   let rollSummary = '';
@@ -23,7 +23,7 @@ function buildGenericPrompt(events: TurnEvent[]): PromptChannels {
   }
 
   const targetText = target ? ' targeting ' + target : '';
-  const shortTerm =
+  const immediateInstruction =
     'Resolve: player attempts ' + action + targetText + '.' +
     rollSummary +
     (choices ? ' Next choices: ' + choices + '.' : '');
@@ -31,12 +31,12 @@ function buildGenericPrompt(events: TurnEvent[]): PromptChannels {
   const combined =
     'Maintain continuity of scene conditions and long-term stakes.\n\n' +
     'Narrate outcomes and present meaningful next choices.\n\n' +
-    shortTerm;
+    immediateInstruction;
 
   return {
-    longHorizon: 'Maintain continuity of scene conditions and long-term stakes.',
-    midTerm: 'Narrate outcomes and present meaningful next choices.',
-    shortTerm: shortTerm,
+    campaignContinuity: 'Maintain continuity of scene conditions and long-term stakes.',
+    sceneGuidance: 'Narrate outcomes and present meaningful next choices.',
+    immediateInstruction: immediateInstruction,
     combined: combined
   };
 }

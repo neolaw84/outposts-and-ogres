@@ -1,156 +1,127 @@
 # Cartridge Developer Guide
 
-Welcome to the Outposts & Ogres Cartridge Developer Guide. This document will walk you through creating your own RPG rule systems (Cartridges) and integrating them with the core GamePlayScript engine. The system is designed to seamlessly blend AI narration (e.g., via Janitor AI) with structured, programmatic game mechanics.
+Welcome to the Outposts and Ogres Game Engine! This document is the definitive guide for engineers and designers building **Game Cartridges**—the domain-specific modules that define the mechanics, actions, and narrative extraction rules for an individual game setting.
 
-## Table of Contents
-1. [What is a Cartridge?](#what-is-a-cartridge)
-2. [Elements of a Cartridge](#elements-of-a-cartridge)
-3. [The Game Loop](#the-game-loop)
-4. [Co-Developing Prompt Mappers](#co-developing-prompt-mappers)
-5. [Example Cartridge](#example-cartridge)
+By the end of this guide, you will understand the engine's event-driven architecture, the semantics and syntax of every Cartridge interface, and why developing Prompt-Mappers is an essential part of the cartridge lifecycle.
 
 ---
 
-## What is a Cartridge?
+## 1. Engine Architecture & The Gameplay Loop
 
-A Cartridge defines the rules, actions, effect conditions, state mutations, and narrative boundaries for a specific game setting or rule system. It implements the `GameCartridge` interface and acts as the "brain" for the `GamePlayScript`. By swapping cartridges, you can instantly change the game from a fantasy dungeon crawler to a sci-fi mystery.
+The engine strictly separates programmatic rule evaluation from Large Language Model (LLM) text generation. It operates on a deterministic, three-phase gameplay loop (`src/systems/game-play-script.ts`):
 
-## Elements of a Cartridge
+1. **Phase 1 – Input (Intent Extraction)**  
+   The engine intercepts the player's raw free-text message. Using the cartridge's custom `parseInput` hook (Inversion of Control), the unstructured text is translated into a `PlayerInputUnderstanding` object (containing parsed actions, emotional signals, and scenario suggestions).
 
-When building a Cartridge, you need to define the following key elements to fulfill the `GameCartridge` interface:
+2. **Phase 2 – Process (Unified Rule Resolution)**  
+   The engine evaluates a unified timeline of events according to the sequence defined in `ruleSequence`. It integrates **World Simulation Updates** (structured JSON extracted from the previous LLM response) alongside the player's intent. As it iterates over the sequence, the engine invokes the corresponding `GameRule` closures, which calculate mechanics, mutate the `GameState` (applying `StatusEffect`s), and produce `RuleResolution`s.
 
-* **`name`** (`string`): The human-readable name of your rule system.
-* **`version`** (`string`): The version identifier.
-* **`stopConditions`** (`string[]`): Named scenarios or scenes (like `'combat'`, `'exploration'`, `'social'`) where the AI stops narrating freely and yields control to the player for action input.
-* **`availableActions`** (`Record<string, string[]>`): A mapping between each `stopCondition` and the actions a player can take in that state. E.g. `combat: ['attack', 'defend']`.
-* **`defaultGameState`** (`GameState`): The initial configuration of the character sheet, including stats, flags, and `cur_ts` (current in-game timestamp). It is the payload used when no prior save exists.
-* **`effectDefinitions`** (`EffectDefinition[]`): The schema telling the LLM what structural events (effects) it is allowed to report in its `[NARRATION_SUMMARY]`. Each definition includes:
-  * `key`: Unique identifier (e.g., `'drink_potion'`).
-  * `what`, `when`, `meters`, `flags`, `tags`: Explanations of fields the LLM should output.
-  * `condition`: The natural language trigger telling the LLM *when* to emit this effect (e.g., ` "{{user}} drinks a potion"`).
-* **`aspectFunctions`** (`Record<string, AspectFunction>`): The mechanical logic. Every aspect key has a function that processes player intent or LLM-reported effect data, modifies `GameState` via `SideEffect`s, and returns outcomes (success/failure) alongside instructions on how the LLM should narrate the result (`narrationGuidance` and `mechanicsLogs`).
-* **`aspectSequence`** (`string[]`): The strict execution order for `aspectFunctions`. It allows you to reliably interleave world simulation (e.g., `time_advance`, `weather_change`) with player actions (e.g., `attack`, `cast`).
-* **`turnEndTriggers`** (`string[]`): Specific events that legally compel the LLM to halt its narration immediately and output the `[NARRATION_SUMMARY]` so the script can process the next turn.
+3. **Phase 3 – Output (Prompt Generation)**  
+   The outcomes from Phase 2 are aggregated into an array of `TurnEvent` objects. These events are handed off to the **Prompt Mapper**, which marshals the programmatic results into natural language `PromptInstructions` that guide the LLM's next narrative generation.
 
-## The Game Loop
+---
 
-The engine (`GamePlayScript`) operates on a strict three-phase loop for each turn:
+## 2. Defining Cartridge Elements: Semantics & Syntax
 
-### Phase 1: Input
-The engine extracts the player's intended action from their free-text message. It matches the raw text against the `availableActions` associated with the current condition (e.g. 'exploration'), resulting in `ParsedAction` objects.
+When developing a Cartridge, you implement the `GameCartridge` TypeScript interface. Each property has a specific semantic purpose in guiding the engine.
 
-### Phase 2: Process (Unified Execution)
-The engine copies the current state and steps through the `aspectSequence` defined in your cartridge in exact order:
-1. **Time Advance**: Time elapsed provided by the LLM is added to `cur_ts`, and expired side effects are reverted.
-2. **Aspect Evaluation**: For each key in the sequence, if it matches a parsed player action OR an effect reported by the LLM in the previous `[NARRATION_SUMMARY]`, the corresponding `aspectFunction` is executed.
-3. **State Mutation**: The aspect function returns `SideEffect`s (which mutate stats, apply buffs/debuffs) and `outcome` details. The engine immediately applies these mutations.
-4. **Event Accumulation**: Outcomes and narrative guidance returned by the aspects are compiled into `ActionResolutionEvent`s.
-
-### Phase 3: Output
-The engine packages the parsed actions, resolutions from Phase 2, and the available choices for the *next* turn into `TurnEvent`s. These events are passed to the **Prompt Mapper**, which synthesizes the final prompt to instruct the AI (e.g., updating Janitor AI's setup or `NARRATION_GUIDE`).
-
-## Co-Developing Prompt Mappers
-
-A Cartridge defines *what* happens, but the **Prompt Mapper** defines *how* to tell the specific AI platform (like Janitor AI) about it. Because different LLMs and platforms require different prompt engineering, **the Cartridge developer is also responsible for co-developing the prompt mappers**.
-
-The mapper's job is to take the universal `TurnEvent` objects and generate a platform-specific `PromptChannels` object. 
-
-For example, when building for Janitor AI:
-1. **`buildNarrationGuide`**: You must instruct the LLM on how to describe actions. E.g., instructing the LLM: `"DO NOT resolve the final outcome of this combat action for {{user}}. Narrate {{user}}'s action and the NPC's reaction."`
-2. **`buildNarrationSummaryInstructions`**: You must inject your cartridge's `effectDefinitions` into the prompt so the LLM knows to output a JSON `[NARRATION_SUMMARY]` block when a `turnEndTrigger` or effect condition is met.
-3. **Channel Mapping**: You merge long-term persistent rules (personality), mid-term instructions, and the short-term narration guide into the final payload the system adapter pushes to the AI platform. 
-
-## Example Cartridge
-
-Below is an abbreviated example showcasing the cartridge structure and capabilities. It features combat rules and an effect triggered by the LLM when the player takes damage.
-
-```typescript
-import { GameCartridge, GameState, AspectFunctionResult, SideEffect } from '../types';
-import { rollDice, sumRolls } from '../utils/dice';
-
-const myCartridge: GameCartridge = {
-  name: 'Mini Fantasy',
-  version: '1.0.0',
-  stopConditions: ['combat', 'exploration'],
-  
+### 2.1 Basic Metadata & Flow Control
+- **Semantic Purpose**: Identifies your cartridge and defines the boundaries of the LLM's autonomy. `stopConditions` dictate when the AI should stop narrating and yield control back to the player, while `availableActions` defines what the player is mechanically allowed to do in those conditions.
+- **Syntax**:
+  ```typescript
+  name: "Basic Fantasy RPG",
+  version: "1.0.0",
+  stopConditions: ["combat", "exploration", "dialogue"],
   availableActions: {
-    combat: ['attack', 'flee'],
-    exploration: ['investigate']
-  },
+    "combat": ["attack", "defend", "flee", "cast"],
+    "exploration": ["search", "travel", "rest"]
+  }
+  ```
 
+### 2.2 Inversion of Control: `parseInput`
+- **Semantic Purpose**: The engine delegates intent parsing to the cartridge. You can securely enforce exact slash commands (e.g., `/attack`), employ Regex matchers, or even perform lightweight NLP to convert natural language into mechanical intent. It overrides the engine's default parsing.
+- **Syntax**:
+  ```typescript
+  parseInput: (message, availableActions, currentCondition) => {
+    // Custom logic returning PlayerInputUnderstanding
+    return {
+      parsedActions: [{ action: "attack", target: "goblin", raw: message }],
+      emotions: [],
+      scenario: { suggestedCondition: "combat", confidence: "high", cues: [] }
+    };
+  }
+  ```
+
+### 2.3 State Management (`defaultGameState`)
+- **Semantic Purpose**: The initial state vector when a new session begins. It holds a numeric `stats` dictionary and an `activeConditions` array spanning temporary buffs, debuffs, or world states (represented by `StatusEffect`s).
+- **Syntax**:
+  ```typescript
   defaultGameState: {
-    cur_ts: '1000-01-01T08:00:00',
-    stats: { hp: 50, gold: 0, strength: 12 },
-    se: [],
+    timestamp: "2024-01-01T12:00:00Z",
+    stats: { hp: 20, max_hp: 20, gold: 0, strength: 15 },
+    activeConditions: [],
     flags: []
-  },
+  }
+  ```
 
-  effectDefinitions: [
-    {
-      key: 'take_damage',
-      what: "string; type of damage ('slashing', 'fire')",
-      meters: { amount: 'number; the raw damage dealt' },
-      condition: 'The player takes physical or magical damage'
+### 2.4 Narrative Extraction Tools (`worldEventTrackers`)
+- **Semantic Purpose**: Instructs the LLM on what structured data it needs to extract from its own prose. During narration, the LLM produces a `WorldSimulationUpdate` JSON block containing `flags`, `meters`, and `tags`. 
+- **Syntax**:
+  ```typescript
+  worldEventTrackers: [
+    { 
+      key: "weather_change", 
+      what: "Changes in atmospheric conditions", 
+      condition: "Always track.", 
+      tags: { weather: "clear|rain|storm" } 
     }
-  ],
+  ]
+  ```
 
-  aspectSequence: [
-    'take_damage', // Evaluate world events first
-    'attack',      // Then player acts
-    'flee'
-  ],
-
-  turnEndTriggers: [
-    'Combat Round Ends',
-    'Player is knocked unconscious'
-  ],
-
-  aspectFunctions: {
-    // 1. World Effect Handling
-    take_damage: (sheet, context) => {
-      if (!context.effectData) return { outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: [] }, stateMutations: [] };
-      
-      const effect = context.effectData as any;
-      const damage = effect.meters?.amount || 0;
+### 2.5 Mechanics & Evaluation (`ruleSequence` & `gameRules`)
+These elements replace monolithic hardcoded execution logic by creating a pipeline of modular mechanic resolvers.
+- **`ruleSequence` (Semantic)**: A strictly ordered array dictating the chronological evaluation of game rules. Order matters profoundly (e.g., environmental effects should resolve before player actions).
+  ```typescript
+  ruleSequence: ['time_advance', 'weather_change', 'player_action', 'enemy_counter']
+  ```
+- **`gameRules` (Semantic & Syntax)**: A dictionary mapping the keys in your sequence to actual `GameRule` closures. Each rule reads the `GameState` and `RuleContext`, executes mechanical logic (like rolling dice), and returns a `RuleResolution` alongside optional state-mutating `StatModifier`s.
+  ```typescript
+  gameRules: {
+    player_action: (state, context) => {
+      // Access context.action to see what the player attempted
+      // Access state.stats.strength for dice rolls
       
       return {
-        stateMutations: [
-          { what: 'took damage', temp: false, impacts: [{ stats: 'hp', op: 'sub', val: damage }] }
-        ],
-        outcome: {
-          status: 'neutral',
-          mechanicsLogs: [`Lost ${damage} HP.`],
-          narrationGuidance: [`Describe the impact of the ${effect.what} attack on {{user}}.`]
-        }
-      };
-    },
-
-    // 2. Player Action Handling
-    attack: (sheet, context) => {
-      const intent = context.action?.find(a => a.action === 'attack');
-      if (!intent || context.currentCondition !== 'combat') {
-        return { outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: [] }, stateMutations: [] };
-      }
-
-      const roll = sumRolls(rollDice(1, 20));
-      const strMod = Math.floor((sheet.stats.strength - 10) / 2);
-      const isSuccess = (roll + strMod) >= 12; // DC 12
-
-      return {
-        stateMutations: [], // Damage to enemy tracked contextually via LLM
-        outcome: {
-          actionName: 'attack',
-          status: isSuccess ? 'success' : 'failure',
-          mechanicsLogs: [`Rolled ${roll} + ${strMod} vs DC 12`],
-          narrationGuidance: [isSuccess ? 
-            '{{user}} lands a solid blow.' : 
-            '{{user}}\\'s attack misses.'
-          ]
-        }
+        outcome: { 
+          status: "success", 
+          mechanicsLogs: ["Rolled 15 vs AC 12"], 
+          narrationGuidance: ["Narrate a solid, staggering hit."] 
+        },
+        stateMutations: [] // e.g., dealing damage, adding bleeding StatusEffect
       };
     }
   }
-};
+  ```
 
-export { myCartridge };
+---
+
+## 3. Co-Developing Prompt-Mappers
+
+**A Cartridge is incomplete without its corresponding Prompt-Mappers.**
+
+While the Cartridge implementation handles *what* mechanically happened, the Prompt-Mapper controls *how* that outcome is communicated to the LLM. 
+
+Different frontend platforms (SillyTavern, Janitor AI, AI Dungeon) have wholly different architectures for context injection. Some support distinct memory channels, while others only possess a single prompt field. **As the cartridge developer, you explicitly co-develop the `PromptMapper` to seamlessly marshal your mechanical logs into specific platform configurations.**
+
+### The Interface Contract
+You supply functions matching the following signature:
+```typescript
+type PromptMapper = (events: TurnEvent[]) => PromptInstructions;
 ```
+
+You are responsible for analyzing the `TurnEvent` inputs (which contain the `ActionResolutionEvent` strings you formulated in your `gameRules`) and dispatching them into standard instruction channels:
+* **`immediateInstruction`**: High-priority guidance specifically dictating the LLM's very next paragraph.
+* **`sceneGuidance`**: Context regarding NPC behavior logic based on player actions.
+* **`campaignContinuity`**: Background prompts ensuring the LLM doesn't forget long-term stakes or conditions.
+
+By co-developing Prompt-Mappers alongside your Cartridge, you ensure the stylistic narrative tone and raw mathematical mechanics of your design are preserved perfectly, regardless of which UI platform your player uses.

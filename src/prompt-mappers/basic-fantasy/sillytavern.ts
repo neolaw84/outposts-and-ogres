@@ -1,4 +1,4 @@
-import { PromptChannels, TurnEvent } from '../../types';
+import { PromptInstructions, TurnEvent } from '../../types';
 
 function getEvent<T extends TurnEvent['type']>(
   events: TurnEvent[],
@@ -12,16 +12,16 @@ function getEvent<T extends TurnEvent['type']>(
   return null;
 }
 
-function mapBasicFantasySillyTavern(events: TurnEvent[]): PromptChannels {
+function mapBasicFantasySillyTavern(events: TurnEvent[]): PromptInstructions {
   const inputEvent = getEvent(events, 'player_input');
   const actionEvents = events.filter(e => e.type === 'action_resolution') as Extract<TurnEvent, { type: 'action_resolution' }>[];
   const choicesEvent = getEvent(events, 'available_choices');
 
-  const longHorizon =
+  const campaignContinuity =
     'Scene continuity: preserve consistent world logic, prior consequences, and condition transitions. ' +
     'Condition=' + (inputEvent ? inputEvent.condition : 'unknown') + '.';
 
-  const midTerm =
+  const sceneGuidance =
     'Narration plan: describe action outcome, NPC response, and transition to the next decision point for the player.';
 
   const shortTermStrs: string[] = [];
@@ -36,18 +36,18 @@ function mapBasicFantasySillyTavern(events: TurnEvent[]): PromptChannels {
     );
   }
 
-  let shortTerm = '';
+  let immediateInstruction = '';
   if (shortTermStrs.length > 0) {
-    shortTerm = shortTermStrs.join(' || ') + '; Choices=' + (choicesEvent ? choicesEvent.choices.join(', ') : 'none') + '.';
+    immediateInstruction = shortTermStrs.join(' || ') + '; Choices=' + (choicesEvent ? choicesEvent.choices.join(', ') : 'none') + '.';
   } else {
-    shortTerm = 'Resolve the immediate turn and present clear follow-up choices.';
+    immediateInstruction = 'Resolve the immediate turn and present clear follow-up choices.';
   }
 
   return {
-    longHorizon: longHorizon,
-    midTerm: midTerm,
-    shortTerm: shortTerm,
-    combined: longHorizon + '\n\n' + midTerm + '\n\n' + shortTerm
+    campaignContinuity: campaignContinuity,
+    sceneGuidance: sceneGuidance,
+    immediateInstruction: immediateInstruction,
+    combined: campaignContinuity + '\n\n' + sceneGuidance + '\n\n' + immediateInstruction
   };
 }
 

@@ -33,7 +33,7 @@
  *   to scenario so the LLM produces a plain-JSON summary block.
  */
 
-import { SystemAdapter, OutputPrompt, ScenarioUpdate } from '../../types';
+import { SystemAdapter, OutputPrompt, WorldSimulationUpdate } from '../../types';
 import { decodeState, buildRpStateBlock, extractNarrationSummary } from '../../utils/llm-utils';
 
 /** Content of the last LLM response message. */
@@ -88,15 +88,15 @@ class JanitorAIAdapter implements SystemAdapter {
 
     // Prepend long-horizon + mid-term guidance to personality.
     character['personality'] =
-      prompt.channels.longHorizon + '\n\n' +
-      prompt.channels.midTerm + '\n\n' +
+      prompt.channels.campaignContinuity + '\n\n' +
+      prompt.channels.sceneGuidance + '\n\n' +
       existingPersonality;
 
     // Prepend narration guide and append narration-summary instructions
-    // to scenario (shortTerm contains both sections already composed
+    // to scenario (immediateInstruction contains both sections already composed
     // by the prompt mapper).
     character['scenario'] =
-      prompt.channels.shortTerm + '\n\n' +
+      prompt.channels.immediateInstruction + '\n\n' +
       existingScenario;
 
     this.context['character'] = character;
@@ -158,10 +158,10 @@ class JanitorAIAdapter implements SystemAdapter {
 
   /**
    * Extract the [NARRATION_SUMMARY] JSON from the last LLM response and
-   * return it as a `ScenarioUpdate`.
+   * return it as a `WorldSimulationUpdate`.
    * Returns null if no valid block is found.
    */
-  getScenarioUpdate(): ScenarioUpdate | null {
+  getScenarioUpdate(): WorldSimulationUpdate | null {
     const chat = this.context['chat'] as Record<string, unknown> | undefined;
     if (!chat) {
       return null;

@@ -1,19 +1,13 @@
-import { ParsedAction, PlayerEmotionSignal, ScenarioUpdate } from '../types';
+import { ParsedAction, PlayerEmotionSignal, WorldSimulationUpdate, PlayerInputUnderstanding } from '../types';
 import { parseActionInput } from './action-parser';
 import { detectEmotionSignals } from './emotion-detector';
-import { ScenarioUnderstanding, understandScenario } from './scenario-understanding';
-
-interface PlayerInputUnderstanding {
-  parsedActions: ParsedAction[] | null;
-  emotions: PlayerEmotionSignal[];
-  scenario: ScenarioUnderstanding;
-}
+import { understandScenario } from './scenario-understanding';
 
 function understandPlayerInput(
   message: string,
   knownActions: string[],
   availableConditions: string[],
-  scenarioUpdate?: ScenarioUpdate | null
+  scenarioUpdate?: WorldSimulationUpdate | null
 ): PlayerInputUnderstanding {
   return {
     parsedActions: parseActionInput(message, knownActions),

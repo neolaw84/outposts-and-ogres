@@ -36,11 +36,11 @@ export {
   OutputPrompt,
   SystemAdapter,
   GameState,
-  SideEffect,
-  Impact,
-  EffectDefinition,
-  AspectFunction,
-  AspectFunctionResult
+  ActiveCondition,
+  StatModifier,
+  WorldEventTracker,
+  GameRule,
+  RuleResolution
 } from '../../types';
 export { rollDie, rollDice, sumRolls } from '../../utils/dice';
 export { parseActionInput } from '../../inputs/action-parser';

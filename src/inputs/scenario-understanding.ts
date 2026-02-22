@@ -1,4 +1,4 @@
-import { ScenarioUpdate } from '../types';
+import { WorldSimulationUpdate } from '../types';
 
 interface ScenarioUnderstanding {
   suggestedCondition: string | null;
@@ -7,7 +7,7 @@ interface ScenarioUnderstanding {
 }
 
 /**
- * Interpret a `ScenarioUpdate` (the open-contract LLM output) into a
+ * Interpret a `WorldSimulationUpdate` (the open-contract LLM output) into a
  * cartridge-specific `ScenarioUnderstanding`.
  *
  * Priority:
@@ -17,7 +17,7 @@ interface ScenarioUnderstanding {
  *  3. No match → low confidence, no suggested condition.
  */
 function understandScenario(
-  update: ScenarioUpdate,
+  update: WorldSimulationUpdate,
   availableConditions: string[]
 ): ScenarioUnderstanding {
   // Check flags: flag key equals a condition name with non-zero value

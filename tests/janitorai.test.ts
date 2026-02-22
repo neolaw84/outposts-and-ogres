@@ -79,9 +79,9 @@ describe('JanitorAIAdapter', function () {
     var prompt: OutputPrompt = {
       text: 'combined text',
       channels: {
-        longHorizon: 'Long horizon',
-        midTerm: 'Mid term',
-        shortTerm: 'Short term',
+        campaignContinuity: 'Long horizon',
+        sceneGuidance: 'Mid term',
+        immediateInstruction: 'Short term',
         combined: 'Long horizon\n\nMid term\n\nShort term'
       },
       events: []
@@ -103,9 +103,9 @@ describe('JanitorAIAdapter', function () {
     var prompt: OutputPrompt = {
       text: 'combined text',
       channels: {
-        longHorizon: 'Long horizon',
-        midTerm: 'Mid term',
-        shortTerm: 'Short term',
+        campaignContinuity: 'Long horizon',
+        sceneGuidance: 'Mid term',
+        immediateInstruction: 'Short term',
         combined: 'Long horizon\n\nMid term\n\nShort term'
       },
       events: []
@@ -270,7 +270,7 @@ describe('JanitorAIAdapter', function () {
     expect(adapter.getScenarioUpdate()).toBeNull();
   });
 
-  test('should use defaults for missing ScenarioUpdate fields', function () {
+  test('should use defaults for missing WorldSimulationUpdate fields', function () {
     var context = {
       chat: {
         last_messages: [

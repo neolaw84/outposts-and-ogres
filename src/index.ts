@@ -43,15 +43,15 @@ export {
   GameCartridge,
   OutputPrompt,
   SystemAdapter,
-  ScenarioUpdate,
-  Impact,
-  SideEffect,
-  AspectFunctionResult,
+  WorldSimulationUpdate,
+  StatModifier,
+  ActiveCondition,
+  RuleResolution,
   GameState,
-  StoredSideEffect,
-  StoredImpact,
-  EffectDefinition,
-  AspectFunction
+  StatusEffect,
+  StoredStatModifier,
+  WorldEventTracker,
+  GameRule
 } from './types';
 export { rollDie, rollDice, sumRolls } from './utils/dice';
 export { parsePlayerInput } from './utils/input-parser';

@@ -1,4 +1,4 @@
-import { PromptChannels, TurnEvent, EffectDefinition } from '../../types';
+import { PromptInstructions, TurnEvent, WorldEventTracker } from '../../types';
 
 function getEvent<T extends TurnEvent['type']>(
   events: TurnEvent[],
@@ -102,7 +102,7 @@ function buildNarrationGuide(
  */
 function buildNarrationSummaryInstructions(
   actionEvents: Extract<TurnEvent, { type: 'action_resolution' }>[],
-  effectDefinitions?: EffectDefinition[]
+  worldEventTrackers?: WorldEventTracker[]
 ): string {
   const lines: string[] = [];
   lines.push(
@@ -121,11 +121,11 @@ function buildNarrationSummaryInstructions(
   lines.push('[/NARRATION_SUMMARY]');
 
   // Add effect definition instructions
-  if (effectDefinitions && effectDefinitions.length > 0) {
+  if (worldEventTrackers && worldEventTrackers.length > 0) {
     lines.push('');
     lines.push('Effect instructions - include matching entries in the "effects" array when conditions are met:');
-    for (let i = 0; i < effectDefinitions.length; i++) {
-      const def = effectDefinitions[i];
+    for (let i = 0; i < worldEventTrackers.length; i++) {
+      const def = worldEventTrackers[i];
       const jsonBlock: Record<string, unknown> = {};
       const keys = Object.keys(def);
       for (let j = 0; j < keys.length; j++) {
@@ -162,7 +162,7 @@ function buildNarrationSummaryInstructions(
   return lines.join('\n');
 }
 
-function mapBasicFantasyJanitorAI(events: TurnEvent[]): PromptChannels {
+function mapBasicFantasyJanitorAI(events: TurnEvent[]): PromptInstructions {
   const inputEvent = getEvent(events, 'player_input');
   const actionEvents = events.filter(e => e.type === 'action_resolution') as Extract<TurnEvent, { type: 'action_resolution' }>[];
   const choicesEvent = getEvent(events, 'available_choices');
@@ -176,7 +176,7 @@ function mapBasicFantasyJanitorAI(events: TurnEvent[]): PromptChannels {
       : 'none') + '.';
 
   // Mid-term: instructions for upcoming narration behaviour.
-  const midTerm =
+  const sceneGuidance =
     'Mid-turn objective: include NPC reaction, environmental consequence, and explicit player options.';
 
   // Short-term: [NARRATION_GUIDE] + NARRATION_SUMMARY instructions,
@@ -186,10 +186,10 @@ function mapBasicFantasyJanitorAI(events: TurnEvent[]): PromptChannels {
   const scenarioText = narrationGuide + '\n\n' + summaryInstructions;
 
   return {
-    longHorizon: personalityText,
-    midTerm: midTerm,
-    shortTerm: scenarioText,
-    combined: personalityText + '\n\n' + midTerm + '\n\n' + scenarioText
+    campaignContinuity: personalityText,
+    sceneGuidance: sceneGuidance,
+    immediateInstruction: scenarioText,
+    combined: personalityText + '\n\n' + sceneGuidance + '\n\n' + scenarioText
   };
 }
 

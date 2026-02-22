@@ -8,7 +8,7 @@
  * to achieve feature parity with the showcase branch.
  */
 
-import { GameCartridge, GameState, AspectFunctionResult, SideEffect } from '../types';
+import { GameCartridge, GameState, RuleResolution, ActiveCondition } from '../types';
 import { extractMatch } from '../utils/text-utils';
 import { addDuration, formatDate } from '../utils/time-utils';
 import { rollDice, sumRolls } from '../utils/dice';
@@ -17,7 +17,7 @@ const END_THIS_TURN = 'Then, end this turn (i.e. give NARRATION_SUMMARY block) a
   'wait for the Script to provide subsequent events.\n';
 
 const defaultCharacterSheet: GameState = {
-  cur_ts: '1000-01-01T08:00:00',
+  timestamp: '1000-01-01T08:00:00',
   stats: {
     hp: 100,
     max_hp: 100,
@@ -31,7 +31,7 @@ const defaultCharacterSheet: GameState = {
     scars: 0,
     num_day: 0
   },
-  se: [],
+  activeConditions: [],
   flags: []
 };
 
@@ -49,7 +49,7 @@ const basicFantasyCartridge: GameCartridge = {
 
   defaultGameState: defaultCharacterSheet,
 
-  aspectSequence: [
+  ruleSequence: [
     'drink_potion',
     'combat_event',
     'travel',
@@ -59,7 +59,7 @@ const basicFantasyCartridge: GameCartridge = {
     'inspect', 'search', 'move', 'use' // exploration (rest handled above)
   ],
 
-  effectDefinitions: [
+  worldEventTrackers: [
     {
       key: 'drink_potion',
       what: "string; type of potion; allowed values are 'healing', 'strength', 'poison'",
@@ -103,8 +103,8 @@ const basicFantasyCartridge: GameCartridge = {
     'Travel complete'
   ],
 
-  aspectFunctions: {
-    drink_potion: function (sheet: GameState, context: import('../types').AspectContext): AspectFunctionResult {
+  gameRules: {
+    drink_potion: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
       if (!context.effectData) {
         return {
           outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: ['If {{user}} finds a potion, describe its appearance (color, smell).'] },
@@ -128,12 +128,12 @@ const basicFantasyCartridge: GameCartridge = {
         }
       }
 
-      let whenTime = sheet.cur_ts;
-      if (typeCheck && typeCheck['when'] && effect['when'] && (effect['when'] as string) <= sheet.cur_ts) {
+      let whenTime = sheet.timestamp;
+      if (typeCheck && typeCheck['when'] && effect['when'] && (effect['when'] as string) <= sheet.timestamp) {
         whenTime = effect['when'] as string;
       }
 
-      const sideEffects: SideEffect[] = [];
+      const sideEffects: ActiveCondition[] = [];
       let narrationGuide = '';
 
       if (potionType === 'healing') {
@@ -185,7 +185,7 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    combat_event: function (sheet: GameState, context: import('../types').AspectContext): AspectFunctionResult {
+    combat_event: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
       if (!context.effectData) {
         return {
           outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: ["If combat starts, describe the enemy and the environment. Wait for {{user}}'s action."] },
@@ -209,7 +209,7 @@ const basicFantasyCartridge: GameCartridge = {
         }
       }
 
-      const sideEffects: SideEffect[] = [];
+      const sideEffects: ActiveCondition[] = [];
       let narrationGuide = '';
 
       if (eventType === 'enemy_attack') {
@@ -246,7 +246,7 @@ const basicFantasyCartridge: GameCartridge = {
 
         // Temporary stun if damage > 20
         if (actualDamage > 20) {
-          const stunnedExpiry = addDuration(sheet.cur_ts, 'PT1M');
+          const stunnedExpiry = addDuration(sheet.timestamp, 'PT1M');
           sideEffects.push({
             what: 'stunned by heavy blow',
             temp: true,
@@ -284,16 +284,16 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    travel: function (sheet: GameState, context: import('../types').AspectContext): AspectFunctionResult {
+    travel: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
       if (!context.effectData) {
         return { outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: [] }, stateMutations: [] };
       }
       const effect = context.effectData as Record<string, unknown>;
       const typeCheck = context.typeCheck as Record<string, unknown> | null;
 
-      let arrivalTime = sheet.cur_ts;
+      let arrivalTime = sheet.timestamp;
       if (typeCheck && typeCheck['when'] && effect['when']) {
-        if ((effect['when'] as string) > sheet.cur_ts) {
+        if ((effect['when'] as string) > sheet.timestamp) {
           arrivalTime = effect['when'] as string;
         }
       }
@@ -303,7 +303,7 @@ const basicFantasyCartridge: GameCartridge = {
         travelMode = extractMatch(['walk', 'run', 'ride'], 'walk', effect['what'] as string);
       }
 
-      const sideEffects: SideEffect[] = [];
+      const sideEffects: ActiveCondition[] = [];
       sideEffects.push({
         what: 'traveled (' + travelMode + ')',
         temp: false,
@@ -326,7 +326,7 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    rest: function (sheet: GameState, context: import('../types').AspectContext): AspectFunctionResult {
+    rest: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
       if (!context.effectData) {
         return { outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: [] }, stateMutations: [] };
       }
@@ -338,15 +338,15 @@ const basicFantasyCartridge: GameCartridge = {
         restType = extractMatch(['short', 'long'], 'short', effect['what'] as string);
       }
 
-      let wakeTime = sheet.cur_ts;
-      if (typeCheck && typeCheck['when'] && effect['when'] && (effect['when'] as string) > sheet.cur_ts) {
+      let wakeTime = sheet.timestamp;
+      if (typeCheck && typeCheck['when'] && effect['when'] && (effect['when'] as string) > sheet.timestamp) {
         wakeTime = effect['when'] as string;
       } else {
         const duration = (restType === 'long') ? 'PT8H' : 'PT1H';
-        wakeTime = addDuration(sheet.cur_ts, duration);
+        wakeTime = addDuration(sheet.timestamp, duration);
       }
 
-      const sideEffects: SideEffect[] = [];
+      const sideEffects: ActiveCondition[] = [];
       const hp = sheet.stats['hp'] || 0;
       const maxHP = sheet.stats['max_hp'] || 100;
 
@@ -393,7 +393,7 @@ const logicMap: Array<{ condition: string, action: string, stat: string, diff: n
 ];
 
 logicMap.forEach(match => {
-  basicFantasyCartridge.aspectFunctions[match.action] = function (sheet: GameState, context: import('../types').AspectContext): AspectFunctionResult {
+  basicFantasyCartridge.gameRules[match.action] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
     const parentIntent = context.action?.find(a => a.action === match.action);
     if (!parentIntent) {
       return { outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: [] }, stateMutations: [] };

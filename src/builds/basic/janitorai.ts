@@ -38,11 +38,11 @@ export {
   OutputPrompt,
   SystemAdapter,
   GameState,
-  SideEffect,
-  Impact,
-  EffectDefinition,
-  AspectFunction,
-  AspectFunctionResult
+  ActiveCondition,
+  StatModifier,
+  WorldEventTracker,
+  GameRule,
+  RuleResolution
 } from '../../types';
 export { rollDie, rollDice, sumRolls } from '../../utils/dice';
 export { parseActionInput } from '../../inputs/action-parser';
@@ -89,24 +89,24 @@ if (typeof context !== 'undefined') {
 
   // 1. DECODE – Extract state and narration summary from chat history
   const loadedState = adapter.loadState();
-  let rpState: GameState | null = (loadedState && (loadedState as Record<string, unknown>)['cur_ts'])
+  let rpState: GameState | null = (loadedState && (loadedState as Record<string, unknown>)['timestamp'])
     ? loadedState as unknown as GameState
     : null;
   const scenarioUpdate = adapter.getScenarioUpdate();
 
-  const dataCorrupted = !rpState || !rpState.cur_ts;
+  const dataCorrupted = !rpState || !rpState.timestamp;
 
-  if (!rpState || !rpState.cur_ts) {
+  if (!rpState || !rpState.timestamp) {
     rpState = JSON.parse(JSON.stringify(cartridge.defaultGameState)) as GameState;
   }
 
   // Build a narration summary in the format expected by processEffects
-  let naSum: Record<string, unknown> = {
+  let narrationSummary: Record<string, unknown> = {
     elapsed_time: 'PT1M',
     effects: []
   };
   if (scenarioUpdate) {
-    naSum = {
+    narrationSummary = {
       elapsed_time: scenarioUpdate.elapsed_time || 'PT1M',
       effects: scenarioUpdate.effects || [],
       flags: scenarioUpdate.flags || {},
@@ -129,7 +129,7 @@ if (typeof context !== 'undefined') {
         preParsedAction = deduced;
       }
     }
-    const turnResult = script.executeTurn(playerMsg, rpState as GameState, naSum, preParsedAction);
+    const turnResult = script.executeTurn(playerMsg, rpState as GameState, narrationSummary, preParsedAction);
     actionPrompt = turnResult.prompt;
     rpState = turnResult.newState;
     effectNarrationGuide = turnResult.narrationGuide;
@@ -180,8 +180,8 @@ if (typeof context !== 'undefined') {
 
     // Build narration summary instructions from effect definitions
     let effectInstructions = '';
-    for (let i = 0; i < cartridge.effectDefinitions.length; i++) {
-      const def = cartridge.effectDefinitions[i];
+    for (let i = 0; i < cartridge.worldEventTrackers.length; i++) {
+      const def = cartridge.worldEventTrackers[i];
       const jsonBlock: Record<string, unknown> = {};
       const keys = Object.keys(def);
       for (let j = 0; j < keys.length; j++) {
@@ -195,7 +195,7 @@ if (typeof context !== 'undefined') {
 
     const narrationGuide = '\n\nThis is the narration guide for you to follow (for this response):\n\n' +
       '[NARRATION_GUIDE]\n' +
-      '"In-Game Date/Time: ' + getDow(rpState.cur_ts) + ' ' + formatDate12Hr(rpState.cur_ts) + '."\n\n' +
+      '"In-Game Date/Time: ' + getDow(rpState.timestamp) + ' ' + formatDate12Hr(rpState.timestamp) + '."\n\n' +
       effectNarrationGuide +
       turnEndInstructions +
       '[/NARRATION_GUIDE]\n\n' +

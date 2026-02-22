@@ -23,7 +23,7 @@ describe('processEffects integration', () => {
   test('should process healing potion effect from narration summary', () => {
     const script = createScript();
     const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 50 } });
-    const naSum = {
+    const narrationSummary = {
       elapsed_time: 'PT5M',
       effects: [
         {
@@ -34,7 +34,7 @@ describe('processEffects integration', () => {
       ]
     };
 
-    const result = script.executeTurn('', sheet, naSum);
+    const result = script.executeTurn('', sheet, narrationSummary);
 
     expect(result.newState.stats['hp']).toBe(80); // 50 + 30 (3 * 10)
     expect(result.narrationGuide).toContain('Healed 30 HP');
@@ -43,21 +43,21 @@ describe('processEffects integration', () => {
   test('should update time from elapsed_time', () => {
     const script = createScript();
     const sheet = makeSheet();
-    const naSum = {
+    const narrationSummary = {
       elapsed_time: 'PT30M',
       effects: []
     };
 
-    const result = script.executeTurn('', sheet, naSum);
+    const result = script.executeTurn('', sheet, narrationSummary);
 
-    expect(result.newState.cur_ts).toBe('1000-01-01T08:30:00');
+    expect(result.newState.timestamp).toBe('1000-01-01T08:30:00');
   });
 
   test('should revert expired side effects before processing new ones', () => {
     const script = createScript();
     const sheet = makeSheet({
       stats: { ...basicFantasyCartridge.defaultGameState.stats, strength: 20 },
-      se: [{
+      activeConditions: [{
         desc: 'strength potion',
         expiry: '1000-01-01T08:10:00', // will be expired after time update
         re_lock: null,
@@ -69,21 +69,21 @@ describe('processEffects integration', () => {
         }]
       }]
     });
-    const naSum = {
+    const narrationSummary = {
       elapsed_time: 'PT30M', // 8:00 + 30m = 8:30, past 8:10 expiry
       effects: []
     };
 
-    const result = script.executeTurn('', sheet, naSum);
+    const result = script.executeTurn('', sheet, narrationSummary);
 
     expect(result.newState.stats['strength']).toBe(10); // reverted
-    expect(result.newState.se.length).toBe(0);
+    expect(result.newState.activeConditions.length).toBe(0);
   });
 
   test('should process combat damage effect', () => {
     const script = createScript();
     const sheet = makeSheet();
-    const naSum = {
+    const narrationSummary = {
       elapsed_time: 'PT1M',
       effects: [
         {
@@ -95,7 +95,7 @@ describe('processEffects integration', () => {
       ]
     };
 
-    const result = script.executeTurn('', sheet, naSum);
+    const result = script.executeTurn('', sheet, narrationSummary);
 
     expect(result.newState.stats['hp']).toBe(85); // 100 - (20 - 5 defense) = 85
     expect(result.narrationGuide).toContain('15 damage');
@@ -104,7 +104,7 @@ describe('processEffects integration', () => {
   test('should process multiple effects in order', () => {
     const script = createScript();
     const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 80 } });
-    const naSum = {
+    const narrationSummary = {
       elapsed_time: 'PT5M',
       effects: [
         {
@@ -121,7 +121,7 @@ describe('processEffects integration', () => {
       ]
     };
 
-    const result = script.executeTurn('', sheet, naSum);
+    const result = script.executeTurn('', sheet, narrationSummary);
 
     // HP: 80 + 20 (heal) = 100, then 100 - (10 - 5) = 95
     expect(result.newState.stats['hp']).toBe(95);
@@ -130,12 +130,12 @@ describe('processEffects integration', () => {
   test('should handle empty narration summary gracefully', () => {
     const script = createScript();
     const sheet = makeSheet();
-    const naSum = {
+    const narrationSummary = {
       elapsed_time: 'PT0M',
       effects: []
     };
 
-    const result = script.executeTurn('', sheet, naSum);
+    const result = script.executeTurn('', sheet, narrationSummary);
 
     expect(result.newState.stats['hp']).toBe(100); // unchanged
     // Aspect functions called with null effect should return ambient narration
@@ -145,15 +145,15 @@ describe('processEffects integration', () => {
   test('should track midnights passed in num_day', () => {
     const script = createScript();
     const sheet = makeSheet({
-      cur_ts: '1000-01-01T23:00:00',
+      timestamp: '1000-01-01T23:00:00',
       stats: { ...basicFantasyCartridge.defaultGameState.stats, num_day: 0 }
     });
-    const naSum = {
+    const narrationSummary = {
       elapsed_time: 'PT8H', // crosses midnight
       effects: []
     };
 
-    const result = script.executeTurn('', sheet, naSum);
+    const result = script.executeTurn('', sheet, narrationSummary);
 
     expect(result.newState.stats['num_day']).toBe(1);
   });
@@ -161,10 +161,10 @@ describe('processEffects integration', () => {
   test('should not mutate the input sheet', () => {
     const script = createScript();
     const sheet = makeSheet();
-    const originalCurTs = sheet.cur_ts;
+    const originalCurTs = sheet.timestamp;
     const originalHp = sheet.stats['hp'];
     const originalNumDay = sheet.stats['num_day'];
-    const naSum = {
+    const narrationSummary = {
       elapsed_time: 'PT30M',
       effects: [
         {
@@ -176,10 +176,10 @@ describe('processEffects integration', () => {
       ]
     };
 
-    script.executeTurn('', sheet, naSum);
+    script.executeTurn('', sheet, narrationSummary);
 
     // The input sheet must remain unchanged
-    expect(sheet.cur_ts).toBe(originalCurTs);
+    expect(sheet.timestamp).toBe(originalCurTs);
     expect(sheet.stats['hp']).toBe(originalHp);
     expect(sheet.stats['num_day']).toBe(originalNumDay);
   });
@@ -190,7 +190,7 @@ describe('cleanInput validation', () => {
     const script = createScript();
     const sheet = makeSheet();
     // Invalid elapsed_time should be handled gracefully
-    const naSum = {
+    const narrationSummary = {
       elapsed_time: 'invalid',
       effects: [
         {
@@ -202,7 +202,7 @@ describe('cleanInput validation', () => {
     };
 
     // Should not throw, should use defaults
-    const result = script.executeTurn('', sheet, naSum);
+    const result = script.executeTurn('', sheet, narrationSummary);
     expect(result.newState).toBeDefined();
   });
 });

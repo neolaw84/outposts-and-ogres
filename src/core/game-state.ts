@@ -2,11 +2,11 @@
  * Character sheet utilities for applying and reverting side effects.
  *
  * This module owns all mutations to the character sheet state.
- * - applySideEffect: Applies impacts to stats, tracks temporary effects in se[] for later reversion.
+ * - applySideEffect: Applies impacts to stats, tracks temporary effects in activeConditions[] for later reversion.
  * - revertSideEffect: Checks expired effects against current time and reverts them.
  */
 
-import { GameState, SideEffect, StoredSideEffect, StoredImpact } from '../types';
+import { GameState, ActiveCondition, StatusEffect, StoredStatModifier } from '../types';
 import { isPast } from '../utils/time-utils';
 
 /**
@@ -18,21 +18,21 @@ import { isPast } from '../utils/time-utils';
  *   - "add": adds to the stat value
  *   - "sub": subtracts from the stat value
  *
- * If the side effect has an expiry, it is stored in the se[] array
+ * If the side effect has an expiry, it is stored in the activeConditions[] array
  * with original values for later reversion.
  */
-function applySideEffect(sheet: GameState, sideEffects: SideEffect | SideEffect[] | null): GameState {
+function applySideEffect(sheet: GameState, sideEffects: ActiveCondition | ActiveCondition[] | null): GameState {
   const newSheet: GameState = JSON.parse(JSON.stringify(sheet));
 
   if (!sideEffects) return newSheet;
 
-  const effectsList: SideEffect[] = Array.isArray(sideEffects) ? sideEffects : [sideEffects];
+  const effectsList: ActiveCondition[] = Array.isArray(sideEffects) ? sideEffects : [sideEffects];
 
   for (let k = 0; k < effectsList.length; k++) {
     const sideEffect = effectsList[k];
     if (!sideEffect) continue;
 
-    const sideEffectEntry: StoredSideEffect = {
+    const sideEffectEntry: StatusEffect = {
       desc: sideEffect.what,
       expiry: sideEffect.expiry || null,
       re_lock: sideEffect.re_lock || null,
@@ -48,7 +48,7 @@ function applySideEffect(sheet: GameState, sideEffects: SideEffect | SideEffect[
           const currentValue = newSheet.stats[statKey];
           let newValue = currentValue;
 
-          const storedImpact: StoredImpact = {
+          const storedImpact: StoredStatModifier = {
             stats: statKey,
             op: imp.op,
             val: imp.val,
@@ -73,10 +73,10 @@ function applySideEffect(sheet: GameState, sideEffects: SideEffect | SideEffect[
 
     // Only track side effects with valid expiry (saves tokens)
     if (sideEffectEntry.expiry && sideEffectEntry.expiry !== null) {
-      if (!newSheet.se) {
-        newSheet.se = [];
+      if (!newSheet.activeConditions) {
+        newSheet.activeConditions = [];
       }
-      newSheet.se.push(sideEffectEntry);
+      newSheet.activeConditions.push(sideEffectEntry);
     }
   }
 
@@ -93,17 +93,17 @@ function applySideEffect(sheet: GameState, sideEffects: SideEffect | SideEffect[
  *     - "set": restore to oriVal
  *     - "add": subtract the val back
  *     - "sub": add the val back
- *   - Remove the effect from se[].
+ *   - Remove the effect from activeConditions[].
  */
 function revertSideEffect(sheet: GameState): GameState {
   const newSheet: GameState = JSON.parse(JSON.stringify(sheet));
-  const currentTime = newSheet.cur_ts;
+  const currentTime = newSheet.timestamp;
 
-  if (!newSheet.se) return newSheet;
+  if (!newSheet.activeConditions) return newSheet;
 
-  const activeEffects: StoredSideEffect[] = [];
-  for (let i = 0; i < newSheet.se.length; i++) {
-    const eff = newSheet.se[i];
+  const activeEffects: StatusEffect[] = [];
+  for (let i = 0; i < newSheet.activeConditions.length; i++) {
+    const eff = newSheet.activeConditions[i];
     let shouldExpire = false;
 
     if (eff.expiry) {
@@ -147,7 +147,7 @@ function revertSideEffect(sheet: GameState): GameState {
     }
   }
 
-  newSheet.se = activeEffects;
+  newSheet.activeConditions = activeEffects;
   return newSheet;
 }
 

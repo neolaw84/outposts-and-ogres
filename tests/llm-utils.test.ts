@@ -127,7 +127,7 @@ describe('LLM utilities', function () {
 
   describe('findEffectByKey', function () {
     test('should find effect by key', function () {
-      var naSum = {
+      var narrationSummary = {
         effects: [
           { key: 'damage', what: 'hit' },
           { key: 'heal', what: 'restore' }
@@ -139,15 +139,15 @@ describe('LLM utilities', function () {
           { key: true, what: true }
         ]
       };
-      var result = findEffectByKey('heal', naSum, typeChecks);
+      var result = findEffectByKey('heal', narrationSummary, typeChecks);
       expect(result.effect).toEqual({ key: 'heal', what: 'restore' });
       expect(result.typeCheck).toEqual({ key: true, what: true });
     });
 
     test('should return nulls when key not found', function () {
-      var naSum = { effects: [{ key: 'damage' }] };
+      var narrationSummary = { effects: [{ key: 'damage' }] };
       var typeChecks = { effects: [{ key: true }] };
-      var result = findEffectByKey('missing', naSum, typeChecks);
+      var result = findEffectByKey('missing', narrationSummary, typeChecks);
       expect(result.effect).toBeNull();
       expect(result.typeCheck).toBeNull();
     });

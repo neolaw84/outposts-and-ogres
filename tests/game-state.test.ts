@@ -1,9 +1,9 @@
 import { applySideEffect, revertSideEffect } from '../src/core/game-state';
-import { GameState, SideEffect } from '../src/types';
+import { GameState, ActiveCondition } from '../src/types';
 
 function makeSheet(overrides?: Partial<GameState>): GameState {
   return {
-    cur_ts: '1000-01-01T08:00:00',
+    timestamp: '1000-01-01T08:00:00',
     stats: {
       hp: 100,
       max_hp: 100,
@@ -15,7 +15,7 @@ function makeSheet(overrides?: Partial<GameState>): GameState {
       gold: 50,
       xp: 0
     },
-    se: [],
+    activeConditions: [],
     flags: [],
     ...overrides
   };
@@ -25,7 +25,7 @@ describe('CharacterSheetUtils', () => {
   describe('applySideEffect', () => {
     test('should apply permanent add effect', () => {
       const sheet = makeSheet();
-      const effect: SideEffect = {
+      const effect: ActiveCondition = {
         what: 'healed',
         temp: false,
         impacts: [{ stats: 'hp', op: 'add', val: 20 }]
@@ -33,12 +33,12 @@ describe('CharacterSheetUtils', () => {
 
       const result = applySideEffect(sheet, effect);
       expect(result.stats['hp']).toBe(120); // 100 + 20
-      expect(result.se.length).toBe(0); // permanent, not stored
+      expect(result.activeConditions.length).toBe(0); // permanent, not stored
     });
 
     test('should apply permanent sub effect', () => {
       const sheet = makeSheet();
-      const effect: SideEffect = {
+      const effect: ActiveCondition = {
         what: 'took damage',
         temp: false,
         impacts: [{ stats: 'hp', op: 'sub', val: 30 }]
@@ -50,7 +50,7 @@ describe('CharacterSheetUtils', () => {
 
     test('should apply permanent set effect', () => {
       const sheet = makeSheet();
-      const effect: SideEffect = {
+      const effect: ActiveCondition = {
         what: 'full heal',
         temp: false,
         impacts: [{ stats: 'hp', op: 'set', val: 100 }]
@@ -60,9 +60,9 @@ describe('CharacterSheetUtils', () => {
       expect(result.stats['hp']).toBe(100);
     });
 
-    test('should apply temporary effect with expiry and store in se[]', () => {
+    test('should apply temporary effect with expiry and store in activeConditions[]', () => {
       const sheet = makeSheet();
-      const effect: SideEffect = {
+      const effect: ActiveCondition = {
         what: 'strength potion',
         temp: true,
         expiry: '1000-01-01T08:10:00',
@@ -71,15 +71,15 @@ describe('CharacterSheetUtils', () => {
 
       const result = applySideEffect(sheet, effect);
       expect(result.stats['strength']).toBe(20); // 10 + 10
-      expect(result.se.length).toBe(1);
-      expect(result.se[0].desc).toBe('strength potion');
-      expect(result.se[0].expiry).toBe('1000-01-01T08:10:00');
-      expect(result.se[0].impacts[0].oriVal).toBe(10); // original value stored
+      expect(result.activeConditions.length).toBe(1);
+      expect(result.activeConditions[0].desc).toBe('strength potion');
+      expect(result.activeConditions[0].expiry).toBe('1000-01-01T08:10:00');
+      expect(result.activeConditions[0].impacts[0].oriVal).toBe(10); // original value stored
     });
 
     test('should apply array of side effects', () => {
       const sheet = makeSheet();
-      const effects: SideEffect[] = [
+      const effects: ActiveCondition[] = [
         {
           what: 'damage',
           temp: false,
@@ -117,12 +117,12 @@ describe('CharacterSheetUtils', () => {
   describe('revertSideEffect', () => {
     test('should revert expired add effect', () => {
       const sheet = makeSheet({
-        cur_ts: '1000-01-01T09:00:00', // 1 hour later
+        timestamp: '1000-01-01T09:00:00', // 1 hour later
         stats: {
           hp: 100, max_hp: 100, strength: 20, defense: 5,
           stunned: 0, poisoned: 0, scars: 0, gold: 50, xp: 0
         },
-        se: [{
+        activeConditions: [{
           desc: 'strength potion',
           expiry: '1000-01-01T08:10:00', // expired
           re_lock: null,
@@ -137,17 +137,17 @@ describe('CharacterSheetUtils', () => {
 
       const result = revertSideEffect(sheet);
       expect(result.stats['strength']).toBe(10); // reverted from 20 to 10
-      expect(result.se.length).toBe(0);
+      expect(result.activeConditions.length).toBe(0);
     });
 
     test('should revert expired set effect to original value', () => {
       const sheet = makeSheet({
-        cur_ts: '1000-01-01T09:00:00',
+        timestamp: '1000-01-01T09:00:00',
         stats: {
           hp: 100, max_hp: 100, strength: 10, defense: 5,
           stunned: 1, poisoned: 0, scars: 0, gold: 50, xp: 0
         },
-        se: [{
+        activeConditions: [{
           desc: 'stunned',
           expiry: '1000-01-01T08:01:00', // expired
           re_lock: null,
@@ -162,17 +162,17 @@ describe('CharacterSheetUtils', () => {
 
       const result = revertSideEffect(sheet);
       expect(result.stats['stunned']).toBe(0); // reverted
-      expect(result.se.length).toBe(0);
+      expect(result.activeConditions.length).toBe(0);
     });
 
     test('should keep non-expired effects', () => {
       const sheet = makeSheet({
-        cur_ts: '1000-01-01T08:05:00', // only 5 minutes in
+        timestamp: '1000-01-01T08:05:00', // only 5 minutes in
         stats: {
           hp: 100, max_hp: 100, strength: 20, defense: 5,
           stunned: 0, poisoned: 0, scars: 0, gold: 50, xp: 0
         },
-        se: [{
+        activeConditions: [{
           desc: 'strength potion',
           expiry: '1000-01-01T08:10:00', // not expired yet
           re_lock: null,
@@ -187,18 +187,18 @@ describe('CharacterSheetUtils', () => {
 
       const result = revertSideEffect(sheet);
       expect(result.stats['strength']).toBe(20); // still buffed
-      expect(result.se.length).toBe(1);
+      expect(result.activeConditions.length).toBe(1);
     });
 
     test('should respect re_lock preventing expiration', () => {
       const sheet = makeSheet({
-        cur_ts: '1000-01-01T09:00:00',
+        timestamp: '1000-01-01T09:00:00',
         stats: {
           hp: 100, max_hp: 100, strength: 20, defense: 5,
           stunned: 0, poisoned: 0, scars: 0, gold: 50, xp: 0,
           combat_lock: 1 // lock is active
         },
-        se: [{
+        activeConditions: [{
           desc: 'combat buff',
           expiry: '1000-01-01T08:10:00', // expired
           re_lock: ['combat_lock'], // but locked
@@ -213,18 +213,18 @@ describe('CharacterSheetUtils', () => {
 
       const result = revertSideEffect(sheet);
       expect(result.stats['strength']).toBe(20); // still buffed due to re_lock
-      expect(result.se.length).toBe(1);
+      expect(result.activeConditions.length).toBe(1);
     });
 
     test('should expire when re_lock is inactive', () => {
       const sheet = makeSheet({
-        cur_ts: '1000-01-01T09:00:00',
+        timestamp: '1000-01-01T09:00:00',
         stats: {
           hp: 100, max_hp: 100, strength: 20, defense: 5,
           stunned: 0, poisoned: 0, scars: 0, gold: 50, xp: 0,
           combat_lock: 0 // lock is inactive
         },
-        se: [{
+        activeConditions: [{
           desc: 'combat buff',
           expiry: '1000-01-01T08:10:00', // expired
           re_lock: ['combat_lock'],
@@ -239,13 +239,13 @@ describe('CharacterSheetUtils', () => {
 
       const result = revertSideEffect(sheet);
       expect(result.stats['strength']).toBe(10); // reverted since lock inactive
-      expect(result.se.length).toBe(0);
+      expect(result.activeConditions.length).toBe(0);
     });
 
     test('should not mutate the original sheet', () => {
       const sheet = makeSheet({
-        cur_ts: '1000-01-01T09:00:00',
-        se: [{
+        timestamp: '1000-01-01T09:00:00',
+        activeConditions: [{
           desc: 'test',
           expiry: '1000-01-01T08:10:00',
           re_lock: null,
@@ -254,7 +254,7 @@ describe('CharacterSheetUtils', () => {
       });
 
       revertSideEffect(sheet);
-      expect(sheet.se.length).toBe(1); // original unchanged
+      expect(sheet.activeConditions.length).toBe(1); // original unchanged
     });
   });
 });

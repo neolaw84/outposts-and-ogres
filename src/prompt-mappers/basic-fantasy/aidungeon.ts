@@ -1,4 +1,4 @@
-import { PromptChannels, TurnEvent } from '../../types';
+import { PromptInstructions, TurnEvent } from '../../types';
 
 function getEvent<T extends TurnEvent['type']>(
   events: TurnEvent[],
@@ -12,7 +12,7 @@ function getEvent<T extends TurnEvent['type']>(
   return null;
 }
 
-function mapBasicFantasyAIDungeon(events: TurnEvent[]): PromptChannels {
+function mapBasicFantasyAIDungeon(events: TurnEvent[]): PromptInstructions {
   const inputEvent = getEvent(events, 'player_input');
   const actionEvent = getEvent(events, 'action_resolution');
   const choicesEvent = getEvent(events, 'available_choices');
@@ -23,7 +23,7 @@ function mapBasicFantasyAIDungeon(events: TurnEvent[]): PromptChannels {
 
   const choices = choicesEvent ? choicesEvent.choices.join(', ') : 'none';
 
-  const shortTerm = actionEvent
+  const immediateInstruction = actionEvent
     ? 'Immediate render: The player attempts ' + actionEvent.action +
     (actionEvent.target ? ' targeting ' + actionEvent.target : '') +
     '. Logs: ' + (actionEvent.mechanicsLogs && actionEvent.mechanicsLogs.length > 0 ? actionEvent.mechanicsLogs.join(' | ') : 'none') +
@@ -31,22 +31,22 @@ function mapBasicFantasyAIDungeon(events: TurnEvent[]): PromptChannels {
     (actionEvent.narrationGuidance && actionEvent.narrationGuidance.length > 0 ? actionEvent.narrationGuidance.join(' ') : '')
     : 'Immediate render: narrate the attempted action and consequence.';
 
-  const midTerm =
+  const sceneGuidance =
     'Narration instruction: Continue the scene with NPC reactions and consequences, then end with explicit next choices. ' +
     'Current condition: ' + (inputEvent ? inputEvent.condition : 'unknown') + '. ' +
     'Player emotional signals: ' + emotions + '. ' +
     'Next choices: ' + choices + '.';
 
-  const longHorizon =
+  const campaignContinuity =
     'Campaign continuity: Keep condition and stakes coherent with the current scene. ' +
     'Condition=' + (choicesEvent ? choicesEvent.condition : 'unknown') + '. ' +
     'Track recurring NPCs, unresolved threats, and player emotional tone over multiple turns.';
 
   return {
-    longHorizon: longHorizon,
-    midTerm: midTerm,
-    shortTerm: shortTerm,
-    combined: longHorizon + '\n\n' + midTerm + '\n\n' + shortTerm
+    campaignContinuity: campaignContinuity,
+    sceneGuidance: sceneGuidance,
+    immediateInstruction: immediateInstruction,
+    combined: campaignContinuity + '\n\n' + sceneGuidance + '\n\n' + immediateInstruction
   };
 }
 

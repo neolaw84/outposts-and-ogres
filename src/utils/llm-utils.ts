@@ -12,7 +12,7 @@ import { base64EncodeRaw, base64DecodeRaw } from './base64';
 import { isValidDateStr } from './time-utils';
 
 /** Effect definition used for LLM instruction generation. */
-interface EffectDefinition {
+interface WorldEventTracker {
   key: string;
   condition: string;
   [prop: string]: unknown;
@@ -105,7 +105,7 @@ function extractNarrationSummary(message: string | null): Record<string, unknown
  * Generate instruction text for the LLM to include a specific effect
  * in the NARRATION_SUMMARY based on a condition.
  */
-function generateEffectInstruction(effectDef: EffectDefinition): string {
+function generateEffectInstruction(effectDef: WorldEventTracker): string {
   if (!effectDef || !effectDef.key || !effectDef.condition) {
     return '';
   }
@@ -130,13 +130,13 @@ function generateEffectInstruction(effectDef: EffectDefinition): string {
  */
 function findEffectByKey(
   key: string,
-  naSum: Record<string, unknown>,
+  narrationSummary: Record<string, unknown>,
   typeChecks: Record<string, unknown>
 ): FoundEffect {
   let foundEffect: Record<string, unknown> | null = null;
   let foundTypeCheck: Record<string, unknown> | null = null;
 
-  const effects = naSum['effects'] as Array<Record<string, unknown>> | undefined;
+  const effects = narrationSummary['effects'] as Array<Record<string, unknown>> | undefined;
   const typeCheckEffects = typeChecks['effects'] as Array<Record<string, unknown>> | undefined;
 
   if (effects && Array.isArray(effects)) {
@@ -236,7 +236,7 @@ function cleanInput(inputObject: Record<string, unknown>): Record<string, unknow
 }
 
 export {
-  EffectDefinition,
+  WorldEventTracker,
   FoundEffect,
   encodeState,
   decodeState,

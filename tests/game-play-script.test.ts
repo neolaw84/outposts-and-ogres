@@ -28,10 +28,10 @@ describe('GamePlayScript', () => {
       version: '0.1.0',
       stopConditions: ['puzzle'],
       availableActions: { puzzle: ['solve', 'hint'] },
-      defaultGameState: { cur_ts: '1000-01-01T08:00:00', stats: {}, se: [], flags: [] },
-      effectDefinitions: [],
-      aspectFunctions: {},
-      aspectSequence: ['player_action'],
+      defaultGameState: { timestamp: '1000-01-01T08:00:00', stats: {}, activeConditions: [], flags: [] },
+      worldEventTrackers: [],
+      gameRules: {},
+      ruleSequence: ['player_action'],
       turnEndTriggers: []
     };
     script.setCartridge(custom);
@@ -67,7 +67,7 @@ describe('GamePlayScript', () => {
     const prompt = script.buildPrompt(events);
     expect(prompt.text).toContain('attack');
     expect(prompt.text).toContain('orc');
-    expect(prompt.channels.shortTerm).toContain('NARRATION_GUIDE');
+    expect(prompt.channels.immediateInstruction).toContain('NARRATION_GUIDE');
     expect(prompt.events.length).toBe(1);
   });
 
@@ -114,13 +114,13 @@ describe('GamePlayScript', () => {
       stopConditions: ['combat'],
       availableActions: { combat: ['use_item'] },
       defaultGameState: {
-        cur_ts: '1000-01-01T08:00:00',
+        timestamp: '1000-01-01T08:00:00',
         stats: { hp: 20 }, // Starting HP is 20
-        se: [],
+        activeConditions: [],
         flags: []
       },
-      effectDefinitions: [],
-      aspectFunctions: {
+      worldEventTrackers: [],
+      gameRules: {
         'use_item': (state, context) => {
           if (context.action && context.action.find(a => a.action === 'use_item')) {
             return {
@@ -147,7 +147,7 @@ describe('GamePlayScript', () => {
           };
         }
       },
-      aspectSequence: ['use_item'],
+      ruleSequence: ['use_item'],
       turnEndTriggers: []
     };
 

@@ -19,6 +19,6 @@ describe('Basic Fantasy Cartridge', () => {
   });
 
   test('should have defined aspect functions for specific actions like attack', () => {
-    expect(basicFantasyCartridge.aspectFunctions['attack']).toBeDefined();
+    expect(basicFantasyCartridge.gameRules['attack']).toBeDefined();
   });
 });
