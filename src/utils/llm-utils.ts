@@ -9,9 +9,10 @@
  */
 
 import { base64EncodeRaw, base64DecodeRaw } from './base64';
+import { isValidDateStr } from './time-utils';
 
 /** Effect definition used for LLM instruction generation. */
-interface EffectDefinition {
+interface WorldEventTracker {
   key: string;
   condition: string;
   [prop: string]: unknown;
@@ -104,7 +105,7 @@ function extractNarrationSummary(message: string | null): Record<string, unknown
  * Generate instruction text for the LLM to include a specific effect
  * in the NARRATION_SUMMARY based on a condition.
  */
-function generateEffectInstruction(effectDef: EffectDefinition): string {
+function generateEffectInstruction(effectDef: WorldEventTracker): string {
   if (!effectDef || !effectDef.key || !effectDef.condition) {
     return '';
   }
@@ -129,13 +130,13 @@ function generateEffectInstruction(effectDef: EffectDefinition): string {
  */
 function findEffectByKey(
   key: string,
-  naSum: Record<string, unknown>,
+  narrationSummary: Record<string, unknown>,
   typeChecks: Record<string, unknown>
 ): FoundEffect {
   let foundEffect: Record<string, unknown> | null = null;
   let foundTypeCheck: Record<string, unknown> | null = null;
 
-  const effects = naSum['effects'] as Array<Record<string, unknown>> | undefined;
+  const effects = narrationSummary['effects'] as Array<Record<string, unknown>> | undefined;
   const typeCheckEffects = typeChecks['effects'] as Array<Record<string, unknown>> | undefined;
 
   if (effects && Array.isArray(effects)) {
@@ -153,13 +154,95 @@ function findEffectByKey(
   return { effect: foundEffect, typeCheck: foundTypeCheck };
 }
 
+/**
+ * Validate a narration summary object recursively and return a mirror
+ * object indicating which fields are valid.
+ * Used by aspect functions to safely access LLM-provided data.
+ */
+function cleanInput(inputObject: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+
+  // 1. Validate elapsed_time
+  if (typeof inputObject['elapsed_time'] === 'string' &&
+      (inputObject['elapsed_time'] as string).indexOf('P') === 0) {
+    result['elapsed_time'] = true;
+  } else {
+    result['elapsed_time'] = false;
+  }
+
+  // 2. Validate effects
+  if (Array.isArray(inputObject['effects'])) {
+    const effectsResult: Array<Record<string, unknown>> = [];
+    const effects = inputObject['effects'] as Array<Record<string, unknown>>;
+    for (let i = 0; i < effects.length; i++) {
+      const eff = effects[i];
+      const resEff: Record<string, unknown> = {};
+
+      // Key
+      resEff['key'] = (typeof eff['key'] === 'string' && (eff['key'] as string).length > 0);
+
+      // What
+      resEff['what'] = (typeof eff['what'] === 'string');
+
+      // When
+      resEff['when'] = (typeof eff['when'] === 'string' && isValidDateStr(eff['when'] as string));
+
+      // Flags
+      if (eff['flags'] && typeof eff['flags'] === 'object') {
+        const flagsResult: Record<string, boolean> = {};
+        const flags = eff['flags'] as Record<string, unknown>;
+        const flagKeys = Object.keys(flags);
+        for (let j = 0; j < flagKeys.length; j++) {
+          flagsResult[flagKeys[j]] = (typeof flags[flagKeys[j]] === 'boolean');
+        }
+        resEff['flags'] = flagsResult;
+      }
+
+      // Tags
+      if (eff['tags'] && typeof eff['tags'] === 'object') {
+        const tagsResult: Record<string, boolean> = {};
+        const tags = eff['tags'] as Record<string, unknown>;
+        const tagKeys = Object.keys(tags);
+        for (let j = 0; j < tagKeys.length; j++) {
+          tagsResult[tagKeys[j]] = (typeof tags[tagKeys[j]] === 'string');
+        }
+        resEff['tags'] = tagsResult;
+      }
+
+      // Meters
+      if (eff['meters'] && typeof eff['meters'] === 'object') {
+        const metersResult: Record<string, boolean> = {};
+        const meters = eff['meters'] as Record<string, unknown>;
+        const meterKeys = Object.keys(meters);
+        for (let j = 0; j < meterKeys.length; j++) {
+          metersResult[meterKeys[j]] = (typeof meters[meterKeys[j]] === 'number');
+        }
+        resEff['meters'] = metersResult;
+      }
+
+      effectsResult.push(resEff);
+    }
+    result['effects'] = effectsResult;
+  } else {
+    result['effects'] = false;
+  }
+
+  // 3. Debug
+  if (inputObject['debug']) {
+    result['debug'] = true;
+  }
+
+  return result;
+}
+
 export {
-  EffectDefinition,
+  WorldEventTracker,
   FoundEffect,
   encodeState,
   decodeState,
   buildRpStateBlock,
   extractNarrationSummary,
   generateEffectInstruction,
-  findEffectByKey
+  findEffectByKey,
+  cleanInput
 };

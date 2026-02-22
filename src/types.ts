@@ -26,68 +26,26 @@ interface ParsedAction {
   raw: string;
 }
 
-/** Outcome of a single dice roll. */
-interface DiceRollResult {
-  /** Number of sides on the die. */
-  sides: number;
-  /** The value that was rolled. */
-  value: number;
-}
-
-/** Result produced by the process phase. */
-interface ActionResult {
-  /** Whether the player's action succeeded. */
-  success: boolean;
-  /** The parsed action that was attempted. */
-  action: ParsedAction;
-  /** Dice rolls that were made. */
-  rolls: DiceRollResult[];
-  /** Difficulty threshold that had to be met. */
-  difficulty: number;
-  /** Sum of all dice rolls. */
-  rollTotal: number;
-}
-
 /**
- * A single rule in a cartridge that maps a condition + action pair
- * to the dice check and narration prompts.
+ * Represents the unified context in which an GameRule is triggered.
+ * Receives both the player intent (if any) and the parsed LLM summary data.
  */
-interface CartridgeRule {
-  /** Condition / scenario name, e.g. "combat", "exploration". */
-  condition: string;
-  /** Action keyword this rule handles. */
-  action: string;
-  /** Number of dice to roll. */
-  diceCount: number;
-  /** Number of sides per die. */
-  diceSides: number;
-  /** Minimum roll total needed for success. */
-  difficulty: number;
-  /** Prompt fragment sent to AI on success. */
-  successPrompt: string;
-  /** Prompt fragment sent to AI on failure. */
-  failurePrompt: string;
+export interface RuleContext {
+  /** The parsed actions from the player's input (if any) e.g., <attack goblin> <drink potion> */
+  action: ParsedAction[] | null;
+  /** The current condition/scenario of the engine (e.g., 'combat') */
+  currentCondition: string;
+  /** The key of the aspect function currently being executed in the sequence */
+  ruleKey: string;
+  /** The matching effect data from the LLM narration summary (if matched by effectDefinition) */
+  effectData: Record<string, unknown> | null;
+  /** The type check results for the effect data (if any) */
+  typeCheck: Record<string, unknown> | null;
+  /** The full raw narration summary object */
+  narrationSummary: Record<string, unknown>;
 }
 
-/**
- * A game play cartridge defines the rules for one game system.
- * Cartridges are swappable so different RPG rule-sets can be used.
- */
-interface GameCartridge {
-  /** Human-readable name of this game system. */
-  name: string;
-  /** Version string. */
-  version: string;
-  /** Conditions under which the AI should stop narrating and hand control to the player. */
-  stopConditions: string[];
-  /**
-   * Map from condition name to the list of actions the player may attempt.
-   * E.g. { "combat": ["attack", "dodge", "cast"] }
-   */
-  availableActions: Record<string, string[]>;
-  /** The full set of rules. */
-  rules: CartridgeRule[];
-}
+/* GameCartridge is defined below together with effect-driven types. */
 
 /**
  * The prompt that the output phase produces for the AI.
@@ -96,21 +54,19 @@ interface OutputPrompt {
   /** Complete prompt text to send to the AI. */
   text: string;
   /** Prompt split into channel-specific segments for each platform. */
-  channels: PromptChannels;
+  channels: PromptInstructions;
   /** Structured turn events used to build platform prompts. */
   events: TurnEvent[];
-  /** The action result that informed the prompt. */
-  result: ActionResult;
 }
 
 /** Prompt fragments for systems that support separate memory channels. */
-interface PromptChannels {
+interface PromptInstructions {
   /** Long horizon context and world-state continuity. */
-  longHorizon: string;
+  campaignContinuity: string;
   /** Mid-term instructions for upcoming narration behaviour. */
-  midTerm: string;
+  sceneGuidance: string;
   /** Immediate narration guidance for the very next model response. */
-  shortTerm: string;
+  immediateInstruction: string;
   /** Fallback full prompt for platforms with a single prompt field. */
   combined: string;
 }
@@ -123,29 +79,33 @@ interface PlayerEmotionSignal {
   sourceKeyword: string;
 }
 
+/** 
+ * Cartridge-specific understanding of the raw LLM WorldSimulationUpdate.
+ */
+export interface ScenarioUnderstanding {
+  suggestedCondition: string | null;
+  confidence: 'low' | 'medium' | 'high';
+  cues: string[];
+}
+
+/** 
+ * Comprehensive understanding of the player's input intent, 
+ * optionally provided by a cartridge's custom parser.
+ */
+export interface PlayerInputUnderstanding {
+  parsedActions: ParsedAction[] | null;
+  emotions: PlayerEmotionSignal[];
+  scenario: ScenarioUnderstanding;
+}
+
 /** Player input event emitted for each processed turn. */
 interface PlayerInputEvent {
   type: 'player_input';
   rawText: string;
   condition: string;
-  parsedAction: ParsedAction;
+  parsedActions: ParsedAction[];
   emotions: PlayerEmotionSignal[];
-  scenarioUnderstanding: {
-    suggestedCondition: string | null;
-    confidence: 'low' | 'medium' | 'high';
-    cues: string[];
-  };
-}
-
-/** Dice resolution event emitted after process phase. */
-interface DiceResolutionEvent {
-  type: 'dice_resolution';
-  action: string;
-  target: string;
-  success: boolean;
-  rolls: DiceRollResult[];
-  rollTotal: number;
-  difficulty: number;
+  scenarioUnderstanding: ScenarioUnderstanding;
 }
 
 /** Event emitted to expose what the player can do next. */
@@ -155,19 +115,24 @@ interface AvailableChoicesEvent {
   choices: string[];
 }
 
-/** Event emitted to provide cartridge-authored narration cue text. */
-interface NarrativeCueEvent {
-  type: 'narrative_cue';
-  success: boolean;
-  cue: string;
+/** 
+ * Event emitted after the unified resolution phase. 
+ * Replaces old DiceResolution and NarrativeCue events. 
+ */
+interface ActionResolutionEvent {
+  type: 'action_resolution';
+  action: string;
+  target?: string;
+  status: 'success' | 'failure' | 'mixed' | 'neutral';
+  mechanicsLogs: string[];
+  narrationGuidance: string[];
 }
 
 /** Union of all gameplay events used by prompt mappers. */
 type TurnEvent =
   | PlayerInputEvent
-  | DiceResolutionEvent
-  | AvailableChoicesEvent
-  | NarrativeCueEvent;
+  | ActionResolutionEvent
+  | AvailableChoicesEvent;
 
 /**
  * Structured scenario-update block returned by the LLM at the end of each
@@ -186,7 +151,7 @@ type TurnEvent =
  *   "meters": { "tension": 0.8, "distance_to_exit": 42 }
  * }
  */
-export interface ScenarioUpdate {
+export interface WorldSimulationUpdate {
   /** ISO 8601 duration – how much in-game time passed this narration turn (e.g. "PT5M"). */
   elapsed_time: string;
   /** Integer flags emitted by the LLM (0 = false, 1 = true, etc.). */
@@ -195,6 +160,8 @@ export interface ScenarioUpdate {
   tags: Record<string, string>;
   /** Numeric meters emitted by the LLM (e.g. tension, distance). */
   meters: Record<string, number>;
+  /** Structured effects array reported by the LLM for aspect-function processing. */
+  effects?: Array<Record<string, unknown>>;
 }
 
 /**
@@ -213,7 +180,7 @@ interface SystemAdapter {
    * Extract the player's latest message from the platform's context.
    * Each platform stores conversation history differently.
    */
-  getPlayerMessage(context: Record<string, unknown>): string | null;
+  getPlayerMessage(): string | null;
 
   /**
    * Apply the generated prompt to the platform's context so that the
@@ -221,44 +188,217 @@ interface SystemAdapter {
    * allows modifying `context.character.personality` and
    * `context.character.scenario`.
    */
-  applyPrompt(context: Record<string, unknown>, prompt: OutputPrompt): void;
+  applyPrompt(prompt: OutputPrompt): void;
 
   /**
    * Load persisted game state from the platform's storage mechanism.
    * Returns an empty object if no state exists yet.
    */
-  loadState(context: Record<string, unknown>): Record<string, unknown>;
+  loadState(): Record<string, unknown>;
 
   /**
    * Save game state using the platform's storage mechanism.
    * E.g. AI Dungeon uses a global `state` JSON object.
    */
-  saveState(context: Record<string, unknown>, state: Record<string, unknown>): void;
+  saveState(state: Record<string, unknown>): void;
 
   /**
    * Extract the structured scenario-update JSON emitted by the LLM in its
-   * last narration response and return it as a `ScenarioUpdate`.
+   * last narration response and return it as a `WorldSimulationUpdate`.
    * The exact field / mechanism used to locate the block differs per platform.
    * Returns null if no valid block is found.
    */
-  getScenarioUpdate(context: Record<string, unknown>): ScenarioUpdate | null;
+  getScenarioUpdate(): WorldSimulationUpdate | null;
+
+  /**
+   * Attempts to deduce the player's structured intent from their raw chat message.
+   * Useful for platforms that allow hidden LLM prompts (like SillyTavern).
+   * Returns null if the platform does not support advanced intent deduction.
+   */
+  deducePlayerIntent?(
+    rawMessage: string,
+    availableActions: string[]
+  ): Promise<ParsedAction[] | null> | ParsedAction[] | null;
+}
+
+// ---- Effect-driven state management types ----
+
+/** A single stat impact: which stat to change, what operation, and what value. */
+interface StatModifier {
+  /** Key into the character sheet stats object. */
+  stats: string;
+  /** Operation: "set" replaces the value, "add" adds to it, "sub" subtracts. */
+  op: 'set' | 'add' | 'sub';
+  /** The numeric value to apply. */
+  val: number;
+}
+
+/**
+ * A side effect produced by an aspect function.
+ * Represents a change to the character sheet stats.
+ */
+interface ActiveCondition {
+  /** Description of the side effect. */
+  what: string;
+  /** True if the effect is temporary (will be reverted after expiry). */
+  temp: boolean;
+  /** Array of stat impacts to apply. */
+  impacts: StatModifier[];
+  /** ISO datetime when a temporary effect expires. Only required when temp is true. */
+  expiry?: string;
+  /** Stat keys that prevent this effect from expiring while they are truthy. */
+  re_lock?: string[];
+}
+
+/** The result returned by an aspect function. */
+interface RuleResolution {
+  outcome: {
+    /** High-level resolution state for the action. */
+    status: 'success' | 'failure' | 'mixed' | 'neutral';
+    /** Optional mechanical logs, e.g. "Rolled 15 vs 12" or "Consumed 5 mana". */
+    mechanicsLogs: string[];
+    /** Direct instructions for the LLM on how to narrate this specific outcome. */
+    narrationGuidance: string[];
+    /** Override the action name reported to the prompt-mapper/LLM (defaults to ruleKey). */
+    actionName?: string;
+    /** Optional target reported to the prompt-mapper/LLM. */
+    actionTarget?: string;
+  };
+  /** Side effect(s) to apply to the game state. */
+  stateMutations: ActiveCondition[];
+}
+
+/** The game state persisted across turns. */
+interface GameState {
+  /** Current in-game timestamp in ISO format. */
+  timestamp: string;
+  /** All tracked stat values (hp, gold, strength, custom flags, etc.). */
+  stats: Record<string, number>;
+  /** Array of active temporary side effects with expiry tracking. */
+  activeConditions: StatusEffect[];
+  /** Boolean flags for game state tracking. */
+  flags: string[];
+}
+
+/** A stored side effect entry in the game state's activeConditions[] array. */
+interface StatusEffect {
+  /** Description of the effect. */
+  desc: string;
+  /** ISO datetime when the effect expires. */
+  expiry: string | null;
+  /** Stat keys that prevent this effect from expiring while they are truthy. */
+  re_lock: string[] | null;
+  /** Array of impacts with original values for reversion. */
+  impacts: StoredStatModifier[];
+}
+
+/** An impact entry stored for later reversion, includes original value. */
+interface StoredStatModifier {
+  stats: string;
+  op: 'set' | 'add' | 'sub';
+  val: number;
+  /** Original value before the impact was applied, used for reversion. */
+  oriVal: number;
+}
+
+/**
+ * An effect definition that tells the LLM when and how to report game events.
+ * Each definition produces an entry in the NARRATION_SUMMARY "effects" array.
+ */
+interface WorldEventTracker {
+  /** Unique identifier for this effect type. */
+  key: string;
+  /** Description of allowed values for "what" field. */
+  what: string;
+  /** Description of "when" field format. */
+  when?: string;
+  /** Descriptions of numeric meter fields. */
+  meters?: Record<string, string>;
+  /** Descriptions of boolean flag fields. */
+  flags?: Record<string, string>;
+  /** Descriptions of string tag fields. */
+  tags?: Record<string, string>;
+  /** When the LLM should report this event. */
+  condition: string;
+  /** Allow dynamic property access for JSON serialisation. */
+  [prop: string]: unknown;
+}
+
+/**
+ * Signature for unified aspect functions.
+ * Handles both user input actions and world simulation events.
+ *
+ * @param state - The current game state.
+ * @param context - Context explaining why this function is being called.
+ * @returns The narration guide text and side effects to apply.
+ */
+type GameRule = (
+  state: GameState,
+  context: RuleContext
+) => RuleResolution;
+
+/**
+ * Extended game cartridge that includes effect-driven state management.
+ * Adds effect definitions, aspect functions, a default character sheet,
+ * and turn-end triggers on top of the base GameCartridge.
+ */
+interface GameCartridge {
+  /** Human-readable name of this game system. */
+  name: string;
+  /** Version string. */
+  version: string;
+  /** Conditions under which the AI should stop narrating and hand control to the player. */
+  stopConditions: string[];
+  /**
+   * Map from condition name to the list of actions the player may attempt.
+   * E.g. { "combat": ["attack", "dodge", "cast"] }
+   */
+  availableActions: Record<string, string[]>;
+
+  /**
+   * Optional cartridge-level parser.
+   * Overrides the engine's default input understanding if provided.
+   */
+  parseInput?: (
+    message: string,
+    availableActions: string[],
+    currentCondition: string
+  ) => PlayerInputUnderstanding;
+
+  /** Default character sheet used when no prior state exists. */
+  defaultGameState: GameState;
+  /** Definitions of effects the LLM can report in NARRATION_SUMMARY. */
+  worldEventTrackers: WorldEventTracker[];
+  /** Aspect functions keyed by effect definition key. Called in worldEventTrackers order. */
+  gameRules: Record<string, GameRule>;
+  /** 
+   * The explicit order in which gameRules should be evaluated.
+   * Can interleave world simulation aspects with player actions.
+   * e.g., ['time_advance', 'weather_change', 'player_action', 'enemy_attack']
+   */
+  ruleSequence: string[];
+  /** Events that force the LLM to end the turn immediately. */
+  turnEndTriggers: string[];
 }
 
 export {
   Message,
   ParsedAction,
-  DiceRollResult,
-  ActionResult,
-  CartridgeRule,
   GameCartridge,
   OutputPrompt,
-  PromptChannels,
+  PromptInstructions,
   PlayerEmotionSignal,
   PlayerInputEvent,
-  DiceResolutionEvent,
+  ActionResolutionEvent,
   AvailableChoicesEvent,
-  NarrativeCueEvent,
   TurnEvent,
-  ScenarioUpdate,
-  SystemAdapter
+  SystemAdapter,
+  StatModifier,
+  ActiveCondition,
+  RuleResolution,
+  GameState,
+  StatusEffect,
+  StoredStatModifier,
+  WorldEventTracker,
+  GameRule
 };

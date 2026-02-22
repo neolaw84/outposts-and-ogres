@@ -33,24 +33,28 @@
  *   to scenario so the LLM produces a plain-JSON summary block.
  */
 
-import { SystemAdapter, OutputPrompt, ScenarioUpdate } from '../../types';
+import { SystemAdapter, OutputPrompt, WorldSimulationUpdate } from '../../types';
 import { decodeState, buildRpStateBlock, extractNarrationSummary } from '../../utils/llm-utils';
 
 /** Content of the last LLM response message. */
 interface ChatMessage {
-  content?: string;
-  [key: string]: unknown;
+  message?: string;
 }
 
 class JanitorAIAdapter implements SystemAdapter {
   readonly name: string = 'Janitor AI';
+  private context: Record<string, unknown>;
+
+  constructor(context: Record<string, unknown>) {
+    this.context = context;
+  }
 
   // ------------------------------------------------------------------
   // Player input
   // ------------------------------------------------------------------
 
-  getPlayerMessage(context: Record<string, unknown>): string | null {
-    const chat = context['chat'] as Record<string, unknown> | undefined;
+  getPlayerMessage(): string | null {
+    const chat = this.context['chat'] as Record<string, unknown> | undefined;
     if (!chat) {
       return null;
     }
@@ -65,8 +69,8 @@ class JanitorAIAdapter implements SystemAdapter {
     const messages = chat['last_messages'] as Array<ChatMessage> | undefined;
     if (messages && messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
-      if (lastMsg && lastMsg['content']) {
-        return lastMsg['content'] as string;
+      if (lastMsg && lastMsg['message']) {
+        return lastMsg['message'] as string;
       }
     }
 
@@ -77,33 +81,33 @@ class JanitorAIAdapter implements SystemAdapter {
   // Prompt application
   // ------------------------------------------------------------------
 
-  applyPrompt(context: Record<string, unknown>, prompt: OutputPrompt): void {
-    const character = (context['character'] || {}) as Record<string, unknown>;
+  applyPrompt(prompt: OutputPrompt): void {
+    const character = (this.context['character'] || {}) as Record<string, unknown>;
     const existingPersonality = (character['personality'] || '') as string;
     const existingScenario = (character['scenario'] || '') as string;
 
     // Prepend long-horizon + mid-term guidance to personality.
     character['personality'] =
-      prompt.channels.longHorizon + '\n\n' +
-      prompt.channels.midTerm + '\n\n' +
+      prompt.channels.campaignContinuity + '\n\n' +
+      prompt.channels.sceneGuidance + '\n\n' +
       existingPersonality;
 
     // Prepend narration guide and append narration-summary instructions
-    // to scenario (shortTerm contains both sections already composed
+    // to scenario (immediateInstruction contains both sections already composed
     // by the prompt mapper).
     character['scenario'] =
-      prompt.channels.shortTerm + '\n\n' +
+      prompt.channels.immediateInstruction + '\n\n' +
       existingScenario;
 
-    context['character'] = character;
+    this.context['character'] = character;
   }
 
   // ------------------------------------------------------------------
   // State persistence (Base64 inside [RP_STATE] tags)
   // ------------------------------------------------------------------
 
-  loadState(context: Record<string, unknown>): Record<string, unknown> {
-    const chat = context['chat'] as Record<string, unknown> | undefined;
+  loadState(): Record<string, unknown> {
+    const chat = this.context['chat'] as Record<string, unknown> | undefined;
     if (!chat) {
       return {};
     }
@@ -115,16 +119,16 @@ class JanitorAIAdapter implements SystemAdapter {
     }
 
     const prevResponse = messages[messages.length - 2];
-    if (!prevResponse || !prevResponse['content']) {
+    if (!prevResponse || !prevResponse['message']) {
       return {};
     }
 
-    const decoded = decodeState(prevResponse['content'] as string);
+    const decoded = decodeState(prevResponse['message'] as string);
     return decoded || {};
   }
 
-  saveState(context: Record<string, unknown>, state: Record<string, unknown>): void {
-    const character = (context['character'] || {}) as Record<string, unknown>;
+  saveState(state: Record<string, unknown>): void {
+    const character = (this.context['character'] || {}) as Record<string, unknown>;
     let personality = (character['personality'] || '') as string;
 
     const stateBlock = buildRpStateBlock(state);
@@ -145,7 +149,7 @@ class JanitorAIAdapter implements SystemAdapter {
     }
 
     character['personality'] = personality;
-    context['character'] = character;
+    this.context['character'] = character;
   }
 
   // ------------------------------------------------------------------
@@ -154,11 +158,11 @@ class JanitorAIAdapter implements SystemAdapter {
 
   /**
    * Extract the [NARRATION_SUMMARY] JSON from the last LLM response and
-   * return it as a `ScenarioUpdate`.
+   * return it as a `WorldSimulationUpdate`.
    * Returns null if no valid block is found.
    */
-  getScenarioUpdate(context: Record<string, unknown>): ScenarioUpdate | null {
-    const chat = context['chat'] as Record<string, unknown> | undefined;
+  getScenarioUpdate(): WorldSimulationUpdate | null {
+    const chat = this.context['chat'] as Record<string, unknown> | undefined;
     if (!chat) {
       return null;
     }
@@ -169,11 +173,11 @@ class JanitorAIAdapter implements SystemAdapter {
     }
 
     const prevResponse = messages[messages.length - 2];
-    if (!prevResponse || !prevResponse['content']) {
+    if (!prevResponse || !prevResponse['message']) {
       return null;
     }
 
-    const raw = extractNarrationSummary(prevResponse['content'] as string);
+    const raw = extractNarrationSummary(prevResponse['message'] as string);
     if (!raw) {
       return null;
     }
@@ -181,8 +185,13 @@ class JanitorAIAdapter implements SystemAdapter {
       elapsed_time: (raw['elapsed_time'] as string) || 'PT0S',
       flags: (raw['flags'] as Record<string, number>) || {},
       tags: (raw['tags'] as Record<string, string>) || {},
-      meters: (raw['meters'] as Record<string, number>) || {}
+      meters: (raw['meters'] as Record<string, number>) || {},
+      effects: (raw['effects'] as Array<Record<string, unknown>>) || []
     };
+  }
+
+  deducePlayerIntent(rawMessage: string, availableActions: string[]): import('../../types').ParsedAction[] | null {
+    return null; // To be implemented later
   }
 }
 
