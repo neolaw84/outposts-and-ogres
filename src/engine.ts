@@ -1,18 +1,3 @@
-/**
- * GameEngine – the core engine that executes the three-phase loop.
- *
- * Phase 1 – Input:   Detect the player's signals from their message.
- * Phase 2 – Process: Process the turn based on the cartridge's `ruleOrder`.
- *                    Every rule is called in order – even with null context –
- *                    so that the output can instruct the LLM about what must
- *                    NOT be narrated (e.g. "do not narrate player drinking a potion").
- * Phase 3 – Output:  Accumulate a standardised `NarrationDirective[]` for the
- *                    platform adapter.
- *
- * The engine is driven by a swappable Cartridge that defines conditions,
- * available actions, resolution rules, signal schemas, and aspect functions.
- */
-
 import {
   Cartridge,
   NarrationDirective,
@@ -34,18 +19,15 @@ class GameEngine {
 
   constructor(cartridge: Cartridge) {
     this.cartridge = cartridge;
-    // Default to the first breakpoint
     this.currentCondition = cartridge.breakpoints.length > 0
       ? cartridge.breakpoints[0]
       : 'default';
   }
 
-  /** Get the currently loaded cartridge. */
   public getCartridge(): Cartridge {
     return this.cartridge;
   }
 
-  /** Swap in a different cartridge at runtime. */
   public setCartridge(cartridge: Cartridge): void {
     this.cartridge = cartridge;
     this.currentCondition = cartridge.breakpoints.length > 0
@@ -53,49 +35,21 @@ class GameEngine {
       : 'default';
   }
 
-  /** Get the current condition / scenario. */
   public getCondition(): string {
     return this.currentCondition;
   }
 
-  /** Set the current condition / scenario. */
   public setCondition(condition: string): void {
     this.currentCondition = condition;
   }
 
-  // ----------------------------------------------------------------
-  // Phase 1 – INPUT
-  // ----------------------------------------------------------------
-
-  /**
-   * Detect the player's signals from the latest player message using the
-   * cartridge's signalDetectors.
-   * Returns an empty array if no recognisable signal is found.
-   */
   public detectSignals(playerMessage: string): Signal[] {
     return detectSignals(playerMessage, this.cartridge.signalDetectors);
   }
 
-  // ----------------------------------------------------------------
-  // Unified Turn Execution
-  // ----------------------------------------------------------------
-
   /**
-   * Run the complete 3-phase turn for a player message.
-   * Modifies the game state by processing the player action and world events
-   * in the exact order specified by `cartridge.ruleOrder`.
-   *
-   * Every rule in the sequence is called, even when there is no matching
-   * player action or world event.  This allows rules to emit `mustNotHappen`
-   * entries (e.g. "do not narrate player drinking a potion") which are
-   * essential for LLM-based narration engines.
-   *
-   * @param playerMessage The player's raw free-text input.
-   * @param currentState The current game state.
-   * @param narrationSummary The parsed narration summary from the LLM.
-   * @param preParsedSignals Optional pre-parsed signals provided by a platform adapter.
-   * @returns The new game state, accumulated narration guide, narration directives,
-   *          conditions to report back.
+   * Run a complete turn. Every rule in ruleOrder is called (even without a
+   * matching event) so that mustNotHappen entries can be emitted.
    */
   public executeTurn(
     playerMessage: string,
@@ -107,13 +61,11 @@ class GameEngine {
     directives: NarrationDirective[];
     schemaInstructions: string;
   } {
-    // Phase 1 – Input
     const allSignals = preParsedSignals || this.detectSignals(playerMessage);
 
-    // Phase 2 – Process (Unified Aspect Sequence)
     let newState = JSON.parse(JSON.stringify(currentState));
 
-    // First: Handle Time Advance and Expired Effects (Always happens first)
+    // Time advance and expired effect reversion
     const typeChecks = validateSignalTypes(narrationSummary);
     let durationToAdd = 'PT0M';
     if (typeChecks['elapsed_time']) {
@@ -130,13 +82,9 @@ class GameEngine {
 
     const directives: NarrationDirective[] = [];
 
-    // Iterate through the cartridge-defined aspect sequence.
-    // Every rule is called – even if there is no matching event – so that it
-    // can produce mustNotHappen entries for the LLM.
     const sequence = this.cartridge.ruleOrder || [];
     for (const key of sequence) {
       if (this.cartridge.rules && this.cartridge.rules[key]) {
-        // Prepare context
         const def = this.cartridge.signalSchemas.find(d => d.key === key);
 
         let foundEffect: Signal | null = null;
@@ -158,7 +106,6 @@ class GameEngine {
 
         const result = this.cartridge.rules[key](newState, context);
 
-        // Build the NarrationDirective from the rule result
         const gpe = this.buildNarrationDirective(key, result);
         directives.push(gpe);
 
@@ -172,7 +119,7 @@ class GameEngine {
       }
     }
 
-    // Generate schema instructions from signalSchemas using renderSchemaInstruction.
+    // Build schema instructions
     const instructionParts: string[] = [];
     for (const tracker of this.cartridge.signalSchemas) {
       const instruction = renderSchemaInstruction(tracker);
@@ -189,13 +136,6 @@ class GameEngine {
     };
   }
 
-  // ----------------------------------------------------------------
-  // NarrationDirective construction
-  // ----------------------------------------------------------------
-
-  /**
-   * Convert a RuleOutcome into a standardised NarrationDirective.
-   */
   private buildNarrationDirective(ruleKey: string, result: RuleOutcome | null): NarrationDirective {
     if (!result || !result.outcome) {
       return {

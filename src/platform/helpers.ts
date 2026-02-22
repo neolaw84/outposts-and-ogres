@@ -1,19 +1,6 @@
-/**
- * Shared helpers for platform adapters.
- *
- * Centralises the logic for formatting NarrationDirectives
- * into text lines that any adapter can consume.
- */
-
 import { NarrationDirective } from '../types';
 
-/**
- * Flatten NarrationDirectives into prefixed text lines.
- *
- * Each mustHappen entry becomes "MUST: …",
- * each mustNotHappen becomes "MUST NOT: …", and
- * each mayHappen becomes "MAY: …".
- */
+/** Flatten directives into "MUST: …" / "MUST NOT: …" / "MAY: …" lines. */
 function formatDirectiveLines(directives: NarrationDirective[]): string[] {
   const lines: string[] = [];
   for (const gpe of directives) {
@@ -30,9 +17,7 @@ function formatDirectiveLines(directives: NarrationDirective[]): string[] {
   return lines;
 }
 
-/**
- * Collect NarrationDirective entries into three separate arrays.
- */
+/** Collect directive entries into three separate arrays. */
 function collectDirectiveArrays(directives: NarrationDirective[]): {
   mustLines: string[];
   mustNotLines: string[];

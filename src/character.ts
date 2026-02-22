@@ -1,6 +1,3 @@
-/**
- * Character class for the RPG system
- */
 class Character {
   private name: string;
   private health: number;

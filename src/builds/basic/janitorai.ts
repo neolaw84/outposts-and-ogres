@@ -72,19 +72,14 @@ export {
 
 export { extractMatch, JanitorAIAdapter };
 
-// ------------------------------------------------------------------
-// DRIVER SCRIPT
-// ------------------------------------------------------------------
-
 declare const context: Record<string, unknown>;
 
-// Only execute if we are in the JanitorAI environment (context is present)
 if (typeof context !== 'undefined') {
   const adapter = new JanitorAIAdapter(context);
   const script = rpgSystem.createGameEngine();
   const cartridge = script.getCartridge();
 
-  // 1. DECODE – Extract state and narration summary from chat history
+  // Decode state and narration summary
   const loadedState = adapter.loadState();
   let rpState: State | null = (loadedState && (loadedState as Record<string, unknown>)['timestamp'])
     ? loadedState as unknown as State
@@ -97,7 +92,6 @@ if (typeof context !== 'undefined') {
     rpState = JSON.parse(JSON.stringify(cartridge.defaultState)) as State;
   }
 
-  // Build a narration summary in the format expected by processEffects
   let narrationSummary: Record<string, unknown> = {
     elapsed_time: 'PT1M',
     effects: []
@@ -112,7 +106,7 @@ if (typeof context !== 'undefined') {
     };
   }
 
-  // 2. PROCESS EFFECTS AND ACTION via Unified executeTurn Sequence
+  // Process turn
   const playerMsg = adapter.getPlayerMessage();
 
   if (!dataCorrupted && playerMsg) {
@@ -126,11 +120,9 @@ if (typeof context !== 'undefined') {
     const turnResult = script.executeTurn(playerMsg, rpState as State, narrationSummary, preParsedIntents);
     rpState = turnResult.newState;
 
-    // 4. ENCODE & INJECT
     adapter.saveState(rpState as unknown as Record<string, unknown>);
     adapter.applyGamePlayOutput(turnResult.directives, rpState, turnResult.schemaInstructions);
   } else if (dataCorrupted) {
-    // Handle data corruption
     const character = (context['character'] || {}) as Record<string, unknown>;
     character['personality'] = 'You are a fair game master that ALWAYS AND PROMPTLY INFORMS the player {{user}} when ' +
       'there is data corruption. After you have informed, the player will restart from 1 or 2 turns ago.';
@@ -150,7 +142,6 @@ if (typeof context !== 'undefined') {
     character['scenario'] = corruptionInfo;
     context['character'] = character;
   } else {
-    // No player message and no corruption – just save state
     adapter.saveState(rpState as unknown as Record<string, unknown>);
   }
 }

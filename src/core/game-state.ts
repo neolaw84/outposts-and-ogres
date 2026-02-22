@@ -1,26 +1,7 @@
-/**
- * Character sheet utilities for applying and reverting side effects.
- *
- * This module owns all mutations to the character sheet state.
- * - applySideEffect: Applies impacts to stats, tracks temporary effects in activeConditions[] for later reversion.
- * - revertSideEffect: Checks expired effects against current time and reverts them.
- */
-
 import { State, SideEffect, StoredSideEffect, StoredStatImpact } from '../types';
 import { isPast } from '../utils/time-utils';
 
-/**
- * Apply one or more side effects to a character sheet.
- * Returns a new sheet (immutable – the original is not modified).
- *
- * For each impact:
- *   - "set": replaces the stat value
- *   - "add": adds to the stat value
- *   - "sub": subtracts from the stat value
- *
- * If the side effect has an expiry, it is stored in the activeConditions[] array
- * with original values for later reversion.
- */
+/** Apply side effects to a State. Returns a new State (immutable). */
 function applySideEffect(sheet: State, sideEffects: SideEffect | SideEffect[] | null): State {
   const newSheet: State = JSON.parse(JSON.stringify(sheet));
 
@@ -71,7 +52,7 @@ function applySideEffect(sheet: State, sideEffects: SideEffect | SideEffect[] | 
       }
     }
 
-    // Only track side effects with valid expiry (saves tokens)
+    // Only track effects with valid expiry
     if (sideEffectEntry.expiry && sideEffectEntry.expiry !== null) {
       if (!newSheet.activeConditions) {
         newSheet.activeConditions = [];
@@ -83,18 +64,7 @@ function applySideEffect(sheet: State, sideEffects: SideEffect | SideEffect[] | 
   return newSheet;
 }
 
-/**
- * Revert expired side effects from a character sheet.
- * Returns a new sheet (immutable – the original is not modified).
- *
- * For each stored effect:
- *   - If current time has passed the expiry, check re_lock flags.
- *   - If no re_lock prevents it, reverse the impacts:
- *     - "set": restore to oriVal
- *     - "add": subtract the val back
- *     - "sub": add the val back
- *   - Remove the effect from activeConditions[].
- */
+/** Revert expired side effects. Returns a new State (immutable). */
 function revertSideEffect(sheet: State): State {
   const newSheet: State = JSON.parse(JSON.stringify(sheet));
   const currentTime = newSheet.timestamp;
@@ -110,7 +80,7 @@ function revertSideEffect(sheet: State): State {
       if (isPast(eff.expiry, currentTime)) {
         shouldExpire = true;
 
-        // Check for re_locks that prevent expiration
+        // re_lock flags prevent expiration
         if (eff.re_lock && Array.isArray(eff.re_lock)) {
           for (let k = 0; k < eff.re_lock.length; k++) {
             const lockKey = eff.re_lock[k];

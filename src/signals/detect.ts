@@ -1,17 +1,8 @@
 import { Signal, SignalDetector } from '../types';
 
 /**
- * Detect the player's signals from their free-text message.
- *
- * Detection strategy:
- * 1. First, try bracket syntax `<action:target>` or `<action target>` — if
- *    the action part matches any detector's `key`, emit a Signal.
- * 2. For each SignalDetector, check `patterns` (regex) first, then `keywords`
- *    (case-insensitive substring). Emit a Signal for each match.
- *
- * @param message   The raw player message.
- * @param detectors Array of SignalDetector definitions from the cartridge.
- * @returns Array of detected Signals (empty if nothing matched).
+ * Detect player signals from free text. Tries bracket syntax first,
+ * then regex patterns, then keyword matching per detector.
  */
 function detectSignals(
   message: string,
@@ -20,7 +11,7 @@ function detectSignals(
   const results: Signal[] = [];
   const matchedKeys = new Set<string>();
 
-  // Phase 1: Bracket syntax  <action target> or <action:target>
+  // Bracket syntax: <action target> or <action:target>
   const bracketRegex = /<([^>]+)>/g;
   let match;
   while ((match = bracketRegex.exec(message)) !== null) {
@@ -42,7 +33,6 @@ function detectSignals(
       }
     }
 
-    // Only accept bracket actions whose key matches a known detector
     const detectorExists = detectors.some(m => m.key === actionKey);
     if (detectorExists) {
       const record: Signal = { key: actionKey };
@@ -54,21 +44,19 @@ function detectSignals(
     }
   }
 
-  // Phase 2: keyword / regex scanning for detectors not already matched
+  // Keyword / regex scanning for unmatched detectors
   const lowerMessage = message.toLowerCase();
   for (const detector of detectors) {
     if (matchedKeys.has(detector.key)) {
       continue;
     }
 
-    // Try regex patterns first
     if (detector.patterns && detector.patterns.length > 0) {
       let found = false;
       for (const pattern of detector.patterns) {
         const regexMatch = pattern.exec(message);
         if (regexMatch) {
           const record: Signal = { key: detector.key };
-          // Use first capture group as `what` if present (e.g. /cast\s+(\w+)/i → "fireball")
           if (regexMatch[1]) {
             record.what = regexMatch[1].trim();
           }
@@ -82,7 +70,6 @@ function detectSignals(
       if (found) continue;
     }
 
-    // Try keywords
     for (const keyword of detector.keywords) {
       if (lowerMessage.indexOf(keyword.toLowerCase()) !== -1) {
         results.push({ key: detector.key, tags: { sourceKeyword: keyword } });

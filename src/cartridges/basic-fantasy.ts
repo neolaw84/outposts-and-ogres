@@ -1,13 +1,3 @@
-/**
- * Basic Fantasy cartridge – a simple fantasy RPG rule book.
- *
- * This serves as both a working example and the out-of-the-box game system.
- * It can be swapped out for any other Cartridge at runtime.
- *
- * Includes effect definitions and aspect functions ported from adult-scripts
- * to achieve feature parity with the showcase branch.
- */
-
 import { Cartridge, State, RuleOutcome, SideEffect } from '../types';
 import { extractMatch } from '../utils/text-utils';
 import { addDuration, formatDate } from '../utils/time-utils';
@@ -16,10 +6,7 @@ import { rollDice, sumRolls } from '../utils/dice';
 const END_THIS_TURN = 'Then, end this turn (i.e. give NARRATION_SUMMARY block) and ' +
   'wait for the Script to provide subsequent events.\n';
 
-/**
- * Calculate the stat modifier bonus (D&D-style: (stat - 10) / 2, rounded down).
- * Returns 0 when the stat equals 10.
- */
+/** D&D-style stat bonus: (stat - 10) / 2, rounded down. */
 function calculateStatBonus(statValue: unknown): number {
   const v = typeof statValue === 'number' ? statValue : 10;
   return Math.floor((v - 10) / 2);

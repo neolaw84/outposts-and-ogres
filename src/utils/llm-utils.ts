@@ -1,34 +1,18 @@
-/**
- * LLM utilities for encoding/decoding game state and narration summaries.
- *
- * These utilities handle:
- * - Encoding game state to Base64 inside [RP_STATE]...[/RP_STATE] tags
- * - Decoding game state from LLM responses
- * - Extracting [NARRATION_SUMMARY]...[/NARRATION_SUMMARY] JSON blocks
- * - Rendering schema instructions for the LLM
- */
-
 import { base64EncodeRaw, base64DecodeRaw } from './base64';
 import { isValidDateStr } from './time-utils';
 import { Signal } from '../types';
 
-/** Effect definition used for LLM instruction generation. */
 interface SignalSchema {
   key: string;
   condition: string;
   [prop: string]: unknown;
 }
 
-/** Result of finding a signal by key. */
 interface FoundSignal {
   effect: Signal | null;
   typeCheck: Record<string, unknown> | null;
 }
 
-/**
- * Encode a game state object to a Base64 string.
- * Returns an empty string if the input is falsy.
- */
 function encodeState(state: Record<string, unknown> | null): string {
   if (!state) {
     return '';
@@ -37,11 +21,7 @@ function encodeState(state: Record<string, unknown> | null): string {
   return base64EncodeRaw(jsonStr);
 }
 
-/**
- * Decode a game state from a message containing [RP_STATE]...[/RP_STATE] tags.
- * The content between tags is expected to be Base64-encoded JSON.
- * Returns null if no valid state block is found.
- */
+/** Decode state from a message containing [RP_STATE]...[/RP_STATE] tags. */
 function decodeState(message: string | null): Record<string, unknown> | null {
   if (!message) {
     return null;
@@ -64,19 +44,13 @@ function decodeState(message: string | null): Record<string, unknown> | null {
   }
 }
 
-/**
- * Build the [RP_STATE] block string that instructs the LLM to return
- * the state verbatim in its response.
- */
+/** Build the [RP_STATE] block instructing the LLM to return it verbatim. */
 function buildRpStateBlock(state: Record<string, unknown>): string {
   const encoded = encodeState(state);
   return '[RP_STATE]' + encoded + '[/RP_STATE]';
 }
 
-/**
- * Extract [NARRATION_SUMMARY] JSON from a message (last occurrence).
- * Returns null if no valid block is found.
- */
+/** Extract [NARRATION_SUMMARY] JSON from a message (last occurrence). */
 function extractNarrationSummary(message: string | null): Record<string, unknown> | null {
   if (!message) {
     return null;
@@ -102,10 +76,7 @@ function extractNarrationSummary(message: string | null): Record<string, unknown
   }
 }
 
-/**
- * Render instruction text for the LLM to include a specific signal
- * in the NARRATION_SUMMARY based on a condition.
- */
+/** Render LLM instruction for a SignalSchema's condition-based reporting. */
 function renderSchemaInstruction(schemaDef: SignalSchema): string {
   if (!schemaDef || !schemaDef.key || !schemaDef.condition) {
     return '';
@@ -126,10 +97,7 @@ function renderSchemaInstruction(schemaDef: SignalSchema): string {
     jsonString;
 }
 
-/**
- * Find a signal by its key in a narration summary.
- * Converts the raw JSON record into a typed Signal.
- */
+/** Find a signal by key in a narration summary, converting raw JSON to a typed Signal. */
 function findSignalByKey(
   key: string,
   narrationSummary: Record<string, unknown>,
@@ -164,15 +132,10 @@ function findSignalByKey(
   return { effect: foundEffect, typeCheck: foundTypeCheck };
 }
 
-/**
- * Validate a narration summary object recursively and return a mirror
- * object indicating which signal types are valid.
- * Used by aspect functions to safely access LLM-provided data.
- */
+/** Validate narration summary types; returns a mirror object of booleans. */
 function validateSignalTypes(inputObject: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
-  // 1. Validate elapsed_time
   if (typeof inputObject['elapsed_time'] === 'string' &&
       (inputObject['elapsed_time'] as string).indexOf('P') === 0) {
     result['elapsed_time'] = true;
@@ -180,7 +143,6 @@ function validateSignalTypes(inputObject: Record<string, unknown>): Record<strin
     result['elapsed_time'] = false;
   }
 
-  // 2. Validate effects
   if (Array.isArray(inputObject['effects'])) {
     const effectsResult: Array<Record<string, unknown>> = [];
     const effects = inputObject['effects'] as Array<Record<string, unknown>>;
@@ -188,16 +150,12 @@ function validateSignalTypes(inputObject: Record<string, unknown>): Record<strin
       const eff = effects[i];
       const resEff: Record<string, unknown> = {};
 
-      // Key
       resEff['key'] = (typeof eff['key'] === 'string' && (eff['key'] as string).length > 0);
 
-      // What
       resEff['what'] = (typeof eff['what'] === 'string');
 
-      // When
       resEff['when'] = (typeof eff['when'] === 'string' && isValidDateStr(eff['when'] as string));
 
-      // Flags
       if (eff['flags'] && typeof eff['flags'] === 'object') {
         const flagsResult: Record<string, boolean> = {};
         const flags = eff['flags'] as Record<string, unknown>;
@@ -208,7 +166,6 @@ function validateSignalTypes(inputObject: Record<string, unknown>): Record<strin
         resEff['flags'] = flagsResult;
       }
 
-      // Tags
       if (eff['tags'] && typeof eff['tags'] === 'object') {
         const tagsResult: Record<string, boolean> = {};
         const tags = eff['tags'] as Record<string, unknown>;
@@ -219,7 +176,6 @@ function validateSignalTypes(inputObject: Record<string, unknown>): Record<strin
         resEff['tags'] = tagsResult;
       }
 
-      // Meters
       if (eff['meters'] && typeof eff['meters'] === 'object') {
         const metersResult: Record<string, boolean> = {};
         const meters = eff['meters'] as Record<string, unknown>;
@@ -237,7 +193,6 @@ function validateSignalTypes(inputObject: Record<string, unknown>): Record<strin
     result['effects'] = false;
   }
 
-  // 3. Debug
   if (inputObject['debug']) {
     result['debug'] = true;
   }

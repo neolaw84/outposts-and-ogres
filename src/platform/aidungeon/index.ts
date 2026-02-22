@@ -1,16 +1,7 @@
-/**
- * AI Dungeon platform adapter.
- *
- * AI Dungeon provides a better persistence system by defining JSON objects
- * under the global variable `state`. It also provides `info` and `memory`
- * fields for influencing AI behaviour.
- */
-
 import { Platform, NarrationSummary, NarrationDirective, State, Signal, SignalDetector } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 import { collectDirectiveArrays } from '../helpers';
 
-/** A single entry in the AI Dungeon action history. */
 interface HistoryEntry {
   type?: string;
   text?: string;
@@ -26,13 +17,11 @@ class AIDungeonAdapter implements Platform {
   }
 
   getPlayerMessage(): string | null {
-    // AI Dungeon provides the latest player input as `text`
     const text = this.context['text'] as string | undefined;
     return text || null;
   }
 
   loadState(): Record<string, unknown> {
-    // AI Dungeon provides persistent state via the `state` global object
     const state = this.context['state'] as Record<string, unknown> | undefined;
     if (state && state['gameState']) {
       return state['gameState'] as Record<string, unknown>;
@@ -41,19 +30,11 @@ class AIDungeonAdapter implements Platform {
   }
 
   saveState(state: Record<string, unknown>): void {
-    // AI Dungeon persists via the `state` global object
     const globalState = (this.context['state'] || {}) as Record<string, unknown>;
     globalState['gameState'] = state;
     this.context['state'] = globalState;
   }
 
-  /**
-   * Extract the [NARRATION_SUMMARY] JSON from the last AI-authored history
-   * entry and return it as a `NarrationSummary`.
-   * AI Dungeon exposes narration via `context.history` where entries with
-   * `type === 'story'` are AI-generated.
-   * Returns null if no valid block is found.
-   */
   getScenarioUpdate(): NarrationSummary | null {
     const history = this.context['history'] as Array<HistoryEntry> | undefined;
     if (!history || !Array.isArray(history)) {

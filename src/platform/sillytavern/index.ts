@@ -1,11 +1,3 @@
-/**
- * SillyTavern platform adapter.
- *
- * SillyTavern provides access to chat messages and allows modifying
- * the system prompt and character card fields for prompting the AI.
- * State can be persisted via the extension data mechanism.
- */
-
 import { Platform, NarrationSummary, NarrationDirective, State, Signal, SignalDetector } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 import { formatDirectiveLines } from '../helpers';
@@ -19,7 +11,6 @@ class SillyTavernAdapter implements Platform {
   }
 
   getPlayerMessage(): string | null {
-    // SillyTavern provides chat as an array of message objects
     const chat = this.context['chat'] as Array<Record<string, string>> | undefined;
     if (!chat || chat.length === 0) {
       return null;
@@ -32,7 +23,6 @@ class SillyTavernAdapter implements Platform {
   }
 
   loadState(): Record<string, unknown> {
-    // SillyTavern extension data for persistence
     const extensionData = this.context['extensionData'] as Record<string, unknown> | undefined;
     if (extensionData && extensionData['gameState']) {
       return extensionData['gameState'] as Record<string, unknown>;
@@ -46,12 +36,6 @@ class SillyTavernAdapter implements Platform {
     this.context['extensionData'] = extensionData;
   }
 
-  /**
-   * Extract the [NARRATION_SUMMARY] JSON from the last AI message in the
-   * SillyTavern chat array and return it as a `NarrationSummary`.
-   * SillyTavern chat messages use `is_user` ('true'/'false') and `mes` fields.
-   * Returns null if no valid block is found.
-   */
   getScenarioUpdate(): NarrationSummary | null {
     const chat = this.context['chat'] as Array<Record<string, string>> | undefined;
     if (!chat || chat.length === 0) {
@@ -59,7 +43,7 @@ class SillyTavernAdapter implements Platform {
     }
 
     for (let i = chat.length - 1; i >= 0; i--) {
-      // SillyTavern represents the is_user field as the string 'true'/'false'.
+      // SillyTavern uses string 'true'/'false' for is_user
       if (chat[i]['is_user'] !== 'true') {
         const raw = extractNarrationSummary(chat[i]['mes'] || null);
         if (!raw) {

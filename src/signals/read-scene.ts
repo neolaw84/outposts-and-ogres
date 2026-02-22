@@ -6,21 +6,11 @@ interface SceneReading {
   cues: string[];
 }
 
-/**
- * Interpret a `NarrationSummary` (the open-contract LLM output) into a
- * cartridge-specific `SceneReading`.
- *
- * Priority:
- *  1. A flag whose key matches an available condition and whose value is
- *     non-zero → high confidence.
- *  2. A tag whose value matches an available condition → medium confidence.
- *  3. No match → low confidence, no suggested condition.
- */
+/** Interpret a NarrationSummary into a SceneReading by matching flags/tags to conditions. */
 function readScene(
   update: NarrationSummary,
   availableConditions: string[]
 ): SceneReading {
-  // Check flags: flag key equals a condition name with non-zero value
   for (let i = 0; i < availableConditions.length; i++) {
     const condition = availableConditions[i];
     if (update.flags[condition] !== undefined && update.flags[condition] > 0) {
@@ -28,7 +18,6 @@ function readScene(
     }
   }
 
-  // Check tags: tag value equals a condition name
   const tagKeys = Object.keys(update.tags);
   for (let i = 0; i < availableConditions.length; i++) {
     const condition = availableConditions[i];

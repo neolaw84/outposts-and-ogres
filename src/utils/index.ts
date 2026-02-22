@@ -1,7 +1,3 @@
-/**
- * Utility module – exports all common utilities.
- */
-
 export { rollDie, rollDice, sumRolls } from './dice';
 export { base64EncodeRaw, base64DecodeRaw, base64Encode, base64Decode } from './base64';
 export {

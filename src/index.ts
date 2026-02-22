@@ -2,10 +2,6 @@ import { Character } from './character';
 import { GameEngine } from './engine';
 import { basicFantasyCartridge } from './cartridges/basic-fantasy';
 
-/**
- * OutpostsAndOgres - Foundation RPG System
- * A foundation RPG script for Janitor AI and SillyTavern clones
- */
 class OutpostsAndOgres {
   private version: string;
 

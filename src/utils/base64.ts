@@ -1,12 +1,3 @@
-/**
- * Base64 encoding/decoding utility.
- *
- * Provides raw Base64 encode/decode (no UTF-8 pre/post processing)
- * as well as UTF-8 aware encode/decode methods.
- * This is used to encode game state so that the LLM does not
- * inspect, interpret or modify it.
- */
-
 const _keyStr: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
 
 function _utf8Encode(input: string): string {
@@ -58,10 +49,6 @@ function _utf8Decode(utftext: string): string {
   return result;
 }
 
-/**
- * Encode a string to Base64 without UTF-8 pre-processing.
- * Suitable for ASCII-safe input or when UTF-8 encoding is handled externally.
- */
 function base64EncodeRaw(input: string): string {
   let output = '';
   let chr1: number;
@@ -97,9 +84,6 @@ function base64EncodeRaw(input: string): string {
   return output;
 }
 
-/**
- * Decode a Base64 string without UTF-8 post-processing.
- */
 function base64DecodeRaw(input: string): string {
   let output = '';
   let chr1: number;
@@ -136,18 +120,10 @@ function base64DecodeRaw(input: string): string {
   return output;
 }
 
-/**
- * Encode a string to Base64 with UTF-8 pre-processing.
- * Use this for strings that may contain non-ASCII characters.
- */
 function base64Encode(input: string): string {
   return base64EncodeRaw(_utf8Encode(input));
 }
 
-/**
- * Decode a Base64 string with UTF-8 post-processing.
- * Use this for strings that were encoded with base64Encode.
- */
 function base64Decode(input: string): string {
   return _utf8Decode(base64DecodeRaw(input));
 }
