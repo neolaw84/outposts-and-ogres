@@ -6,14 +6,14 @@ describe('Basic Fantasy Cartridge', () => {
     expect(basicFantasyCartridge.version).toBe('1.0.0');
   });
 
-  test('should define three stop conditions', () => {
-    expect(basicFantasyCartridge.stopConditions).toContain('combat');
-    expect(basicFantasyCartridge.stopConditions).toContain('exploration');
-    expect(basicFantasyCartridge.stopConditions).toContain('social');
+  test('should define three breakpoints', () => {
+    expect(basicFantasyCartridge.breakpoints).toContain('combat');
+    expect(basicFantasyCartridge.breakpoints).toContain('exploration');
+    expect(basicFantasyCartridge.breakpoints).toContain('social');
   });
 
-  test('should have inputMatchers for combat, social and exploration actions', () => {
-    const keys = basicFantasyCartridge.inputMatchers.map(m => m.key);
+  test('should have signalDetectors for combat, social and exploration actions', () => {
+    const keys = basicFantasyCartridge.signalDetectors.map(m => m.key);
     expect(keys).toContain('attack');
     expect(keys).toContain('dodge');
     expect(keys).toContain('cast');
@@ -23,6 +23,6 @@ describe('Basic Fantasy Cartridge', () => {
   });
 
   test('should have defined aspect functions for specific actions like attack', () => {
-    expect(basicFantasyCartridge.gameRules['attack']).toBeDefined();
+    expect(basicFantasyCartridge.rules['attack']).toBeDefined();
   });
 });

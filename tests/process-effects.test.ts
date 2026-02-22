@@ -1,18 +1,18 @@
 import { GamePlayScript } from '../src/systems/game-play-script';
 import { basicFantasyCartridge } from '../src/cartridges/basic-fantasy';
-import { GameState, GamePlayEvent } from '../src/types';
+import { State, NarrationDirective } from '../src/types';
 import { applySideEffect } from '../src/core/game-state';
 
 function createScript(): GamePlayScript {
   return new GamePlayScript(basicFantasyCartridge);
 }
 
-function makeSheet(overrides?: Partial<GameState>): GameState {
+function makeSheet(overrides?: Partial<State>): State {
   return JSON.parse(JSON.stringify({
-    ...basicFantasyCartridge.defaultGameState,
+    ...basicFantasyCartridge.defaultState,
     ...overrides,
     stats: {
-      ...basicFantasyCartridge.defaultGameState.stats,
+      ...basicFantasyCartridge.defaultState.stats,
       ...(overrides && overrides.stats ? overrides.stats : {})
     }
   }));
@@ -21,7 +21,7 @@ function makeSheet(overrides?: Partial<GameState>): GameState {
 describe('processEffects integration', () => {
   test('should process healing potion effect from narration summary', () => {
     const script = createScript();
-    const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 50 } });
+    const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultState.stats, hp: 50 } });
     const narrationSummary = {
       elapsed_time: 'PT5M',
       effects: [
@@ -36,7 +36,7 @@ describe('processEffects integration', () => {
     const result = script.executeTurn('', sheet, narrationSummary);
 
     expect(result.newState.stats['hp']).toBe(80); // 50 + 30 (3 * 10)
-    const potionEvent = result.gamePlayEvents.find((e: GamePlayEvent) => e.ruleKey === 'drink_potion');
+    const potionEvent = result.gamePlayEvents.find((e: NarrationDirective) => e.ruleKey === 'drink_potion');
     expect(potionEvent).toBeDefined();
     expect(potionEvent!.mustHappen.join(' ')).toContain('Healed 30 HP');
   });
@@ -57,7 +57,7 @@ describe('processEffects integration', () => {
   test('should revert expired side effects before processing new ones', () => {
     const script = createScript();
     const sheet = makeSheet({
-      stats: { ...basicFantasyCartridge.defaultGameState.stats, strength: 20 },
+      stats: { ...basicFantasyCartridge.defaultState.stats, strength: 20 },
       activeConditions: [{
         desc: 'strength potion',
         expiry: '1000-01-01T08:10:00', // will be expired after time update
@@ -99,14 +99,14 @@ describe('processEffects integration', () => {
     const result = script.executeTurn('', sheet, narrationSummary);
 
     expect(result.newState.stats['hp']).toBe(85); // 100 - (20 - 5 defense) = 85
-    const combatEvent = result.gamePlayEvents.find((e: GamePlayEvent) => e.ruleKey === 'combat_event');
+    const combatEvent = result.gamePlayEvents.find((e: NarrationDirective) => e.ruleKey === 'combat_event');
     expect(combatEvent).toBeDefined();
     expect(combatEvent!.mustHappen.join(' ')).toContain('15 damage');
   });
 
   test('should process multiple effects in order', () => {
     const script = createScript();
-    const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 80 } });
+    const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultState.stats, hp: 80 } });
     const narrationSummary = {
       elapsed_time: 'PT5M',
       effects: [
@@ -143,7 +143,7 @@ describe('processEffects integration', () => {
     expect(result.newState.stats['hp']).toBe(100); // unchanged
     // All rules should produce gamePlayEvents
     expect(result.gamePlayEvents.length).toBeGreaterThan(0);
-    const hasEntries = result.gamePlayEvents.some((e: GamePlayEvent) => e.mustNotHappen.length > 0);
+    const hasEntries = result.gamePlayEvents.some((e: NarrationDirective) => e.mustNotHappen.length > 0);
     expect(hasEntries).toBe(true);
   });
 
@@ -151,7 +151,7 @@ describe('processEffects integration', () => {
     const script = createScript();
     const sheet = makeSheet({
       timestamp: '1000-01-01T23:00:00',
-      stats: { ...basicFantasyCartridge.defaultGameState.stats, num_day: 0 }
+      stats: { ...basicFantasyCartridge.defaultState.stats, num_day: 0 }
     });
     const narrationSummary = {
       elapsed_time: 'PT8H', // crosses midnight

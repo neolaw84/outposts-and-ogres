@@ -29,17 +29,17 @@ export { Character };
 export { GamePlayScript } from '../../systems/game-play-script';
 export { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 export {
-  GameCartridge,
-  SystemAdapter,
-  GameState,
-  ActiveCondition,
-  StatModifier,
-  WorldEventTracker,
-  GameRule,
-  RuleResolution,
-  GamePlayEvent,
-  EffectRecord,
-  InputMatcher
+  Cartridge,
+  Platform,
+  State,
+  SideEffect,
+  StatImpact,
+  SignalSchema,
+  Rule,
+  RuleOutcome,
+  NarrationDirective,
+  Signal,
+  SignalDetector
 } from '../../types';
 export { rollDie, rollDice, sumRolls } from '../../utils/dice';
 export { parsePlayerInput } from '../../inputs/input-matcher';

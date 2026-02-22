@@ -33,7 +33,7 @@
  *   to scenario so the LLM produces a plain-JSON summary block.
  */
 
-import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, EffectRecord } from '../../types';
+import { Platform, NarrationSummary, NarrationDirective, State, Signal } from '../../types';
 import { decodeState, buildRpStateBlock, extractNarrationSummary } from '../../utils/llm-utils';
 import { formatGamePlayEventLines } from '../adapter-helpers';
 
@@ -42,7 +42,7 @@ interface ChatMessage {
   message?: string;
 }
 
-class JanitorAIAdapter implements SystemAdapter {
+class JanitorAIAdapter implements Platform {
   readonly name: string = 'Janitor AI';
   private context: Record<string, unknown>;
 
@@ -134,10 +134,10 @@ class JanitorAIAdapter implements SystemAdapter {
 
   /**
    * Extract the [NARRATION_SUMMARY] JSON from the last LLM response and
-   * return it as a `WorldSimulationUpdate`.
+   * return it as a `NarrationSummary`.
    * Returns null if no valid block is found.
    */
-  getScenarioUpdate(): WorldSimulationUpdate | null {
+  getScenarioUpdate(): NarrationSummary | null {
     const chat = this.context['chat'] as Record<string, unknown> | undefined;
     if (!chat) {
       return null;
@@ -162,17 +162,17 @@ class JanitorAIAdapter implements SystemAdapter {
       flags: (raw['flags'] as Record<string, number>) || {},
       tags: (raw['tags'] as Record<string, string>) || {},
       meters: (raw['meters'] as Record<string, number>) || {},
-      effects: (raw['effects'] as EffectRecord[]) || []
+      effects: (raw['effects'] as Signal[]) || []
     };
   }
 
-  deducePlayerIntent(rawMessage: string, matchers: import('../../types').InputMatcher[]): import('../../types').EffectRecord[] | null {
+  deducePlayerIntent(rawMessage: string, matchers: import('../../types').SignalDetector[]): import('../../types').Signal[] | null {
     return null; // To be implemented later
   }
 
   applyGamePlayOutput(
-    events: GamePlayEvent[],
-    state: GameState,
+    events: NarrationDirective[],
+    state: State,
     effectInstructions: string
   ): void {
     const character = (this.context['character'] || {}) as Record<string, unknown>;

@@ -1,8 +1,8 @@
 import { parsePlayerInput } from '../src/inputs/input-matcher';
-import { InputMatcher } from '../src/types';
+import { SignalDetector } from '../src/types';
 
-describe('Input Parser (InputMatcher-based)', () => {
-  const matchers: InputMatcher[] = [
+describe('Input Parser (SignalDetector-based)', () => {
+  const matchers: SignalDetector[] = [
     { key: 'attack', description: 'Player attacks', keywords: ['attack', 'hit', 'strike'] },
     { key: 'dodge', description: 'Player dodges', keywords: ['dodge', 'evade'] },
     { key: 'cast', description: 'Player casts a spell', keywords: ['cast', 'spell'] },
@@ -59,7 +59,7 @@ describe('Input Parser (InputMatcher-based)', () => {
   });
 
   test('should detect emotions when matchers include emotion keywords', () => {
-    const emotionMatchers: InputMatcher[] = [
+    const emotionMatchers: SignalDetector[] = [
       { key: 'fear', description: 'Player expresses fear', keywords: ['afraid', 'fear', 'terrified'] },
       { key: 'anger', description: 'Player expresses anger', keywords: ['angry', 'rage', 'furious'] },
     ];
@@ -70,7 +70,7 @@ describe('Input Parser (InputMatcher-based)', () => {
   });
 
   test('should detect multiple intents from a single message', () => {
-    const combined: InputMatcher[] = [
+    const combined: SignalDetector[] = [
       ...matchers,
       { key: 'fear', description: 'Player expresses fear', keywords: ['afraid', 'fear', 'terrified'] },
     ];
@@ -81,7 +81,7 @@ describe('Input Parser (InputMatcher-based)', () => {
   });
 
   test('should support regex patterns', () => {
-    const regexMatchers: InputMatcher[] = [
+    const regexMatchers: SignalDetector[] = [
       { key: 'cast', description: 'Player casts a spell', keywords: [], patterns: [/cast\s+(\w+)/i] },
     ];
     const result = parsePlayerInput('I cast fireball at the enemy', regexMatchers);

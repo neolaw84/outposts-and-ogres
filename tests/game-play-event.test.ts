@@ -1,19 +1,19 @@
 import { GamePlayScript } from '../src/systems/game-play-script';
 import { basicFantasyCartridge } from '../src/cartridges/basic-fantasy';
-import { GameCartridge, GameState, GamePlayEvent, RuleResolution } from '../src/types';
+import { Cartridge, State, NarrationDirective, RuleOutcome } from '../src/types';
 
-function makeSheet(overrides?: Partial<GameState>): GameState {
+function makeSheet(overrides?: Partial<State>): State {
   return JSON.parse(JSON.stringify({
-    ...basicFantasyCartridge.defaultGameState,
+    ...basicFantasyCartridge.defaultState,
     ...overrides,
     stats: {
-      ...basicFantasyCartridge.defaultGameState.stats,
+      ...basicFantasyCartridge.defaultState.stats,
       ...(overrides && overrides.stats ? overrides.stats : {})
     }
   }));
 }
 
-describe('GamePlayEvent - standardized game play loop output', () => {
+describe('NarrationDirective - standardized game play loop output', () => {
   describe('always-call-all-rules behavior', () => {
     test('executeTurn returns gamePlayEvents for every rule in the sequence', () => {
       const script = new GamePlayScript(basicFantasyCartridge);
@@ -22,7 +22,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
 
       // gamePlayEvents should have one entry for every rule in the sequence
       expect(result.gamePlayEvents).toBeDefined();
-      expect(result.gamePlayEvents.length).toBe(basicFantasyCartridge.ruleSequence.length);
+      expect(result.gamePlayEvents.length).toBe(basicFantasyCartridge.ruleOrder.length);
     });
 
     test('gamePlayEvents contain mustNotHappen for untriggered rules', () => {
@@ -45,7 +45,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
 
     test('gamePlayEvents contain mustHappen for triggered action rules', () => {
       const script = new GamePlayScript(basicFantasyCartridge);
-      const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, strength: 100 } });
+      const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultState.stats, strength: 100 } });
       const result = script.executeTurn('<attack goblin>', sheet, {});
 
       const attackEvent = result.gamePlayEvents.find(e => e.ruleKey === 'attack');
@@ -69,14 +69,14 @@ describe('GamePlayEvent - standardized game play loop output', () => {
   });
 
   describe('effectInstructions', () => {
-    test('executeTurn returns effectInstructions generated from worldEventTrackers', () => {
+    test('executeTurn returns effectInstructions generated from signalSchemas', () => {
       const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet();
       const result = script.executeTurn('<attack goblin>', sheet, {});
 
       expect(result.effectInstructions).toBeDefined();
       expect(typeof result.effectInstructions).toBe('string');
-      // Should contain instructions generated from all 4 worldEventTrackers
+      // Should contain instructions generated from all 4 signalSchemas
       expect(result.effectInstructions).toContain('drink_potion');
       expect(result.effectInstructions).toContain('combat_event');
       expect(result.effectInstructions).toContain('travel');
@@ -89,7 +89,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
   describe('mustHappen / mustNotHappen / mayHappen from world events', () => {
     test('drink_potion with effect data produces mustHappen', () => {
       const script = new GamePlayScript(basicFantasyCartridge);
-      const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 50 } });
+      const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultState.stats, hp: 50 } });
       const narrationSummary = {
         elapsed_time: 'PT5M',
         effects: [{ key: 'drink_potion', what: 'healing', meters: { potency: 3 } }]
@@ -166,7 +166,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
       const result = script.executeTurn('I look around confused', sheet, {});
 
       // gamePlayEvents should still have entries for all rules
-      expect(result.gamePlayEvents.length).toBe(basicFantasyCartridge.ruleSequence.length);
+      expect(result.gamePlayEvents.length).toBe(basicFantasyCartridge.ruleOrder.length);
     });
 
     test('GamePlayScript works with single constructor arg', () => {
@@ -175,7 +175,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
       const result = script.executeTurn('<attack goblin>', sheet, {});
 
       // gamePlayEvents should have full data
-      expect(result.gamePlayEvents.length).toBe(basicFantasyCartridge.ruleSequence.length);
+      expect(result.gamePlayEvents.length).toBe(basicFantasyCartridge.ruleOrder.length);
 
       const attackEvent = result.gamePlayEvents.find(e => e.ruleKey === 'attack');
       expect(attackEvent).toBeDefined();
@@ -184,7 +184,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
 
     test('gamePlayEvents contain mustHappen for drink_potion effect', () => {
       const script = new GamePlayScript(basicFantasyCartridge);
-      const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 50 } });
+      const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultState.stats, hp: 50 } });
       const narrationSummary = {
         elapsed_time: 'PT5M',
         effects: [{ key: 'drink_potion', what: 'healing', meters: { potency: 3 } }]
@@ -199,21 +199,21 @@ describe('GamePlayEvent - standardized game play loop output', () => {
 
   describe('custom cartridge with mustHappen/mustNotHappen/mayHappen', () => {
     test('rules can explicitly set mustHappen, mustNotHappen, and mayHappen', () => {
-      const customCartridge: GameCartridge = {
-        name: 'Test GamePlayEvent Cartridge',
+      const customCartridge: Cartridge = {
+        name: 'Test NarrationDirective Cartridge',
         version: '1.0.0',
-        stopConditions: ['combat'],
-        inputMatchers: [{ key: 'strike', description: 'Player strikes', keywords: ['strike'] }],
-        defaultGameState: {
+        breakpoints: ['combat'],
+        signalDetectors: [{ key: 'strike', description: 'Player strikes', keywords: ['strike'] }],
+        defaultState: {
           timestamp: '1000-01-01T08:00:00',
           stats: { hp: 100 },
           activeConditions: [],
           flags: []
         },
-        worldEventTrackers: [],
-        gameRules: {
+        signalSchemas: [],
+        rules: {
           'strike': (_state, context) => {
-            const intent = context.intents.find(a => a.key === 'strike');
+            const intent = context.playerSignals.find(a => a.key === 'strike');
             if (intent) {
               return {
                 outcome: {
@@ -240,11 +240,11 @@ describe('GamePlayEvent - standardized game play loop output', () => {
             };
           }
         },
-        ruleSequence: ['strike']
+        ruleOrder: ['strike']
       };
 
       const script = new GamePlayScript(customCartridge);
-      const sheet = JSON.parse(JSON.stringify(customCartridge.defaultGameState));
+      const sheet = JSON.parse(JSON.stringify(customCartridge.defaultState));
 
       // With action
       const result = script.executeTurn('<strike goblin>', sheet, {});

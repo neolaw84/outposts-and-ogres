@@ -6,7 +6,7 @@
  * fields for influencing AI behaviour.
  */
 
-import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, EffectRecord } from '../../types';
+import { Platform, NarrationSummary, NarrationDirective, State, Signal } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 import { collectGamePlayEventArrays } from '../adapter-helpers';
 
@@ -17,7 +17,7 @@ interface HistoryEntry {
   [key: string]: unknown;
 }
 
-class AIDungeonAdapter implements SystemAdapter {
+class AIDungeonAdapter implements Platform {
   readonly name: string = 'AI Dungeon';
   private context: Record<string, unknown>;
 
@@ -49,12 +49,12 @@ class AIDungeonAdapter implements SystemAdapter {
 
   /**
    * Extract the [NARRATION_SUMMARY] JSON from the last AI-authored history
-   * entry and return it as a `WorldSimulationUpdate`.
+   * entry and return it as a `NarrationSummary`.
    * AI Dungeon exposes narration via `context.history` where entries with
    * `type === 'story'` are AI-generated.
    * Returns null if no valid block is found.
    */
-  getScenarioUpdate(): WorldSimulationUpdate | null {
+  getScenarioUpdate(): NarrationSummary | null {
     const history = this.context['history'] as Array<HistoryEntry> | undefined;
     if (!history || !Array.isArray(history)) {
       return null;
@@ -71,20 +71,20 @@ class AIDungeonAdapter implements SystemAdapter {
           flags: (raw['flags'] as Record<string, number>) || {},
           tags: (raw['tags'] as Record<string, string>) || {},
           meters: (raw['meters'] as Record<string, number>) || {},
-          effects: (raw['effects'] as EffectRecord[]) || []
+          effects: (raw['effects'] as Signal[]) || []
         };
       }
     }
     return null;
   }
 
-  deducePlayerIntent(rawMessage: string, matchers: import('../../types').InputMatcher[]): import('../../types').EffectRecord[] | null {
+  deducePlayerIntent(rawMessage: string, matchers: import('../../types').SignalDetector[]): import('../../types').Signal[] | null {
     return null; // To be implemented later
   }
 
   applyGamePlayOutput(
-    events: GamePlayEvent[],
-    state: GameState,
+    events: NarrationDirective[],
+    state: State,
     effectInstructions: string
   ): void {
     const globalState = (this.context['state'] || {}) as Record<string, unknown>;

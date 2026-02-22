@@ -10,10 +10,10 @@
 
 import { base64EncodeRaw, base64DecodeRaw } from './base64';
 import { isValidDateStr } from './time-utils';
-import { EffectRecord } from '../types';
+import { Signal } from '../types';
 
 /** Effect definition used for LLM instruction generation. */
-interface WorldEventTracker {
+interface SignalSchema {
   key: string;
   condition: string;
   [prop: string]: unknown;
@@ -21,7 +21,7 @@ interface WorldEventTracker {
 
 /** Result of finding an effect by key. */
 interface FoundEffect {
-  effect: EffectRecord | null;
+  effect: Signal | null;
   typeCheck: Record<string, unknown> | null;
 }
 
@@ -106,7 +106,7 @@ function extractNarrationSummary(message: string | null): Record<string, unknown
  * Generate instruction text for the LLM to include a specific effect
  * in the NARRATION_SUMMARY based on a condition.
  */
-function generateEffectInstruction(effectDef: WorldEventTracker): string {
+function generateEffectInstruction(effectDef: SignalSchema): string {
   if (!effectDef || !effectDef.key || !effectDef.condition) {
     return '';
   }
@@ -128,14 +128,14 @@ function generateEffectInstruction(effectDef: WorldEventTracker): string {
 
 /**
  * Find an effect by its key in a narration summary.
- * Converts the raw JSON record into a typed EffectRecord.
+ * Converts the raw JSON record into a typed Signal.
  */
 function findEffectByKey(
   key: string,
   narrationSummary: Record<string, unknown>,
   typeChecks: Record<string, unknown>
 ): FoundEffect {
-  let foundEffect: EffectRecord | null = null;
+  let foundEffect: Signal | null = null;
   let foundTypeCheck: Record<string, unknown> | null = null;
 
   const effects = narrationSummary['effects'] as Array<Record<string, unknown>> | undefined;
@@ -246,7 +246,7 @@ function cleanInput(inputObject: Record<string, unknown>): Record<string, unknow
 }
 
 export {
-  WorldEventTracker,
+  SignalSchema,
   FoundEffect,
   encodeState,
   decodeState,

@@ -2,13 +2,13 @@
  * Basic Fantasy cartridge – a simple fantasy RPG rule book.
  *
  * This serves as both a working example and the out-of-the-box game system.
- * It can be swapped out for any other GameCartridge at runtime.
+ * It can be swapped out for any other Cartridge at runtime.
  *
  * Includes effect definitions and aspect functions ported from adult-scripts
  * to achieve feature parity with the showcase branch.
  */
 
-import { GameCartridge, GameState, RuleResolution, ActiveCondition } from '../types';
+import { Cartridge, State, RuleOutcome, SideEffect } from '../types';
 import { extractMatch } from '../utils/text-utils';
 import { addDuration, formatDate } from '../utils/time-utils';
 import { rollDice, sumRolls } from '../utils/dice';
@@ -25,7 +25,7 @@ function calculateStatBonus(statValue: unknown): number {
   return Math.floor((v - 10) / 2);
 }
 
-const defaultCharacterSheet: GameState = {
+const defaultCharacterSheet: State = {
   timestamp: '1000-01-01T08:00:00',
   stats: {
     hp: 100,
@@ -44,13 +44,13 @@ const defaultCharacterSheet: GameState = {
   flags: []
 };
 
-const basicFantasyCartridge: GameCartridge = {
+const basicFantasyCartridge: Cartridge = {
   name: 'Outposts & Ogres – Basic',
   version: '1.0.0',
 
-  stopConditions: ['combat', 'exploration', 'social', 'Combat Round Ends', 'Critical Injury', 'Travel complete'],
+  breakpoints: ['combat', 'exploration', 'social', 'Combat Round Ends', 'Critical Injury', 'Travel complete'],
 
-  inputMatchers: [
+  signalDetectors: [
     // Combat actions
     { key: 'attack', description: 'Player attacks a target', keywords: ['attack', 'hit', 'strike', 'slash'] },
     { key: 'cast', description: 'Player casts a spell', keywords: ['cast', 'spell', 'magic'] },
@@ -76,9 +76,9 @@ const basicFantasyCartridge: GameCartridge = {
     { key: 'curiosity', description: 'Player expresses curiosity', keywords: ['curious', 'wonder', 'investigate', 'question'] },
   ],
 
-  defaultGameState: defaultCharacterSheet,
+  defaultState: defaultCharacterSheet,
 
-  ruleSequence: [
+  ruleOrder: [
     'drink_potion',
     'combat_event',
     'travel',
@@ -88,7 +88,7 @@ const basicFantasyCartridge: GameCartridge = {
     'inspect', 'search', 'move', 'use' // exploration (rest handled above)
   ],
 
-  worldEventTrackers: [
+  signalSchemas: [
     {
       key: 'drink_potion',
       what: "string; type of potion; allowed values are 'healing', 'strength', 'poison'",
@@ -126,9 +126,9 @@ const basicFantasyCartridge: GameCartridge = {
     }
   ],
 
-  gameRules: {
-    drink_potion: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      if (!context.effectData) {
+  rules: {
+    drink_potion: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      if (!context.worldSignal) {
         return {
           outcome: {
             status: 'neutral', mechanicsLogs: [],
@@ -139,7 +139,7 @@ const basicFantasyCartridge: GameCartridge = {
           stateMutations: []
         };
       }
-      const effect = context.effectData!;
+      const effect = context.worldSignal!;
       const typeCheck = context.typeCheck as Record<string, unknown> | null;
 
       let potionType = 'healing';
@@ -161,7 +161,7 @@ const basicFantasyCartridge: GameCartridge = {
         whenTime = effect['when'];
       }
 
-      const sideEffects: ActiveCondition[] = [];
+      const sideEffects: SideEffect[] = [];
       let mustHappenMsg = '';
 
       if (potionType === 'healing') {
@@ -213,8 +213,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    combat_event: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      if (!context.effectData) {
+    combat_event: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      if (!context.worldSignal) {
         return {
           outcome: {
             status: 'neutral', mechanicsLogs: [],
@@ -225,7 +225,7 @@ const basicFantasyCartridge: GameCartridge = {
           stateMutations: []
         };
       }
-      const effect = context.effectData!;
+      const effect = context.worldSignal!;
       const typeCheck = context.typeCheck as Record<string, unknown> | null;
 
       let eventType = 'enemy_attack';
@@ -242,7 +242,7 @@ const basicFantasyCartridge: GameCartridge = {
         }
       }
 
-      const sideEffects: ActiveCondition[] = [];
+      const sideEffects: SideEffect[] = [];
       let mustHappenMsg = '';
 
       if (eventType === 'enemy_attack') {
@@ -317,8 +317,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    travel: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      if (!context.effectData) {
+    travel: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      if (!context.worldSignal) {
         return {
           outcome: {
             status: 'neutral', mechanicsLogs: [],
@@ -329,7 +329,7 @@ const basicFantasyCartridge: GameCartridge = {
           stateMutations: []
         };
       }
-      const effect = context.effectData!;
+      const effect = context.worldSignal!;
       const typeCheck = context.typeCheck as Record<string, unknown> | null;
 
       let arrivalTime = sheet.timestamp;
@@ -344,7 +344,7 @@ const basicFantasyCartridge: GameCartridge = {
         travelMode = extractMatch(['walk', 'run', 'ride'], 'walk', effect['what']);
       }
 
-      const sideEffects: ActiveCondition[] = [];
+      const sideEffects: SideEffect[] = [];
       sideEffects.push({
         what: 'traveled (' + travelMode + ')',
         temp: false,
@@ -367,8 +367,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    rest: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      if (!context.effectData) {
+    rest: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      if (!context.worldSignal) {
         return {
           outcome: {
             status: 'neutral', mechanicsLogs: [],
@@ -379,7 +379,7 @@ const basicFantasyCartridge: GameCartridge = {
           stateMutations: []
         };
       }
-      const effect = context.effectData!;
+      const effect = context.worldSignal!;
       const typeCheck = context.typeCheck as Record<string, unknown> | null;
 
       let restType = 'short';
@@ -395,7 +395,7 @@ const basicFantasyCartridge: GameCartridge = {
         wakeTime = addDuration(sheet.timestamp, duration);
       }
 
-      const sideEffects: ActiveCondition[] = [];
+      const sideEffects: SideEffect[] = [];
       const hp = sheet.stats['hp'] || 0;
       const maxHP = sheet.stats['max_hp'] || 100;
 
@@ -420,8 +420,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    attack: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'attack');
+    attack: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'attack');
       if (!parentIntent) {
         return {
           outcome: {
@@ -471,8 +471,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    cast: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'cast');
+    cast: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'cast');
       if (!parentIntent) {
         return {
           outcome: {
@@ -522,8 +522,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    defend: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'defend');
+    defend: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'defend');
       if (!parentIntent) {
         return {
           outcome: {
@@ -573,8 +573,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    dodge: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'dodge');
+    dodge: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'dodge');
       if (!parentIntent) {
         return {
           outcome: {
@@ -624,8 +624,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    flee: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'flee');
+    flee: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'flee');
       if (!parentIntent) {
         return {
           outcome: {
@@ -675,8 +675,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    persuade: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'persuade');
+    persuade: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'persuade');
       if (!parentIntent) {
         return {
           outcome: {
@@ -726,8 +726,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    intimidate: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'intimidate');
+    intimidate: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'intimidate');
       if (!parentIntent) {
         return {
           outcome: {
@@ -777,8 +777,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    deceive: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'deceive');
+    deceive: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'deceive');
       if (!parentIntent) {
         return {
           outcome: {
@@ -828,8 +828,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    barter: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'barter');
+    barter: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'barter');
       if (!parentIntent) {
         return {
           outcome: {
@@ -879,8 +879,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    ask: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'ask');
+    ask: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'ask');
       if (!parentIntent) {
         return {
           outcome: {
@@ -930,8 +930,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    inspect: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'inspect');
+    inspect: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'inspect');
       if (!parentIntent) {
         return {
           outcome: {
@@ -981,8 +981,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    search: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'search');
+    search: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'search');
       if (!parentIntent) {
         return {
           outcome: {
@@ -1032,8 +1032,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    move: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'move');
+    move: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'move');
       if (!parentIntent) {
         return {
           outcome: {
@@ -1083,8 +1083,8 @@ const basicFantasyCartridge: GameCartridge = {
       };
     },
 
-    use: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.intents.find(a => a.key === 'use');
+    use: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+      const parentIntent = context.playerSignals.find(a => a.key === 'use');
       if (!parentIntent) {
         return {
           outcome: {

@@ -2,26 +2,26 @@
  * GamePlayScript – the core engine that executes the three-phase loop.
  *
  * Phase 1 – Input:   Extract the player's intended action.
- * Phase 2 – Process: Process the turn based on the cartridge's `ruleSequence`.
+ * Phase 2 – Process: Process the turn based on the cartridge's `ruleOrder`.
  *                    Every rule is called in order – even with null context –
  *                    so that the output can instruct the LLM about what must
  *                    NOT be narrated (e.g. "do not narrate player drinking a potion").
- * Phase 3 – Output:  Accumulate a standardised `GamePlayEvent[]` for the
- *                    system adapter.
+ * Phase 3 – Output:  Accumulate a standardised `NarrationDirective[]` for the
+ *                    platform adapter.
  *
- * The script is driven by a swappable GameCartridge that defines conditions,
+ * The script is driven by a swappable Cartridge that defines conditions,
  * available actions, resolution rules, effect definitions, and aspect functions.
  */
 
 import {
-  GameCartridge,
-  GamePlayEvent,
-  GameState,
-  RuleResolution,
-  RuleContext,
-  ActiveCondition,
-  WorldEventTracker,
-  EffectRecord
+  Cartridge,
+  NarrationDirective,
+  State,
+  RuleOutcome,
+  TurnContext,
+  SideEffect,
+  SignalSchema,
+  Signal
 } from '../types';
 import { parsePlayerInput } from '../inputs/input-matcher';
 import { applySideEffect, revertSideEffect } from '../core/game-state';
@@ -29,27 +29,27 @@ import { addDuration, getMidnightsPassed } from '../utils/time-utils';
 import { cleanInput, findEffectByKey, generateEffectInstruction } from '../utils/llm-utils';
 
 class GamePlayScript {
-  private cartridge: GameCartridge;
+  private cartridge: Cartridge;
   private currentCondition: string;
 
-  constructor(cartridge: GameCartridge) {
+  constructor(cartridge: Cartridge) {
     this.cartridge = cartridge;
-    // Default to the first stop condition
-    this.currentCondition = cartridge.stopConditions.length > 0
-      ? cartridge.stopConditions[0]
+    // Default to the first breakpoint
+    this.currentCondition = cartridge.breakpoints.length > 0
+      ? cartridge.breakpoints[0]
       : 'default';
   }
 
   /** Get the currently loaded cartridge. */
-  public getCartridge(): GameCartridge {
+  public getCartridge(): Cartridge {
     return this.cartridge;
   }
 
   /** Swap in a different cartridge at runtime. */
-  public setCartridge(cartridge: GameCartridge): void {
+  public setCartridge(cartridge: Cartridge): void {
     this.cartridge = cartridge;
-    this.currentCondition = cartridge.stopConditions.length > 0
-      ? cartridge.stopConditions[0]
+    this.currentCondition = cartridge.breakpoints.length > 0
+      ? cartridge.breakpoints[0]
       : 'default';
   }
 
@@ -69,11 +69,11 @@ class GamePlayScript {
 
   /**
    * Extract the player's intents from the latest player message using the
-   * cartridge's inputMatchers.
+   * cartridge's signalDetectors.
    * Returns an empty array if no recognisable intent is found.
    */
-  public extractIntents(playerMessage: string): EffectRecord[] {
-    return parsePlayerInput(playerMessage, this.cartridge.inputMatchers);
+  public extractIntents(playerMessage: string): Signal[] {
+    return parsePlayerInput(playerMessage, this.cartridge.signalDetectors);
   }
 
   // ----------------------------------------------------------------
@@ -83,7 +83,7 @@ class GamePlayScript {
   /**
    * Run the complete 3-phase turn for a player message.
    * Modifies the game state by processing the player action and world events
-   * in the exact order specified by `cartridge.ruleSequence`.
+   * in the exact order specified by `cartridge.ruleOrder`.
    *
    * Every rule in the sequence is called, even when there is no matching
    * player action or world event.  This allows rules to emit `mustNotHappen`
@@ -93,18 +93,18 @@ class GamePlayScript {
    * @param playerMessage The player's raw free-text input.
    * @param currentState The current game state.
    * @param narrationSummary The parsed narration summary from the LLM.
-   * @param preParsedIntents Optional pre-parsed intents provided by a system adapter.
-   * @returns The new game state, accumulated narration guide, game play events,
+   * @param preParsedIntents Optional pre-parsed intents provided by a platform adapter.
+   * @returns The new game state, accumulated narration guide, narration directives,
    *          conditions to report back.
    */
   public executeTurn(
     playerMessage: string,
-    currentState: GameState,
+    currentState: State,
     narrationSummary: Record<string, unknown>,
-    preParsedIntents?: EffectRecord[] | null
+    preParsedIntents?: Signal[] | null
   ): {
-    newState: GameState;
-    gamePlayEvents: GamePlayEvent[];
+    newState: State;
+    gamePlayEvents: NarrationDirective[];
     effectInstructions: string;
   } {
     // Phase 1 – Input
@@ -128,18 +128,18 @@ class GamePlayScript {
     newState.timestamp = newCurrentTime;
     newState = revertSideEffect(newState);
 
-    const gamePlayEvents: GamePlayEvent[] = [];
+    const gamePlayEvents: NarrationDirective[] = [];
 
     // Iterate through the cartridge-defined aspect sequence.
     // Every rule is called – even if there is no matching event – so that it
     // can produce mustNotHappen entries for the LLM.
-    const sequence = this.cartridge.ruleSequence || [];
+    const sequence = this.cartridge.ruleOrder || [];
     for (const key of sequence) {
-      if (this.cartridge.gameRules && this.cartridge.gameRules[key]) {
+      if (this.cartridge.rules && this.cartridge.rules[key]) {
         // Prepare context
-        const def = this.cartridge.worldEventTrackers.find(d => d.key === key);
+        const def = this.cartridge.signalSchemas.find(d => d.key === key);
 
-        let foundEffect: EffectRecord | null = null;
+        let foundEffect: Signal | null = null;
         let foundTypeCheck: Record<string, unknown> | null = null;
         if (def) {
           const found = findEffectByKey(key, narrationSummary, typeChecks);
@@ -147,19 +147,19 @@ class GamePlayScript {
           foundTypeCheck = found.typeCheck;
         }
 
-        const context: RuleContext = {
-          intents: allIntents.filter(e => e.key === key),
+        const context: TurnContext = {
+          playerSignals: allIntents.filter(e => e.key === key),
           currentCondition: this.currentCondition,
           ruleKey: key,
-          effectData: foundEffect,
+          worldSignal: foundEffect,
           typeCheck: foundTypeCheck,
           narrationSummary: narrationSummary
         };
 
-        const result = this.cartridge.gameRules[key](newState, context);
+        const result = this.cartridge.rules[key](newState, context);
 
-        // Build the GamePlayEvent from the rule result
-        const gpe = this.buildGamePlayEvent(key, result);
+        // Build the NarrationDirective from the rule result
+        const gpe = this.buildNarrationDirective(key, result);
         gamePlayEvents.push(gpe);
 
         if (result) {
@@ -172,9 +172,9 @@ class GamePlayScript {
       }
     }
 
-    // Generate effect instructions from worldEventTrackers using generateEffectInstruction.
+    // Generate effect instructions from signalSchemas using generateEffectInstruction.
     const instructionParts: string[] = [];
-    for (const tracker of this.cartridge.worldEventTrackers) {
+    for (const tracker of this.cartridge.signalSchemas) {
       const instruction = generateEffectInstruction(tracker);
       if (instruction) {
         instructionParts.push(instruction);
@@ -190,13 +190,13 @@ class GamePlayScript {
   }
 
   // ----------------------------------------------------------------
-  // GamePlayEvent construction
+  // NarrationDirective construction
   // ----------------------------------------------------------------
 
   /**
-   * Convert a RuleResolution into a standardised GamePlayEvent.
+   * Convert a RuleOutcome into a standardised NarrationDirective.
    */
-  private buildGamePlayEvent(ruleKey: string, result: RuleResolution | null): GamePlayEvent {
+  private buildNarrationDirective(ruleKey: string, result: RuleOutcome | null): NarrationDirective {
     if (!result || !result.outcome) {
       return {
         ruleKey: ruleKey,

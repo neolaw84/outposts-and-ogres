@@ -1,14 +1,14 @@
-import { WorldSimulationUpdate } from '../types';
+import { NarrationSummary } from '../types';
 
-interface ScenarioUnderstanding {
+interface SceneReading {
   suggestedCondition: string | null;
   confidence: 'low' | 'medium' | 'high';
   cues: string[];
 }
 
 /**
- * Interpret a `WorldSimulationUpdate` (the open-contract LLM output) into a
- * cartridge-specific `ScenarioUnderstanding`.
+ * Interpret a `NarrationSummary` (the open-contract LLM output) into a
+ * cartridge-specific `SceneReading`.
  *
  * Priority:
  *  1. A flag whose key matches an available condition and whose value is
@@ -17,9 +17,9 @@ interface ScenarioUnderstanding {
  *  3. No match → low confidence, no suggested condition.
  */
 function understandScenario(
-  update: WorldSimulationUpdate,
+  update: NarrationSummary,
   availableConditions: string[]
-): ScenarioUnderstanding {
+): SceneReading {
   // Check flags: flag key equals a condition name with non-zero value
   for (let i = 0; i < availableConditions.length; i++) {
     const condition = availableConditions[i];
@@ -42,4 +42,4 @@ function understandScenario(
   return { suggestedCondition: null, confidence: 'low', cues: [] };
 }
 
-export { ScenarioUnderstanding, understandScenario };
+export { SceneReading, understandScenario };

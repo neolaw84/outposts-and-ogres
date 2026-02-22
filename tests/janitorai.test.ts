@@ -217,7 +217,7 @@ describe('JanitorAIAdapter', function () {
     expect(adapter.getScenarioUpdate()).toBeNull();
   });
 
-  test('should use defaults for missing WorldSimulationUpdate fields', function () {
+  test('should use defaults for missing NarrationSummary fields', function () {
     var context = {
       chat: {
         last_messages: [

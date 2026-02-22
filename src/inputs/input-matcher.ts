@@ -1,23 +1,23 @@
-import { EffectRecord, InputMatcher } from '../types';
+import { Signal, SignalDetector } from '../types';
 
 /**
  * Parse the player's free-text message into an array of detected intents.
  *
  * Detection strategy:
  * 1. First, try bracket syntax `<action:target>` or `<action target>` — if
- *    the action part matches any matcher's `key`, emit an EffectRecord.
- * 2. For each InputMatcher, check `patterns` (regex) first, then `keywords`
- *    (case-insensitive substring). Emit an EffectRecord for each match.
+ *    the action part matches any matcher's `key`, emit a Signal.
+ * 2. For each SignalDetector, check `patterns` (regex) first, then `keywords`
+ *    (case-insensitive substring). Emit a Signal for each match.
  *
  * @param message  The raw player message.
- * @param matchers Array of InputMatcher definitions from the cartridge.
- * @returns Array of detected EffectRecords (empty if nothing matched).
+ * @param matchers Array of SignalDetector definitions from the cartridge.
+ * @returns Array of detected Signals (empty if nothing matched).
  */
 function parsePlayerInput(
   message: string,
-  matchers: InputMatcher[]
-): EffectRecord[] {
-  const results: EffectRecord[] = [];
+  matchers: SignalDetector[]
+): Signal[] {
+  const results: Signal[] = [];
   const matchedKeys = new Set<string>();
 
   // Phase 1: Bracket syntax  <action target> or <action:target>
@@ -45,7 +45,7 @@ function parsePlayerInput(
     // Only accept bracket actions whose key matches a known matcher
     const matcherExists = matchers.some(m => m.key === actionKey);
     if (matcherExists) {
-      const record: EffectRecord = { key: actionKey };
+      const record: Signal = { key: actionKey };
       if (target) {
         record.what = target;
       }
@@ -67,7 +67,7 @@ function parsePlayerInput(
       for (const pattern of matcher.patterns) {
         const regexMatch = pattern.exec(message);
         if (regexMatch) {
-          const record: EffectRecord = { key: matcher.key };
+          const record: Signal = { key: matcher.key };
           // Use first capture group as `what` if present (e.g. /cast\s+(\w+)/i → "fireball")
           if (regexMatch[1]) {
             record.what = regexMatch[1].trim();

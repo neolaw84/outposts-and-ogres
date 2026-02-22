@@ -90,7 +90,7 @@ describe('SillyTavernAdapter', () => {
     expect(adapter.getScenarioUpdate()).toEqual({ ...update, effects: [] });
   });
 
-  test('should use defaults for missing WorldSimulationUpdate fields', () => {
+  test('should use defaults for missing NarrationSummary fields', () => {
     const context = {
       chat: [
         { is_user: 'false', mes: 'Narration [NARRATION_SUMMARY]{}[/NARRATION_SUMMARY]' }

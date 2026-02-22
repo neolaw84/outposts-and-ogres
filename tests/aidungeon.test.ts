@@ -96,7 +96,7 @@ describe('AIDungeonAdapter', () => {
     expect(adapter.getScenarioUpdate()).toEqual({ ...update, effects: [] });
   });
 
-  test('should use defaults for missing WorldSimulationUpdate fields', () => {
+  test('should use defaults for missing NarrationSummary fields', () => {
     const context = {
       history: [
         { type: 'story', text: 'Narration [NARRATION_SUMMARY]{}[/NARRATION_SUMMARY]' }

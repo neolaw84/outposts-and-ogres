@@ -1,20 +1,20 @@
 /**
- * Shared helpers for system adapters.
+ * Shared helpers for platform adapters.
  *
- * Centralises the logic for formatting GamePlayEvents
+ * Centralises the logic for formatting NarrationDirectives
  * into text lines that any adapter can consume.
  */
 
-import { GamePlayEvent } from '../types';
+import { NarrationDirective } from '../types';
 
 /**
- * Flatten GamePlayEvents into prefixed text lines.
+ * Flatten NarrationDirectives into prefixed text lines.
  *
  * Each mustHappen entry becomes "MUST: …",
  * each mustNotHappen becomes "MUST NOT: …", and
  * each mayHappen becomes "MAY: …".
  */
-function formatGamePlayEventLines(events: GamePlayEvent[]): string[] {
+function formatGamePlayEventLines(events: NarrationDirective[]): string[] {
   const lines: string[] = [];
   for (const gpe of events) {
     for (const m of gpe.mustHappen) {
@@ -31,9 +31,9 @@ function formatGamePlayEventLines(events: GamePlayEvent[]): string[] {
 }
 
 /**
- * Collect GamePlayEvent entries into three separate arrays.
+ * Collect NarrationDirective entries into three separate arrays.
  */
-function collectGamePlayEventArrays(events: GamePlayEvent[]): {
+function collectGamePlayEventArrays(events: NarrationDirective[]): {
   mustLines: string[];
   mustNotLines: string[];
   mayLines: string[];

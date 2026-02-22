@@ -1,7 +1,7 @@
 import { Character } from '../../character';
 import { GamePlayScript } from '../../systems/game-play-script';
 import { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
-import { GameState } from '../../types';
+import { State } from '../../types';
 
 class OutpostsAndOgres {
   private version: string;
@@ -30,17 +30,17 @@ export { Character };
 export { GamePlayScript } from '../../systems/game-play-script';
 export { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 export {
-  GameCartridge,
-  SystemAdapter,
-  GameState,
-  ActiveCondition,
-  StatModifier,
-  WorldEventTracker,
-  GameRule,
-  RuleResolution,
-  GamePlayEvent,
-  EffectRecord,
-  InputMatcher
+  Cartridge,
+  Platform,
+  State,
+  SideEffect,
+  StatImpact,
+  SignalSchema,
+  Rule,
+  RuleOutcome,
+  NarrationDirective,
+  Signal,
+  SignalDetector
 } from '../../types';
 export { rollDie, rollDice, sumRolls } from '../../utils/dice';
 export { parsePlayerInput } from '../../inputs/input-matcher';
@@ -86,15 +86,15 @@ if (typeof context !== 'undefined') {
 
   // 1. DECODE – Extract state and narration summary from chat history
   const loadedState = adapter.loadState();
-  let rpState: GameState | null = (loadedState && (loadedState as Record<string, unknown>)['timestamp'])
-    ? loadedState as unknown as GameState
+  let rpState: State | null = (loadedState && (loadedState as Record<string, unknown>)['timestamp'])
+    ? loadedState as unknown as State
     : null;
   const scenarioUpdate = adapter.getScenarioUpdate();
 
   const dataCorrupted = !rpState || !rpState.timestamp;
 
   if (!rpState || !rpState.timestamp) {
-    rpState = JSON.parse(JSON.stringify(cartridge.defaultGameState)) as GameState;
+    rpState = JSON.parse(JSON.stringify(cartridge.defaultState)) as State;
   }
 
   // Build a narration summary in the format expected by processEffects
@@ -116,14 +116,14 @@ if (typeof context !== 'undefined') {
   const playerMsg = adapter.getPlayerMessage();
 
   if (!dataCorrupted && playerMsg) {
-    let preParsedIntents: import('../../types').EffectRecord[] | null = null;
+    let preParsedIntents: import('../../types').Signal[] | null = null;
     if (adapter.deducePlayerIntent) {
-      const deduced = adapter.deducePlayerIntent(playerMsg, cartridge.inputMatchers);
+      const deduced = adapter.deducePlayerIntent(playerMsg, cartridge.signalDetectors);
       if (!(deduced instanceof Promise)) {
         preParsedIntents = deduced;
       }
     }
-    const turnResult = script.executeTurn(playerMsg, rpState as GameState, narrationSummary, preParsedIntents);
+    const turnResult = script.executeTurn(playerMsg, rpState as State, narrationSummary, preParsedIntents);
     rpState = turnResult.newState;
 
     // 4. ENCODE & INJECT

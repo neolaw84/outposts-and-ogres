@@ -6,7 +6,7 @@
  * - revertSideEffect: Checks expired effects against current time and reverts them.
  */
 
-import { GameState, ActiveCondition, StatusEffect, StoredStatModifier } from '../types';
+import { State, SideEffect, StoredSideEffect, StoredStatImpact } from '../types';
 import { isPast } from '../utils/time-utils';
 
 /**
@@ -21,18 +21,18 @@ import { isPast } from '../utils/time-utils';
  * If the side effect has an expiry, it is stored in the activeConditions[] array
  * with original values for later reversion.
  */
-function applySideEffect(sheet: GameState, sideEffects: ActiveCondition | ActiveCondition[] | null): GameState {
-  const newSheet: GameState = JSON.parse(JSON.stringify(sheet));
+function applySideEffect(sheet: State, sideEffects: SideEffect | SideEffect[] | null): State {
+  const newSheet: State = JSON.parse(JSON.stringify(sheet));
 
   if (!sideEffects) return newSheet;
 
-  const effectsList: ActiveCondition[] = Array.isArray(sideEffects) ? sideEffects : [sideEffects];
+  const effectsList: SideEffect[] = Array.isArray(sideEffects) ? sideEffects : [sideEffects];
 
   for (let k = 0; k < effectsList.length; k++) {
     const sideEffect = effectsList[k];
     if (!sideEffect) continue;
 
-    const sideEffectEntry: StatusEffect = {
+    const sideEffectEntry: StoredSideEffect = {
       desc: sideEffect.what,
       expiry: sideEffect.expiry || null,
       re_lock: sideEffect.re_lock || null,
@@ -48,7 +48,7 @@ function applySideEffect(sheet: GameState, sideEffects: ActiveCondition | Active
           const currentValue = newSheet.stats[statKey];
           let newValue = currentValue;
 
-          const storedImpact: StoredStatModifier = {
+          const storedImpact: StoredStatImpact = {
             stats: statKey,
             op: imp.op,
             val: imp.val,
@@ -95,13 +95,13 @@ function applySideEffect(sheet: GameState, sideEffects: ActiveCondition | Active
  *     - "sub": add the val back
  *   - Remove the effect from activeConditions[].
  */
-function revertSideEffect(sheet: GameState): GameState {
-  const newSheet: GameState = JSON.parse(JSON.stringify(sheet));
+function revertSideEffect(sheet: State): State {
+  const newSheet: State = JSON.parse(JSON.stringify(sheet));
   const currentTime = newSheet.timestamp;
 
   if (!newSheet.activeConditions) return newSheet;
 
-  const activeEffects: StatusEffect[] = [];
+  const activeEffects: StoredSideEffect[] = [];
   for (let i = 0; i < newSheet.activeConditions.length; i++) {
     const eff = newSheet.activeConditions[i];
     let shouldExpire = false;

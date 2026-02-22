@@ -38,20 +38,20 @@ export { Character };
 export { GamePlayScript } from './systems/game-play-script';
 export { basicFantasyCartridge } from './cartridges/basic-fantasy';
 export {
-  EffectRecord,
-  InputMatcher,
-  GameCartridge,
-  SystemAdapter,
-  WorldSimulationUpdate,
-  StatModifier,
-  ActiveCondition,
-  RuleResolution,
-  GameState,
-  StatusEffect,
-  StoredStatModifier,
-  WorldEventTracker,
-  GameRule,
-  GamePlayEvent
+  Signal,
+  SignalDetector,
+  Cartridge,
+  Platform,
+  NarrationSummary,
+  StatImpact,
+  SideEffect,
+  RuleOutcome,
+  State,
+  StoredSideEffect,
+  StoredStatImpact,
+  SignalSchema,
+  Rule,
+  NarrationDirective
 } from './types';
 export { rollDie, rollDice, sumRolls } from './utils/dice';
 export { base64EncodeRaw, base64DecodeRaw, base64Encode, base64Decode } from './utils/base64';

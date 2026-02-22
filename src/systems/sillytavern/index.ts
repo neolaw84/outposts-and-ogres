@@ -6,11 +6,11 @@
  * State can be persisted via the extension data mechanism.
  */
 
-import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, EffectRecord } from '../../types';
+import { Platform, NarrationSummary, NarrationDirective, State, Signal } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 import { formatGamePlayEventLines } from '../adapter-helpers';
 
-class SillyTavernAdapter implements SystemAdapter {
+class SillyTavernAdapter implements Platform {
   readonly name: string = 'SillyTavern';
   private context: Record<string, unknown>;
 
@@ -48,11 +48,11 @@ class SillyTavernAdapter implements SystemAdapter {
 
   /**
    * Extract the [NARRATION_SUMMARY] JSON from the last AI message in the
-   * SillyTavern chat array and return it as a `WorldSimulationUpdate`.
+   * SillyTavern chat array and return it as a `NarrationSummary`.
    * SillyTavern chat messages use `is_user` ('true'/'false') and `mes` fields.
    * Returns null if no valid block is found.
    */
-  getScenarioUpdate(): WorldSimulationUpdate | null {
+  getScenarioUpdate(): NarrationSummary | null {
     const chat = this.context['chat'] as Array<Record<string, string>> | undefined;
     if (!chat || chat.length === 0) {
       return null;
@@ -70,20 +70,20 @@ class SillyTavernAdapter implements SystemAdapter {
           flags: (raw['flags'] as Record<string, number>) || {},
           tags: (raw['tags'] as Record<string, string>) || {},
           meters: (raw['meters'] as Record<string, number>) || {},
-          effects: (raw['effects'] as EffectRecord[]) || []
+          effects: (raw['effects'] as Signal[]) || []
         };
       }
     }
     return null;
   }
 
-  deducePlayerIntent(rawMessage: string, matchers: import('../../types').InputMatcher[]): import('../../types').EffectRecord[] | null {
+  deducePlayerIntent(rawMessage: string, matchers: import('../../types').SignalDetector[]): import('../../types').Signal[] | null {
     return null; // To be implemented later via SillyTavern hidden prompt injection
   }
 
   applyGamePlayOutput(
-    events: GamePlayEvent[],
-    state: GameState,
+    events: NarrationDirective[],
+    state: State,
     effectInstructions: string
   ): void {
     const lines = formatGamePlayEventLines(events);

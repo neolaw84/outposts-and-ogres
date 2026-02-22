@@ -1,9 +1,9 @@
 import { JanitorAIAdapter } from '../src/systems/janitorai/index';
 import { SillyTavernAdapter } from '../src/systems/sillytavern/index';
 import { AIDungeonAdapter } from '../src/systems/aidungeon/index';
-import { GamePlayEvent, GameState } from '../src/types';
+import { NarrationDirective, State } from '../src/types';
 
-function makeSampleEvents(): GamePlayEvent[] {
+function makeSampleEvents(): NarrationDirective[] {
   return [
     {
       ruleKey: 'drink_potion',
@@ -25,14 +25,14 @@ const sampleEffectInstructions =
   'include one instance of the following in the "effects" array.\n\n' +
   '{\n    "key": "drink_potion",\n    "what": "healing"\n}';
 
-const sampleState: GameState = {
+const sampleState: State = {
   timestamp: '1000-01-01T08:00:00',
   stats: { hp: 100 },
   activeConditions: [],
   flags: []
 };
 
-describe('SystemAdapter.applyGamePlayOutput', () => {
+describe('Platform.applyGamePlayOutput', () => {
   describe('JanitorAIAdapter', () => {
     test('applyGamePlayOutput injects MUST/MUST NOT/MAY into scenario', () => {
       const context: Record<string, unknown> = {
