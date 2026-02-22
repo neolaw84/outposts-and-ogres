@@ -6,25 +6,25 @@
 
 ## 1. What is a Cartridge?
 
-A **cartridge** is a self-contained game rule book. It defines everything the engine needs to run a specific game: stats, available actions, world-event trackers, and the rules that resolve player actions and world events.
+A **cartridge** is a self-contained game rule book. It defines everything the engine needs to run a specific game: stats, available actions, signal schemas, and the rules that resolve player actions and world events.
 
-The engine itself (the `GamePlayScript`) is generic — it doesn't know about hit points, potions, or goblins. All of that comes from the cartridge.
+The engine itself (the `GameEngine`) is generic — it doesn't know about hit points, potions, or goblins. All of that comes from the cartridge.
 
 ---
 
-## 2. The `GameCartridge` Interface
+## 2. The `Cartridge` Interface
 
 ```typescript
-interface GameCartridge {
+interface Cartridge {
   name: string;
   version: string;
-  stopConditions: string[];
+  breakpoints: string[];
   availableActions: Record<string, string[]>;
   parseInput?: (message, availableActions, currentCondition) => PlayerInputUnderstanding;
-  defaultGameState: GameState;
-  worldEventTrackers: WorldEventTracker[];
-  gameRules: Record<string, GameRule>;
-  ruleSequence: string[];
+  defaultState: State;
+  signalSchemas: SignalSchema[];
+  rules: Record<string, Rule>;
+  ruleOrder: string[];
 }
 ```
 
@@ -39,7 +39,7 @@ Each field is explained below.
 ```typescript
 name: 'My Sci-Fi RPG',
 version: '1.0.0',
-stopConditions: ['combat', 'exploration', 'dialogue', 'Combat round ends', 'Critical injury'],
+breakpoints: ['combat', 'exploration', 'dialogue', 'Combat round ends', 'Critical injury'],
 availableActions: {
   combat:      ['shoot', 'take_cover', 'throw_grenade', 'flee'],
   exploration: ['scan', 'move', 'hack', 'rest'],
@@ -47,7 +47,7 @@ availableActions: {
 }
 ```
 
-* **`stopConditions`** — The scenarios in which the LLM should stop narrating and wait for the player's input. This includes both general game modes (e.g. `'combat'`, `'exploration'`) and specific events that force the LLM to end its turn immediately (e.g. `'Combat round ends'`, `'Critical injury'`).
+* **`breakpoints`** — The scenarios in which the LLM should stop narrating and wait for the player's input. This includes both general game modes (e.g. `'combat'`, `'exploration'`) and specific events that force the LLM to end its turn immediately (e.g. `'Combat round ends'`, `'Critical injury'`).
 * **`availableActions`** — For each condition, the list of actions the player may attempt. The engine uses these to parse the player's free-text input.
 
 ### 3.2 Default Game State
@@ -55,7 +55,7 @@ availableActions: {
 The initial state when a new session begins:
 
 ```typescript
-defaultGameState: {
+defaultState: {
   timestamp: '3024-06-15T08:00:00',
   stats: {
     hp: 100, max_hp: 100,
@@ -74,12 +74,12 @@ defaultGameState: {
 * **`activeConditions`** — Active temporary effects (buffs/debuffs). Starts empty.
 * **`flags`** — Named boolean markers for narrative state (e.g. `"door_unlocked"`).
 
-### 3.3 World Event Trackers (`worldEventTrackers`)
+### 3.3 World Event Trackers (`signalSchemas`)
 
-These tell the LLM **what structured data to report back** at the end of each narration turn. At the end of the game play loop, the engine calls `generateEffectInstruction()` on each tracker to produce a formatted instruction string. This string is then passed to the system adapter's `applyGamePlayOutput()`, which injects it into the LLM's context alongside the narration guide.
+These tell the LLM **what structured data to report back** at the end of each narration turn. At the end of the game play loop, the engine calls `renderSchemaInstruction()` on each tracker to produce a formatted instruction string. This string is then passed to the system adapter's `applyGamePlayOutput()`, which injects it into the LLM's context alongside the narration guide.
 
 ```typescript
-worldEventTrackers: [
+signalSchemas: [
   {
     key: 'combat_event',
     what: "string; 'player_attack' | 'enemy_attack' | 'combat_end'",
@@ -102,11 +102,11 @@ worldEventTrackers: [
 ```
 
 Each tracker has:
-* **`key`** — Unique identifier, matching a key in `gameRules`.
+* **`key`** — Unique identifier, matching a key in `rules`.
 * **`what`**, **`meters`**, **`flags`**, **`tags`** — Describe the fields the LLM should include in the `"effects"` array entry.
 * **`condition`** — When the LLM should report this event.
 
-The engine calls `generateEffectInstruction(tracker)` on each tracker at the end of `executeTurn()`. This produces instructions like:
+The engine calls `renderSchemaInstruction(tracker)` on each tracker at the end of `executeTurn()`. This produces instructions like:
 
 > *In the above narration of yours, if and only if {{user}} uses a medkit, include one instance of the following in the "effects" array.*
 >
@@ -116,12 +116,12 @@ As a cartridge developer, you only need to define the trackers. The engine and s
 
 ### 3.4 Rule Sequence & Game Rules
 
-#### `ruleSequence`
+#### `ruleOrder`
 
 A strictly ordered array of rule keys. **Every rule is called on every turn**, even when there is no matching action or world event.
 
 ```typescript
-ruleSequence: [
+ruleOrder: [
   // World events first
   'combat_event', 'use_medkit',
   // Then player actions
@@ -133,31 +133,31 @@ ruleSequence: [
 
 Order matters: put world events (potion effects, enemy attacks) before player actions so the game state is current when the player's action resolves.
 
-#### `gameRules`
+#### `rules`
 
-A dictionary mapping each key in `ruleSequence` to a `GameRule` function:
+A dictionary mapping each key in `ruleOrder` to a `Rule` function:
 
 ```typescript
-type GameRule = (state: GameState, context: RuleContext) => RuleResolution;
+type Rule = (state: State, context: TurnContext) => RuleOutcome;
 ```
 
-**The `RuleContext`:**
+**The `TurnContext`:**
 
 ```typescript
-interface RuleContext {
+interface TurnContext {
   action: ParsedAction[] | null;   // Player's parsed actions (if any)
   currentCondition: string;         // e.g. 'combat'
   ruleKey: string;                  // The key being evaluated
-  effectData: Record<string, unknown> | null;  // Matched LLM effect data
+  worldSignal: Record<string, unknown> | null;  // Matched LLM effect data
   typeCheck: Record<string, unknown> | null;    // Type-check results
   narrationSummary: Record<string, unknown>;     // Full raw summary
 }
 ```
 
-**The `RuleResolution`:**
+**The `RuleOutcome`:**
 
 ```typescript
-interface RuleResolution {
+interface RuleOutcome {
   outcome: {
     status: 'success' | 'failure' | 'mixed' | 'neutral';
     mechanicsLogs: string[];
@@ -167,7 +167,7 @@ interface RuleResolution {
     actionName?: string;
     actionTarget?: string;
   };
-  stateMutations: ActiveCondition[];
+  stateMutations: SideEffect[];
 }
 ```
 
@@ -182,7 +182,7 @@ Every rule must handle **two cases**:
 Return `mustNotHappen` to prevent the LLM from hallucinating:
 
 ```typescript
-gameRules: {
+rules: {
   shoot: (state, context) => {
     const intent = context.action?.find(a => a.action === 'shoot');
     if (!intent) {
@@ -240,7 +240,7 @@ Resolve the action mechanically and return the result:
         mustNotHappen: [],
         mayHappen: isSuccess ? ['The enemy staggers back.'] : []
       },
-      stateMutations: []  // Add ActiveCondition entries for damage, buffs, etc.
+      stateMutations: []  // Add SideEffect entries for damage, buffs, etc.
     };
 ```
 
@@ -248,7 +248,7 @@ Resolve the action mechanically and return the result:
 
 ## 5. State Mutations (Side Effects)
 
-To modify the game state, return `ActiveCondition` entries in `stateMutations`:
+To modify the game state, return `SideEffect` entries in `stateMutations`:
 
 ```typescript
 // Permanent effect (e.g. taking damage)
@@ -273,12 +273,12 @@ The `op` field supports `'set'`, `'add'`, and `'sub'`. Temporary effects are aut
 
 ## 6. World Event Rules
 
-For events reported by the LLM (not player actions), use `context.effectData` and `context.typeCheck`:
+For events reported by the LLM (not player actions), use `context.worldSignal` and `context.typeCheck`:
 
 ```typescript
-gameRules: {
+rules: {
   use_medkit: (state, context) => {
-    if (!context.effectData) {
+    if (!context.worldSignal) {
       return {
         outcome: {
           status: 'neutral', mechanicsLogs: [],
@@ -290,7 +290,7 @@ gameRules: {
       };
     }
 
-    const effect = context.effectData;
+    const effect = context.worldSignal;
     const typeCheck = context.typeCheck;
 
     let potency = 1;
@@ -358,31 +358,31 @@ The engine provides these utilities you can use in your rules:
 | `addDuration(iso, dur)` | `utils/time-utils` | Add an ISO 8601 duration to a timestamp |
 | `formatDate(date)` | `utils/time-utils` | Format a Date as `yyyy-mm-ddTHH:MM:SS` |
 | `extractMatch(options, def, input)` | `utils/text-utils` | Fuzzy-match `input` against `options` |
-| `generateEffectInstruction(tracker)` | `utils/llm-utils` | Format a `WorldEventTracker` as an LLM instruction (called automatically by the engine) |
+| `renderSchemaInstruction(tracker)` | `utils/llm-utils` | Format a `SignalSchema` as an LLM instruction (called automatically by the engine) |
 
 ---
 
 ## 9. Quick-Start: Minimal Cartridge
 
 ```typescript
-import { GameCartridge, GameState, RuleResolution } from '../types';
+import { Cartridge, State, RuleOutcome } from '../types';
 import { rollDice, sumRolls } from '../utils/dice';
 
-const myCartridge: GameCartridge = {
+const myCartridge: Cartridge = {
   name: 'Minimal Example',
   version: '0.1.0',
-  stopConditions: ['play'],
+  breakpoints: ['play'],
   availableActions: { play: ['roll'] },
-  defaultGameState: {
+  defaultState: {
     timestamp: '2025-01-01T12:00:00',
     stats: { score: 0 },
     activeConditions: [],
     flags: []
   },
-  worldEventTrackers: [],
-  ruleSequence: ['roll'],
-  gameRules: {
-    roll: (state: GameState, context): RuleResolution => {
+  signalSchemas: [],
+  ruleOrder: ['roll'],
+  rules: {
+    roll: (state: State, context): RuleOutcome => {
       const intent = context.action?.find(a => a.action === 'roll');
       if (!intent) {
         return {

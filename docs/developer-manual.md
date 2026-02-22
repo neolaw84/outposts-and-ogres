@@ -12,7 +12,7 @@ The architecture has two pluggable axes:
 
 | Axis | What it defines | Examples |
 |---|---|---|
-| **Cartridge** | Game rules, stats, available actions, world-event trackers | `basic-fantasy` |
+| **Cartridge** | Game rules, stats, available actions, signal schemas | `basic-fantasy` |
 | **System** | Platform adapter (how to read input, save state, inject prompts) | `janitorai`, `sillytavern`, `aidungeon` |
 
 At build time a specific `cartridge × system` combination is selected. The result is a single ES5-compatible JavaScript bundle that runs inside the target platform's scripting environment.
@@ -32,15 +32,13 @@ src/
 │   └── index.ts
 ├── core/                   Engine-level state utilities
 │   └── game-state.ts       applySideEffect / revertSideEffect
-├── inputs/                 Player intent parsing
-│   ├── action-parser.ts
-│   ├── emotion-detector.ts
-│   ├── player-input-understanding.ts
-│   ├── scenario-understanding.ts
+├── signals/                Player signal detection
+│   ├── detect.ts
+│   ├── read-scene.ts
 │   └── index.ts
-├── systems/                Platform adapters + engine
-│   ├── game-play-script.ts GamePlayScript (the core loop)
-│   ├── adapter-helpers.ts  Shared formatting helpers
+├── engine.ts               GameEngine (the core loop)
+├── platform/               Platform adapters
+│   ├── helpers.ts          Shared formatting helpers
 │   ├── janitorai/
 │   ├── sillytavern/
 │   ├── aidungeon/
@@ -97,7 +95,7 @@ The project uses **Jest** with **ts-jest**. All tests live under `tests/`. Cover
 
 ## 4. Architecture Deep-Dive
 
-### 4.1 The Game Play Loop (`GamePlayScript.executeTurn`)
+### 4.1 The Game Play Loop (`GameEngine.executeTurn`)
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -105,16 +103,16 @@ The project uses **Jest** with **ts-jest**. All tests live under `tests/`. Cover
 │        │                                                      │
 │  3. Extract player intent                                     │
 │        │                                                      │
-│  4. For EVERY key in cartridge.ruleSequence:                  │
-│        │   • Build RuleContext (effect data, action, etc.)     │
-│        │   • Call gameRules[key]  ──>  RuleResolution          │
-│        │   • Convert to GamePlayEvent                         │
+│  4. For EVERY key in cartridge.ruleOrder:                  │
+│        │   • Build TurnContext (effect data, action, etc.)     │
+│        │   • Call rules[key]  ──>  RuleOutcome          │
+│        │   • Convert to NarrationDirective                         │
 │        │   • Apply stateMutations to state                    │
 │        │                                                      │
-│  5. Generate effectInstructions from worldEventTrackers        │
-│     (calls generateEffectInstruction on each tracker)          │
+│  5. Generate schemaInstructions from signalSchemas        │
+│     (calls renderSchemaInstruction on each tracker)          │
 │                                                                │
-│  6. Return { newState, gamePlayEvents, effectInstructions }    │
+│  6. Return { newState, directives, schemaInstructions }    │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -124,13 +122,13 @@ Key invariant: **every rule is always called**, even when there is no matching p
 
 | Type | Role |
 |---|---|
-| `GameCartridge` | Defines the entire rule book — actions, rules, state template, world-event trackers |
-| `GamePlayScript` | The engine — calls rules, manages state, produces `GamePlayEvent[]` |
-| `GamePlayEvent` | Standardised per-rule output: `mustHappen` / `mustNotHappen` / `mayHappen` |
-| `SystemAdapter` | Platform adapter — reads input, saves state, injects output into the LLM prompt |
-| `RuleResolution` | What a single `GameRule` returns (outcome + side effects) |
-| `GameState` | Persisted state: timestamp, stats dict, active conditions, flags |
-| `WorldEventTracker` | Describes effects the LLM can report; used by `generateEffectInstruction` to produce LLM instructions |
+| `Cartridge` | Defines the entire rule book — actions, rules, state template, signal schemas |
+| `GameEngine` | The engine — calls rules, manages state, produces `NarrationDirective[]` |
+| `NarrationDirective` | Standardised per-rule output: `mustHappen` / `mustNotHappen` / `mayHappen` |
+| `Platform` | Platform adapter — reads input, saves state, injects output into the LLM prompt |
+| `RuleOutcome` | What a single `Rule` returns (outcome + side effects) |
+| `State` | Persisted state: timestamp, stats dict, active conditions, flags |
+| `SignalSchema` | Describes effects the LLM can report; used by `renderSchemaInstruction` to produce LLM instructions |
 
 ### 4.3 State Management
 
@@ -143,26 +141,26 @@ Side effects use `applySideEffect` / `revertSideEffect` in `src/core/game-state.
 | `dice.ts` | `rollDie`, `rollDice`, `sumRolls` |
 | `base64.ts` | Raw & typed base64 encode/decode |
 | `time-utils.ts` | ISO 8601 duration parsing, date arithmetic, formatting |
-| `llm-utils.ts` | State encode/decode, `[RP_STATE]` blocks, `[NARRATION_SUMMARY]` extraction, `cleanInput`, `generateEffectInstruction` |
+| `llm-utils.ts` | State encode/decode, `[RP_STATE]` blocks, `[NARRATION_SUMMARY]` extraction, `validateSignalTypes`, `renderSchemaInstruction` |
 | `text-utils.ts` | `extractMatch` — fuzzy enum matcher |
-| `input-parser.ts` | `parsePlayerInput` — `<action target>` bracket parser |
+| `input-parser.ts` | `detectSignals` — `<action target>` bracket parser |
 
 ---
 
 ## 5. Adding a New System Adapter
 
-1. Create `src/systems/<name>/index.ts` implementing `SystemAdapter`.
+1. Create `src/platform/<name>/index.ts` implementing `Platform`.
 2. Create `src/builds/basic/<name>.ts` wiring the cartridge + adapter.
 3. Add build scripts to `package.json`.
 4. Add tests under `tests/<name>.test.ts`.
 
-See `src/systems/janitorai/index.ts` for a full reference implementation.
+See `src/platform/janitorai/index.ts` for a full reference implementation.
 
 ---
 
 ## 6. Adding a New Cartridge
 
-1. Create `src/cartridges/<name>.ts` exporting a `GameCartridge`.
+1. Create `src/cartridges/<name>.ts` exporting a `Cartridge`.
 2. Re-export from `src/cartridges/index.ts`.
 3. Create build entry-points under `src/builds/<name>/` for each system.
 4. Add build scripts to `package.json`.
@@ -175,7 +173,7 @@ See `src/cartridges/basic-fantasy.ts` for the reference cartridge.
 ## 7. Testing Conventions
 
 * One test file per source module: `tests/<module>.test.ts`.
-* Use `makeSheet()` helper to create default `GameState` instances with overrides.
+* Use `makeSheet()` helper to create default `State` instances with overrides.
 * Tests should not depend on random dice rolls when asserting exact values — override stats to guarantee success/failure where needed.
 * Run the full suite before opening a PR.
 
