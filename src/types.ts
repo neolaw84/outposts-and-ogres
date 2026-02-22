@@ -27,36 +27,22 @@ interface ParsedAction {
 }
 
 /**
- * Represents the context in which an AspectFunction is triggered.
+ * Represents the unified context in which an AspectFunction is triggered.
+ * Receives both the player intent (if any) and the parsed LLM summary data.
  */
-export type AspectContext = PlayerActionContext | WorldEventContext;
-
-export interface PlayerActionContext {
-  type: 'player_action';
-  action: ParsedAction;
-}
-
-export interface WorldEventContext {
-  type: 'world_event';
-  effectKey: string;
+export interface AspectContext {
+  /** The parsed actions from the player's input (if any) e.g., <attack goblin> <drink potion> */
+  action: ParsedAction[] | null;
+  /** The current condition/scenario of the engine (e.g., 'combat') */
+  currentCondition: string;
+  /** The key of the aspect function currently being executed in the sequence */
+  aspectKey: string;
+  /** The matching effect data from the LLM narration summary (if matched by effectDefinition) */
   effectData: Record<string, unknown> | null;
+  /** The type check results for the effect data (if any) */
   typeCheck: Record<string, unknown> | null;
-}
-
-/**
- * A single rule in a cartridge that maps a condition + action pair
- * to the dice check and narration prompts.
- */
-interface CartridgeRule {
-  /** Condition / scenario name, e.g. "combat", "exploration". */
-  condition: string;
-  /** Action keyword this rule handles. */
-  action: string;
-  /**
-   * Turing-complete logic to execute when this rule is triggered.
-   * Handles mechanics, status outcomes, and side-effects.
-   */
-  aspectFunction: ActionAspectFunction;
+  /** The full raw narration summary object */
+  naSum: Record<string, unknown>;
 }
 
 /* GameCartridge is defined below together with effect-driven types. */
@@ -98,7 +84,7 @@ interface PlayerInputEvent {
   type: 'player_input';
   rawText: string;
   condition: string;
-  parsedAction: ParsedAction;
+  parsedActions: ParsedAction[];
   emotions: PlayerEmotionSignal[];
   scenarioUnderstanding: {
     suggestedCondition: string | null;
@@ -217,7 +203,7 @@ interface SystemAdapter {
   deducePlayerIntent?(
     rawMessage: string,
     availableActions: string[]
-  ): Promise<ParsedAction | null> | ParsedAction | null;
+  ): Promise<ParsedAction[] | null> | ParsedAction[] | null;
 }
 
 // ---- Effect-driven state management types ----
@@ -258,13 +244,14 @@ interface AspectFunctionResult {
     mechanicsLogs: string[];
     /** Direct instructions for the LLM on how to narrate this specific outcome. */
     narrationGuidance: string[];
+    /** Override the action name reported to the prompt-mapper/LLM (defaults to aspectKey). */
+    actionName?: string;
+    /** Optional target reported to the prompt-mapper/LLM. */
+    actionTarget?: string;
   };
   /** Side effect(s) to apply to the game state. */
   stateMutations: SideEffect[];
 }
-
-/** Action aspect function signature. */
-type ActionAspectFunction = (state: GameState, context: AspectContext) => AspectFunctionResult;
 
 /** The game state persisted across turns. */
 interface GameState {
@@ -352,8 +339,6 @@ interface GameCartridge {
    * E.g. { "combat": ["attack", "dodge", "cast"] }
    */
   availableActions: Record<string, string[]>;
-  /** The full set of rules. */
-  rules: CartridgeRule[];
 
   /** Default character sheet used when no prior state exists. */
   defaultGameState: GameState;
@@ -361,6 +346,12 @@ interface GameCartridge {
   effectDefinitions: EffectDefinition[];
   /** Aspect functions keyed by effect definition key. Called in effectDefinitions order. */
   aspectFunctions: Record<string, AspectFunction>;
+  /** 
+   * The explicit order in which aspectFunctions should be evaluated.
+   * Can interleave world simulation aspects with player actions.
+   * e.g., ['time_advance', 'weather_change', 'player_action', 'enemy_attack']
+   */
+  aspectSequence: string[];
   /** Events that force the LLM to end the turn immediately. */
   turnEndTriggers: string[];
 }
@@ -368,7 +359,6 @@ interface GameCartridge {
 export {
   Message,
   ParsedAction,
-  CartridgeRule,
   GameCartridge,
   OutputPrompt,
   PromptChannels,

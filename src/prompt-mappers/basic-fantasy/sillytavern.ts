@@ -14,7 +14,7 @@ function getEvent<T extends TurnEvent['type']>(
 
 function mapBasicFantasySillyTavern(events: TurnEvent[]): PromptChannels {
   const inputEvent = getEvent(events, 'player_input');
-  const actionEvent = getEvent(events, 'action_resolution');
+  const actionEvents = events.filter(e => e.type === 'action_resolution') as Extract<TurnEvent, { type: 'action_resolution' }>[];
   const choicesEvent = getEvent(events, 'available_choices');
 
   const longHorizon =
@@ -24,14 +24,24 @@ function mapBasicFantasySillyTavern(events: TurnEvent[]): PromptChannels {
   const midTerm =
     'Narration plan: describe action outcome, NPC response, and transition to the next decision point for the player.';
 
-  const shortTerm = actionEvent
-    ? 'Action=' + actionEvent.action +
-    (actionEvent.target ? ' target=' + actionEvent.target : '') +
-    '; Logs=' + (actionEvent.mechanicsLogs && actionEvent.mechanicsLogs.length > 0 ? actionEvent.mechanicsLogs.join(' | ') : 'none') +
-    '; Status=' + actionEvent.status +
-    '; Cue=' + (actionEvent.narrationGuidance && actionEvent.narrationGuidance.length > 0 ? actionEvent.narrationGuidance.join(' | ') : 'none') +
-    '; Choices=' + (choicesEvent ? choicesEvent.choices.join(', ') : 'none') + '.'
-    : 'Resolve the immediate turn and present clear follow-up choices.';
+  const shortTermStrs: string[] = [];
+  for (let i = 0; i < actionEvents.length; i++) {
+    const ae = actionEvents[i];
+    shortTermStrs.push(
+      'Action=' + ae.action +
+      (ae.target ? ' target=' + ae.target : '') +
+      '; Logs=' + (ae.mechanicsLogs && ae.mechanicsLogs.length > 0 ? ae.mechanicsLogs.join(' | ') : 'none') +
+      '; Status=' + ae.status +
+      '; Cue=' + (ae.narrationGuidance && ae.narrationGuidance.length > 0 ? ae.narrationGuidance.join(' | ') : 'none')
+    );
+  }
+
+  let shortTerm = '';
+  if (shortTermStrs.length > 0) {
+    shortTerm = shortTermStrs.join(' || ') + '; Choices=' + (choicesEvent ? choicesEvent.choices.join(', ') : 'none') + '.';
+  } else {
+    shortTerm = 'Resolve the immediate turn and present clear follow-up choices.';
+  }
 
   return {
     longHorizon: longHorizon,

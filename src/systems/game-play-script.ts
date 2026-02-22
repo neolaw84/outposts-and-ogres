@@ -2,8 +2,8 @@
  * GamePlayScript – the core engine that executes the three-phase loop.
  *
  * Phase 1 – Input:   Extract the player's intended action.
- * Phase 2 – Process: Roll dice and apply cartridge rules.
- *                     Process effect-driven side effects from narration summary.
+ * Phase 2 – Process: Process the turn based on the cartridge's `aspectSequence`.
+ *                    This incorporates both the player's action and world effects.
  * Phase 3 – Output:  Build the AI narration prompt.
  *
  * The script is driven by a swappable GameCartridge that defines conditions,
@@ -14,12 +14,12 @@ import {
   Message,
   ParsedAction,
   GameCartridge,
-  CartridgeRule,
   OutputPrompt,
   TurnEvent,
   GameState,
   AspectFunctionResult,
-  ActionResolutionEvent
+  ActionResolutionEvent,
+  AspectContext
 } from '../types';
 import { understandPlayerInput } from '../inputs/player-input-understanding';
 import { PromptMapper } from '../prompt-mappers';
@@ -30,7 +30,6 @@ import { cleanInput, findEffectByKey } from '../utils/llm-utils';
 class GamePlayScript {
   private cartridge: GameCartridge;
   private currentCondition: string;
-  private messages: Message[];
   private promptMapper: PromptMapper;
 
   constructor(cartridge: GameCartridge, promptMapper: PromptMapper) {
@@ -39,7 +38,6 @@ class GamePlayScript {
     this.currentCondition = cartridge.stopConditions.length > 0
       ? cartridge.stopConditions[0]
       : 'default';
-    this.messages = [];
     this.promptMapper = promptMapper;
   }
 
@@ -66,16 +64,6 @@ class GamePlayScript {
     this.currentCondition = condition;
   }
 
-  /** Get all messages exchanged so far. */
-  public getMessages(): Message[] {
-    return this.messages;
-  }
-
-  /** Add a message to the history. */
-  public addMessage(message: Message): void {
-    this.messages.push(message);
-  }
-
   // ----------------------------------------------------------------
   // Phase 1 – INPUT
   // ----------------------------------------------------------------
@@ -84,54 +72,46 @@ class GamePlayScript {
    * Extract the player's intended action from the latest player message.
    * Returns null if no recognisable action is found.
    */
-  public extractAction(playerMessage: string): ParsedAction | null {
+  public extractAction(playerMessage: string): ParsedAction[] | null {
     const actions = this.cartridge.availableActions[this.currentCondition] || [];
     const understanding = understandPlayerInput(
       playerMessage,
       actions,
       this.cartridge.stopConditions
     );
-    return understanding.parsedAction;
+    return understanding.parsedActions;
   }
 
   // ----------------------------------------------------------------
-  // Phase 2 – PROCESS
+  // Unified Turn Execution
   // ----------------------------------------------------------------
-
-  /** Find the cartridge rule for the current condition + action. */
-  public findRule(actionKeyword: string): CartridgeRule | null {
-    const rules = this.cartridge.rules;
-    for (let i = 0; i < rules.length; i++) {
-      if (
-        rules[i].condition === this.currentCondition &&
-        rules[i].action === actionKeyword
-      ) {
-        return rules[i];
-      }
-    }
-    return null;
-  }
-
 
   /**
-   * Process effects from a narration summary against the character sheet.
-   * Iterates through effectDefinitions in order, calls each aspect function,
-   * collects narration guides and applies side effects.
+   * Run the complete 3-phase turn for a player message.
+   * Modifies the game state by processing the player action and world events
+   * in the exact order specified by `cartridge.aspectSequence`.
    *
-   * @param sheet - The current state.
-   * @param naSum - The parsed narration summary from the LLM.
-   * @returns Updated game state and accumulated narration guide.
+   * @param playerMessage The player's raw free-text input.
+   * @param currentState The current game state.
+   * @param naSum The parsed narration summary from the LLM.
+   * @param preParsedAction Optional parsed action provided by a system adapter.
+   * @returns An OutputPrompt to send to the AI, the new game state, and the accumulated narration guide.
    */
-  public processEffects(
-    sheet: GameState,
-    naSum: Record<string, unknown>
-  ): { sheet: GameState; narrationGuide: string } {
-    const typeChecks = cleanInput(naSum);
-    // Deep-clone the input so we never mutate the caller's sheet.
-    let currentSheet: GameState = JSON.parse(JSON.stringify(sheet));
+  public executeTurn(
+    playerMessage: string,
+    currentState: GameState,
+    naSum: Record<string, unknown>,
+    preParsedActions?: ParsedAction[] | null
+  ): { prompt: OutputPrompt | null; newState: GameState; narrationGuide: string } {
+    // Phase 1 – Input
+    const parsedActions = preParsedActions || this.extractAction(playerMessage);
+
+    // Phase 2 – Process (Unified Aspect Sequence)
+    let newState = JSON.parse(JSON.stringify(currentState));
     let finalNarrationGuide = '';
 
-    // Update time
+    // First: Handle Time Advance and Expired Effects (Always happens first)
+    const typeChecks = cleanInput(naSum);
     let durationToAdd = 'PT0M';
     if (typeChecks['elapsed_time']) {
       durationToAdd = naSum['elapsed_time'] as string;
@@ -139,47 +119,95 @@ class GamePlayScript {
       (naSum['elapsed_time'] as string).indexOf('P') === 0) {
       durationToAdd = naSum['elapsed_time'] as string;
     }
+    const newCurrentTime = addDuration(newState.cur_ts, durationToAdd);
+    newState.stats['num_day'] = (newState.stats['num_day'] || 0) +
+      getMidnightsPassed(newState.cur_ts, newCurrentTime);
+    newState.cur_ts = newCurrentTime;
+    newState = revertSideEffect(newState);
 
-    const newCurrentTime = addDuration(currentSheet.cur_ts, durationToAdd);
-    currentSheet.stats['num_day'] = (currentSheet.stats['num_day'] || 0) +
-      getMidnightsPassed(currentSheet.cur_ts, newCurrentTime);
-    currentSheet.cur_ts = newCurrentTime;
+    const aspectEvents: TurnEvent[] = [];
+    let worldEventFired = false;
 
-    // Revert expired side effects
-    currentSheet = revertSideEffect(currentSheet);
-
-    // Process each effect definition
-    const effectDefs = this.cartridge.effectDefinitions;
-    for (let i = 0; i < effectDefs.length; i++) {
-      const def = effectDefs[i];
-      const key = def.key;
-
-      const found = findEffectByKey(key, naSum, typeChecks);
-      const foundEffect = found.effect;
-      const foundTypeCheck = found.typeCheck;
-
+    // Iterate through the cartridge-defined aspect sequence
+    const sequence = this.cartridge.aspectSequence || [];
+    for (const key of sequence) {
       if (this.cartridge.aspectFunctions && this.cartridge.aspectFunctions[key]) {
-        const result = this.cartridge.aspectFunctions[key](currentSheet, {
-          type: 'world_event',
-          effectKey: key,
+        // Prepare context
+        // If it's a world effect, grab data if it exists
+        const def = this.cartridge.effectDefinitions.find(d => d.key === key);
+        const isWorldEvent = def !== undefined;
+        const isPlayerAction = parsedActions ? parsedActions.some(a => a.action === key) : false;
+
+        // Skip execution if this aspect is neither a defined world event nor a triggered player action
+        if (!isWorldEvent && !isPlayerAction) {
+          continue;
+        }
+
+        let foundEffect: Record<string, unknown> | null = null;
+        let foundTypeCheck: Record<string, unknown> | null = null;
+        if (def) {
+          const found = findEffectByKey(key, naSum, typeChecks);
+          foundEffect = found.effect;
+          foundTypeCheck = found.typeCheck;
+        }
+
+        const context: AspectContext = {
+          action: parsedActions,
+          currentCondition: this.currentCondition,
+          aspectKey: key,
           effectData: foundEffect,
-          typeCheck: foundTypeCheck
-        });
+          typeCheck: foundTypeCheck,
+          naSum: naSum
+        };
+
+        const result = this.cartridge.aspectFunctions[key](newState, context);
 
         if (result) {
-          if (result.outcome && result.outcome.narrationGuidance) {
-            finalNarrationGuide += result.outcome.narrationGuidance.join('\n') + '\n';
-          }
           if (result.stateMutations && result.stateMutations.length > 0) {
+            worldEventFired = true;
             for (let j = 0; j < result.stateMutations.length; j++) {
-              currentSheet = applySideEffect(currentSheet, result.stateMutations[j]);
+              newState = applySideEffect(newState, result.stateMutations[j]);
+            }
+          }
+          if (result.outcome) {
+            if (result.outcome.status !== 'neutral') {
+              worldEventFired = true;
+            }
+            if (result.outcome.mechanicsLogs.length > 0 || result.outcome.narrationGuidance.length > 0) {
+              finalNarrationGuide += result.outcome.narrationGuidance.join('\n') + '\n';
+              aspectEvents.push({
+                type: 'action_resolution',
+                action: result.outcome.actionName || key,
+                target: result.outcome.actionTarget,
+                status: result.outcome.status,
+                mechanicsLogs: result.outcome.mechanicsLogs,
+                narrationGuidance: result.outcome.narrationGuidance
+              });
             }
           }
         }
       }
     }
 
-    return { sheet: currentSheet, narrationGuide: finalNarrationGuide };
+    if (!parsedActions && !worldEventFired) {
+      return {
+        prompt: null,
+        newState: newState,
+        narrationGuide: finalNarrationGuide
+      };
+    }
+
+    // Phase 3 – Output
+    // We always build turn events, even if there's no parsed action, because world effects might have happened
+    // and we need to pass those to the LLM.
+    const events = this.buildTurnEvents(playerMessage, parsedActions, aspectEvents);
+    const prompt = this.buildPrompt(events);
+
+    return {
+      prompt: prompt,
+      newState: newState,
+      narrationGuide: finalNarrationGuide
+    };
   }
 
   // ----------------------------------------------------------------
@@ -196,8 +224,8 @@ class GamePlayScript {
    */
   public buildTurnEvents(
     playerMessage: string,
-    parsedAction: ParsedAction,
-    aspectResult: AspectFunctionResult
+    parsedActions: ParsedAction[] | null,
+    aspectEvents: TurnEvent[]
   ): TurnEvent[] {
     const actions = this.cartridge.availableActions[this.currentCondition] || [];
     const understanding = understandPlayerInput(
@@ -207,30 +235,31 @@ class GamePlayScript {
     );
 
     const availableActions = this.cartridge.availableActions[this.currentCondition] || [];
+    const eventsList: TurnEvent[] = [];
 
-    return [
-      {
+    if (parsedActions && parsedActions.length > 0) {
+      eventsList.push({
         type: 'player_input',
         rawText: playerMessage,
         condition: this.currentCondition,
-        parsedAction: parsedAction,
+        parsedActions: parsedActions,
         emotions: understanding.emotions,
         scenarioUnderstanding: understanding.scenario
-      },
-      {
-        type: 'action_resolution',
-        action: parsedAction.action,
-        target: parsedAction.target,
-        status: aspectResult.outcome.status,
-        mechanicsLogs: aspectResult.outcome.mechanicsLogs,
-        narrationGuidance: aspectResult.outcome.narrationGuidance
-      },
-      {
-        type: 'available_choices',
-        condition: this.currentCondition,
-        choices: availableActions
-      }
-    ];
+      });
+    }
+
+    // Insert all the individual aspect events
+    for (let i = 0; i < aspectEvents.length; i++) {
+      eventsList.push(aspectEvents[i]);
+    }
+
+    eventsList.push({
+      type: 'available_choices',
+      condition: this.currentCondition,
+      choices: availableActions
+    });
+
+    return eventsList;
   }
 
   public buildPrompt(events: TurnEvent[]): OutputPrompt {
@@ -239,70 +268,6 @@ class GamePlayScript {
       text: channels.combined,
       channels: channels,
       events: events
-    };
-  }
-
-  // ----------------------------------------------------------------
-  // Full turn execution
-  // ----------------------------------------------------------------
-
-  /**
-   * Run the complete 3-phase turn for a player message.
-   *
-   * @param playerMessage The player's raw free-text input.
-   * @param currentState The current game state.
-   * @param preParsedAction Optional parsed action provided by a system adapter.
-   * @returns An OutputPrompt to send to the AI and the new game state.
-   */
-  public processTurn(
-    playerMessage: string,
-    currentState: GameState,
-    preParsedAction?: ParsedAction | null
-  ): { prompt: OutputPrompt | null; newState: GameState; aspectResult: AspectFunctionResult | null } {
-    // Record the player's message
-    this.addMessage({ role: 'player', content: playerMessage });
-
-    // Phase 1 – Input
-    const parsed = preParsedAction || this.extractAction(playerMessage);
-    if (!parsed) {
-      return { prompt: null, newState: currentState, aspectResult: null };
-    }
-
-    // Phase 2 – Process Action via unified AspectFunction
-    let newState = JSON.parse(JSON.stringify(currentState));
-    const rule = this.findRule(parsed.action);
-    let aspectResult: AspectFunctionResult;
-
-    if (rule && rule.aspectFunction) {
-      aspectResult = rule.aspectFunction(newState, {
-        type: 'player_action',
-        action: parsed
-      });
-
-      if (aspectResult.stateMutations && aspectResult.stateMutations.length > 0) {
-        for (let i = 0; i < aspectResult.stateMutations.length; i++) {
-          newState = applySideEffect(newState, aspectResult.stateMutations[i]);
-        }
-      }
-    } else {
-      // Fallback for missing rules / unhandled actions
-      aspectResult = {
-        outcome: {
-          status: 'neutral',
-          mechanicsLogs: ['Action was not recognised by any specific rule.'],
-          narrationGuidance: ['Narrate the attempt to ' + parsed.action + ' vaguely.']
-        },
-        stateMutations: []
-      };
-    }
-
-    // Phase 3 – Output
-    const events = this.buildTurnEvents(playerMessage, parsed, aspectResult);
-
-    return {
-      prompt: this.buildPrompt(events),
-      newState: newState,
-      aspectResult: aspectResult
     };
   }
 }

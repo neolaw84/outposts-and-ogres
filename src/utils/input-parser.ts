@@ -23,7 +23,7 @@ import { parseActionInput } from '../inputs/action-parser';
  *                      in the current condition.
  * @returns A ParsedAction or null if no action could be extracted.
  */
-function parsePlayerInput(message: string, knownActions: string[]): ParsedAction | null {
+function parsePlayerInput(message: string, knownActions: string[]): ParsedAction[] | null {
   return parseActionInput(message, knownActions);
 }
 

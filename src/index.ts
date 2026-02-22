@@ -40,7 +40,6 @@ export { basicFantasyCartridge } from './cartridges/basic-fantasy';
 export {
   Message,
   ParsedAction,
-  CartridgeRule,
   GameCartridge,
   OutputPrompt,
   SystemAdapter,

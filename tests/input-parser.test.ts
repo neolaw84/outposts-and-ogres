@@ -6,34 +6,34 @@ describe('Input Parser', () => {
   test('should parse bracket syntax with action only', () => {
     const result = parsePlayerInput('I want to <attack>', knownActions);
     expect(result).not.toBeNull();
-    expect(result!.action).toBe('attack');
-    expect(result!.target).toBe('');
+    expect(result![0].action).toBe('attack');
+    expect(result![0].target).toBe('');
   });
 
   test('should parse bracket syntax with space-separated target', () => {
     const result = parsePlayerInput('<attack goblin>', knownActions);
     expect(result).not.toBeNull();
-    expect(result!.action).toBe('attack');
-    expect(result!.target).toBe('goblin');
+    expect(result![0].action).toBe('attack');
+    expect(result![0].target).toBe('goblin');
   });
 
   test('should parse bracket syntax with colon-separated target', () => {
     const result = parsePlayerInput('<cast:fireball>', knownActions);
     expect(result).not.toBeNull();
-    expect(result!.action).toBe('cast');
-    expect(result!.target).toBe('fireball');
+    expect(result![0].action).toBe('cast');
+    expect(result![0].target).toBe('fireball');
   });
 
   test('should be case-insensitive for action keyword', () => {
     const result = parsePlayerInput('<ATTACK>', knownActions);
     expect(result).not.toBeNull();
-    expect(result!.action).toBe('attack');
+    expect(result![0].action).toBe('attack');
   });
 
   test('should fallback to keyword matching when no brackets', () => {
     const result = parsePlayerInput('I want to attack the orc', knownActions);
     expect(result).not.toBeNull();
-    expect(result!.action).toBe('attack');
+    expect(result![0].action).toBe('attack');
   });
 
   test('should return null when no action is recognised', () => {
@@ -45,7 +45,7 @@ describe('Input Parser', () => {
     const message = 'Let me <dodge> this time';
     const result = parsePlayerInput(message, knownActions);
     expect(result).not.toBeNull();
-    expect(result!.raw).toBe(message);
+    expect(result![0].raw).toBe(message);
   });
 
   test('should handle empty known actions list', () => {
@@ -56,6 +56,6 @@ describe('Input Parser', () => {
   test('should still parse brackets even with empty known actions', () => {
     const result = parsePlayerInput('<attack>', []);
     expect(result).not.toBeNull();
-    expect(result!.action).toBe('attack');
+    expect(result![0].action).toBe('attack');
   });
 });

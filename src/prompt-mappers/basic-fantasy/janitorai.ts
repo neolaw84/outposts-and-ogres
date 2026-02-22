@@ -21,7 +21,7 @@ function getEvent<T extends TurnEvent['type']>(
  * - Keep the narration aligned with the dice result.
  */
 function buildNarrationGuide(
-  actionEvent: Extract<TurnEvent, { type: 'action_resolution' }> | null,
+  actionEvents: Extract<TurnEvent, { type: 'action_resolution' }>[],
   choicesEvent: Extract<TurnEvent, { type: 'available_choices' }> | null,
   effectNarrationGuide?: string,
   turnEndTriggers?: string[],
@@ -35,29 +35,34 @@ function buildNarrationGuide(
     lines.push('');
   }
 
-  if (actionEvent) {
-    lines.push(
-      '{{user}} attempted to ' + actionEvent.action +
-      (actionEvent.target ? ' on ' + actionEvent.target : '') + '.'
-    );
+  if (actionEvents.length > 0) {
+    for (let i = 0; i < actionEvents.length; i++) {
+      const ae = actionEvents[i];
+      if (ae.action && ae.action !== 'world_event') {
+        lines.push(
+          'Event (' + ae.action + (ae.target ? ' on ' + ae.target : '') + '):'
+        );
+      }
 
-    if (actionEvent.mechanicsLogs && actionEvent.mechanicsLogs.length > 0) {
-      lines.push('Mechanics logs: ' + actionEvent.mechanicsLogs.join(' '));
-    }
+      if (ae.mechanicsLogs && ae.mechanicsLogs.length > 0) {
+        lines.push('Mechanics logs: ' + ae.mechanicsLogs.join(' '));
+      }
 
-    lines.push('Outcome status: ' + actionEvent.status.toUpperCase() + '.');
+      lines.push('Outcome status: ' + ae.status.toUpperCase() + '.');
 
-    if (actionEvent.narrationGuidance && actionEvent.narrationGuidance.length > 0) {
-      lines.push('Narration guidance: ' + actionEvent.narrationGuidance.join(' '));
-    }
+      if (ae.narrationGuidance && ae.narrationGuidance.length > 0) {
+        lines.push('Narration guidance: ' + ae.narrationGuidance.join(' '));
+      }
 
-    if (actionEvent.action === 'attack' || actionEvent.action === 'cast' ||
-      actionEvent.action === 'dodge' || actionEvent.action === 'defend' ||
-      actionEvent.action === 'flee') {
-      lines.push(
-        'DO NOT resolve the final outcome of this combat action for {{user}}. ' +
-        'Narrate {{user}}\'s action and the NPC\'s reaction/counter-action.'
-      );
+      if (ae.action === 'attack' || ae.action === 'cast' ||
+        ae.action === 'dodge' || ae.action === 'defend' ||
+        ae.action === 'flee') {
+        lines.push(
+          'DO NOT resolve the final outcome of this combat action for {{user}}. ' +
+          'Narrate {{user}}\'s action and the NPC\'s reaction/counter-action.'
+        );
+      }
+      lines.push('');
     }
   }
 
@@ -96,7 +101,7 @@ function buildNarrationGuide(
  * Includes effect-based instructions from the cartridge.
  */
 function buildNarrationSummaryInstructions(
-  actionEvent: Extract<TurnEvent, { type: 'action_resolution' }> | null,
+  actionEvents: Extract<TurnEvent, { type: 'action_resolution' }>[],
   effectDefinitions?: EffectDefinition[]
 ): string {
   const lines: string[] = [];
@@ -134,7 +139,7 @@ function buildNarrationSummaryInstructions(
     }
   }
 
-  if (actionEvent) {
+  if (actionEvents.length > 0) {
     lines.push('');
     lines.push('NPC action type instructions:');
     lines.push(
@@ -159,7 +164,7 @@ function buildNarrationSummaryInstructions(
 
 function mapBasicFantasyJanitorAI(events: TurnEvent[]): PromptChannels {
   const inputEvent = getEvent(events, 'player_input');
-  const actionEvent = getEvent(events, 'action_resolution');
+  const actionEvents = events.filter(e => e.type === 'action_resolution') as Extract<TurnEvent, { type: 'action_resolution' }>[];
   const choicesEvent = getEvent(events, 'available_choices');
 
   // Long-horizon: persistent guidance prepended to personality.
@@ -176,8 +181,8 @@ function mapBasicFantasyJanitorAI(events: TurnEvent[]): PromptChannels {
 
   // Short-term: [NARRATION_GUIDE] + NARRATION_SUMMARY instructions,
   // prepended/appended to scenario.
-  const narrationGuide = buildNarrationGuide(actionEvent, choicesEvent);
-  const summaryInstructions = buildNarrationSummaryInstructions(actionEvent);
+  const narrationGuide = buildNarrationGuide(actionEvents, choicesEvent);
+  const summaryInstructions = buildNarrationSummaryInstructions(actionEvents);
   const scenarioText = narrationGuide + '\n\n' + summaryInstructions;
 
   return {

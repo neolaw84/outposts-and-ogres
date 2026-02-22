@@ -34,9 +34,9 @@ describe('processEffects integration', () => {
       ]
     };
 
-    const result = script.processEffects(sheet, naSum);
+    const result = script.executeTurn('', sheet, naSum);
 
-    expect(result.sheet.stats['hp']).toBe(80); // 50 + 30 (3 * 10)
+    expect(result.newState.stats['hp']).toBe(80); // 50 + 30 (3 * 10)
     expect(result.narrationGuide).toContain('Healed 30 HP');
   });
 
@@ -48,9 +48,9 @@ describe('processEffects integration', () => {
       effects: []
     };
 
-    const result = script.processEffects(sheet, naSum);
+    const result = script.executeTurn('', sheet, naSum);
 
-    expect(result.sheet.cur_ts).toBe('1000-01-01T08:30:00');
+    expect(result.newState.cur_ts).toBe('1000-01-01T08:30:00');
   });
 
   test('should revert expired side effects before processing new ones', () => {
@@ -74,10 +74,10 @@ describe('processEffects integration', () => {
       effects: []
     };
 
-    const result = script.processEffects(sheet, naSum);
+    const result = script.executeTurn('', sheet, naSum);
 
-    expect(result.sheet.stats['strength']).toBe(10); // reverted
-    expect(result.sheet.se.length).toBe(0);
+    expect(result.newState.stats['strength']).toBe(10); // reverted
+    expect(result.newState.se.length).toBe(0);
   });
 
   test('should process combat damage effect', () => {
@@ -95,9 +95,9 @@ describe('processEffects integration', () => {
       ]
     };
 
-    const result = script.processEffects(sheet, naSum);
+    const result = script.executeTurn('', sheet, naSum);
 
-    expect(result.sheet.stats['hp']).toBe(85); // 100 - (20 - 5 defense) = 85
+    expect(result.newState.stats['hp']).toBe(85); // 100 - (20 - 5 defense) = 85
     expect(result.narrationGuide).toContain('15 damage');
   });
 
@@ -121,10 +121,10 @@ describe('processEffects integration', () => {
       ]
     };
 
-    const result = script.processEffects(sheet, naSum);
+    const result = script.executeTurn('', sheet, naSum);
 
     // HP: 80 + 20 (heal) = 100, then 100 - (10 - 5) = 95
-    expect(result.sheet.stats['hp']).toBe(95);
+    expect(result.newState.stats['hp']).toBe(95);
   });
 
   test('should handle empty narration summary gracefully', () => {
@@ -135,9 +135,9 @@ describe('processEffects integration', () => {
       effects: []
     };
 
-    const result = script.processEffects(sheet, naSum);
+    const result = script.executeTurn('', sheet, naSum);
 
-    expect(result.sheet.stats['hp']).toBe(100); // unchanged
+    expect(result.newState.stats['hp']).toBe(100); // unchanged
     // Aspect functions called with null effect should return ambient narration
     expect(result.narrationGuide.length).toBeGreaterThan(0);
   });
@@ -153,9 +153,9 @@ describe('processEffects integration', () => {
       effects: []
     };
 
-    const result = script.processEffects(sheet, naSum);
+    const result = script.executeTurn('', sheet, naSum);
 
-    expect(result.sheet.stats['num_day']).toBe(1);
+    expect(result.newState.stats['num_day']).toBe(1);
   });
 
   test('should not mutate the input sheet', () => {
@@ -176,7 +176,7 @@ describe('processEffects integration', () => {
       ]
     };
 
-    script.processEffects(sheet, naSum);
+    script.executeTurn('', sheet, naSum);
 
     // The input sheet must remain unchanged
     expect(sheet.cur_ts).toBe(originalCurTs);
@@ -202,7 +202,7 @@ describe('cleanInput validation', () => {
     };
 
     // Should not throw, should use defaults
-    const result = script.processEffects(sheet, naSum);
-    expect(result.sheet).toBeDefined();
+    const result = script.executeTurn('', sheet, naSum);
+    expect(result.newState).toBeDefined();
   });
 });

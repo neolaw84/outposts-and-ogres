@@ -18,33 +18,7 @@ describe('Basic Fantasy Cartridge', () => {
     expect(basicFantasyCartridge.availableActions['social'].length).toBeGreaterThan(0);
   });
 
-  test('should have rules for combat actions', () => {
-    const combatRules = basicFantasyCartridge.rules.filter(function (r) {
-      return r.condition === 'combat';
-    });
-    expect(combatRules.length).toBeGreaterThan(0);
-  });
-
-  test('should have rules for exploration actions', () => {
-    const explorationRules = basicFantasyCartridge.rules.filter(function (r) {
-      return r.condition === 'exploration';
-    });
-    expect(explorationRules.length).toBeGreaterThan(0);
-  });
-
-  test('should have rules for social actions', () => {
-    const socialRules = basicFantasyCartridge.rules.filter(function (r) {
-      return r.condition === 'social';
-    });
-    expect(socialRules.length).toBeGreaterThan(0);
-  });
-
-  test('each rule should have required fields', () => {
-    for (let i = 0; i < basicFantasyCartridge.rules.length; i++) {
-      const rule = basicFantasyCartridge.rules[i];
-      expect(rule.condition).toBeTruthy();
-      expect(rule.action).toBeTruthy();
-      expect(rule.aspectFunction).toBeDefined();
-    }
+  test('should have defined aspect functions for specific actions like attack', () => {
+    expect(basicFantasyCartridge.aspectFunctions['attack']).toBeDefined();
   });
 });

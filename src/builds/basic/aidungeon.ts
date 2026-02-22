@@ -32,9 +32,6 @@ export { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 export {
   Message,
   ParsedAction,
-  DiceRollResult,
-  ActionResult,
-  CartridgeRule,
   GameCartridge,
   OutputPrompt,
   SystemAdapter,

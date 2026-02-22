@@ -190,7 +190,7 @@ class JanitorAIAdapter implements SystemAdapter {
     };
   }
 
-  deducePlayerIntent(rawMessage: string, availableActions: string[]): import('../../types').ParsedAction | null {
+  deducePlayerIntent(rawMessage: string, availableActions: string[]): import('../../types').ParsedAction[] | null {
     return null; // To be implemented later
   }
 }

@@ -34,9 +34,6 @@ export { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 export {
   Message,
   ParsedAction,
-  DiceRollResult,
-  ActionResult,
-  CartridgeRule,
   GameCartridge,
   OutputPrompt,
   SystemAdapter,
@@ -118,13 +115,13 @@ if (typeof context !== 'undefined') {
     };
   }
 
-  // 2. INPUT & ACTIONS - Resolve player intent and action dice rolls first
+  // 2. PROCESS EFFECTS AND ACTION via Unified executeTurn Sequence
   const playerMsg = adapter.getPlayerMessage();
   let actionPrompt: import('../../types').OutputPrompt | null = null;
-  let actionResult: import('../../types').ActionResult | null = null;
+  let effectNarrationGuide = '';
 
   if (!dataCorrupted && playerMsg) {
-    let preParsedAction: import('../../types').ParsedAction | null = null;
+    let preParsedAction: import('../../types').ParsedAction[] | null = null;
     if (adapter.deducePlayerIntent) {
       const actions = cartridge.availableActions[script.getCondition()] || [];
       const deduced = adapter.deducePlayerIntent(playerMsg, actions);
@@ -132,17 +129,11 @@ if (typeof context !== 'undefined') {
         preParsedAction = deduced;
       }
     }
-    const turnResult = script.processTurn(playerMsg, rpState, preParsedAction);
+    const turnResult = script.executeTurn(playerMsg, rpState as GameState, naSum, preParsedAction);
     actionPrompt = turnResult.prompt;
     rpState = turnResult.newState;
-    actionResult = turnResult.actionResult;
+    effectNarrationGuide = turnResult.narrationGuide;
   }
-
-  // 3. PROCESS EFFECTS - Apply time, revert expired effects, process aspect functions
-  // Crucially, this now receives the actionResult so aspect functions can react (e.g. reducing damage on successful defend)
-  const processed = script.processEffects(rpState, naSum, actionResult);
-  rpState = processed.sheet;
-  const effectNarrationGuide = processed.narrationGuide;
 
   // 4. ENCODE & INJECT
   if (dataCorrupted) {
