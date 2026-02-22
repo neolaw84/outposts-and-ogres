@@ -57,7 +57,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
 
       const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
-      expect(result.outcome.narrationGuidance.join(' ')).toContain('already at full health');
+      expect(result.outcome.mustHappen.join(' ')).toContain('already at full health');
     });
 
     test('Strength potion adds temporary buff', () => {
@@ -98,7 +98,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       const sheet = makeSheet();
       const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: null, typeCheck: null });
 
-      expect(result.outcome.narrationGuidance.join(' ')).toContain('describe its appearance');
+      expect(result.outcome.mustNotHappen.join(' ')).toContain('potion');
       expect(result.stateMutations.length).toBe(0);
     });
   });
@@ -153,7 +153,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       const stunEffect = effects.find(e => e.what === 'stunned by heavy blow');
       expect(stunEffect).toBeTruthy();
       expect(stunEffect!.temp).toBe(true);
-      expect(result.outcome.narrationGuidance.join(' ')).toContain('STUNNED');
+      expect(result.outcome.mustHappen.join(' ')).toContain('STUNNED');
     });
 
     test('Combat end awards gold and xp', () => {
@@ -174,15 +174,15 @@ describe('RPG Mechanics - Aspect Functions', () => {
       const xpImpact = effects[0].impacts.find(i => i.stats === 'xp');
       expect(goldImpact!.val).toBe(25);
       expect(xpImpact!.val).toBe(100);
-      expect(result.outcome.narrationGuidance.join(' ')).toContain('25 gold');
-      expect(result.outcome.narrationGuidance.join(' ')).toContain('100 XP');
+      expect(result.outcome.mustHappen.join(' ')).toContain('25 gold');
+      expect(result.outcome.mustHappen.join(' ')).toContain('100 XP');
     });
 
     test('Null effect returns ambient narration guide', () => {
       const sheet = makeSheet();
       const result = basicFantasyCartridge.gameRules['combat_event'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'combat_event', narrationSummary: {}, effectData: null, typeCheck: null });
 
-      expect(result.outcome.narrationGuidance.join(' ')).toContain('combat');
+      expect(result.outcome.mustNotHappen.join(' ')).toContain('combat');
       expect(result.stateMutations.length).toBe(0);
     });
   });
@@ -198,7 +198,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
 
       const result = basicFantasyCartridge.gameRules['travel'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'travel', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
       // Should use current time since provided time is in the past
-      expect(result.outcome.narrationGuidance.join(' ')).toContain('1000-01-01T08:00:00');
+      expect(result.outcome.mustHappen.join(' ')).toContain('1000-01-01T08:00:00');
     });
 
     test('Running causes fatigue', () => {
@@ -226,11 +226,12 @@ describe('RPG Mechanics - Aspect Functions', () => {
       expect(fatigue).toBeUndefined();
     });
 
-    test('Null effect returns no narration guide', () => {
+    test('Null effect returns mustNotHappen for travel', () => {
       const sheet = makeSheet();
       const result = basicFantasyCartridge.gameRules['travel'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'travel', narrationSummary: {}, effectData: null, typeCheck: null });
 
-      expect(result.outcome.narrationGuidance.length).toBe(0);
+      expect(result.outcome.mustHappen.length).toBe(0);
+      expect(result.outcome.mustNotHappen.length).toBeGreaterThan(0);
       expect(result.stateMutations.length).toBe(0);
     });
   });
@@ -246,7 +247,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       const hpImpact = effects[0].impacts.find(i => i.stats === 'hp');
       expect(hpImpact!.op).toBe('add');
       expect(hpImpact!.val).toBe(25); // 100 * 0.25 = 25
-      expect(result.outcome.narrationGuidance.join(' ')).toContain('Awoke from rest');
+      expect(result.outcome.mustHappen.join(' ')).toContain('Awoke from rest');
     });
 
     test('Long rest fully restores HP', () => {
@@ -259,14 +260,14 @@ describe('RPG Mechanics - Aspect Functions', () => {
       const hpImpact = effects[0].impacts.find(i => i.stats === 'hp');
       expect(hpImpact!.op).toBe('set');
       expect(hpImpact!.val).toBe(100); // max_hp
-      expect(result.outcome.narrationGuidance.join(' ')).toContain('Awoke from rest');
+      expect(result.outcome.mustHappen.join(' ')).toContain('Awoke from rest');
     });
 
-    test('Null effect returns no narration guide', () => {
+    test('Null effect returns no mustHappen entries', () => {
       const sheet = makeSheet();
       const result = basicFantasyCartridge.gameRules['rest'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'rest', narrationSummary: {}, effectData: null, typeCheck: null });
 
-      expect(result.outcome.narrationGuidance.length).toBe(0);
+      expect(result.outcome.mustNotHappen.length).toBeGreaterThan(0);
       expect(result.stateMutations.length).toBe(0);
     });
 
@@ -283,7 +284,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
         expect(result.outcome.status).toBe('success');
         expect(result.outcome.actionName).toBe('attack');
         expect(result.outcome.actionTarget).toBe('goblin');
-        expect(result.outcome.narrationGuidance.join(' ')).toContain('decisively');
+        expect(result.outcome.mustHappen.join(' ')).toContain('decisively');
       });
 
       test('Attack triggers combat logic correctly on failure', () => {

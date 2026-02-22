@@ -1,11 +1,9 @@
 import { GamePlayScript } from '../src/systems/game-play-script';
 import { basicFantasyCartridge } from '../src/cartridges/basic-fantasy';
-import { GameCartridge } from '../src/types';
-import { mapBasicFantasyJanitorAI } from '../src/prompt-mappers/basic-fantasy/janitorai';
-import { mapBasicFantasySillyTavern } from '../src/prompt-mappers/basic-fantasy/sillytavern';
+import { GameCartridge, GamePlayEvent } from '../src/types';
 
 function createScript(): GamePlayScript {
-  return new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+  return new GamePlayScript(basicFantasyCartridge);
 }
 
 describe('GamePlayScript', () => {
@@ -54,37 +52,23 @@ describe('GamePlayScript', () => {
   });
 
 
-  test('buildPrompt should produce an OutputPrompt', () => {
-    const script = createScript();
-    const events: import('../src/types').TurnEvent[] = [{
-      type: 'action_resolution',
-      action: 'attack',
-      target: 'orc',
-      mechanicsLogs: ['Rolled a 15.'],
-      status: 'success',
-      narrationGuidance: ['Your attack strikes true.']
-    }];
-    const prompt = script.buildPrompt(events);
-    expect(prompt.text).toContain('attack');
-    expect(prompt.text).toContain('orc');
-    expect(prompt.channels.immediateInstruction).toContain('NARRATION_GUIDE');
-    expect(prompt.events.length).toBe(1);
-  });
-
   test('executeTurn should run full 3-phase loop', () => {
-    const script = new GamePlayScript(basicFantasyCartridge, mapBasicFantasySillyTavern);
+    const script = new GamePlayScript(basicFantasyCartridge);
     const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultGameState));
     const output = script.executeTurn('<attack goblin>', mockState, {});
-    expect(output.prompt).not.toBeNull();
-    expect(output.prompt!.text).toContain('attack');
-    expect(output.prompt!.text).toContain('goblin');
+    const attackEvent = output.gamePlayEvents.find((e: GamePlayEvent) => e.ruleKey === 'attack');
+    expect(attackEvent).toBeDefined();
+    expect(attackEvent!.actionName).toBe('attack');
+    expect(attackEvent!.actionTarget).toBe('goblin');
   });
 
-  test('executeTurn should return null prompt for unrecognised input', () => {
+  test('executeTurn should return gamePlayEvents for unrecognised input', () => {
     const script = createScript();
     const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultGameState));
     const output = script.executeTurn('I look around confused', mockState, {});
-    expect(output.prompt).toBeNull();
+    expect(output.gamePlayEvents.length).toBeGreaterThan(0);
+    const nonNeutral = output.gamePlayEvents.filter((e: GamePlayEvent) => e.status !== 'neutral');
+    expect(nonNeutral.length).toBe(0);
   });
 
   test('executeTurn should work in exploration condition', () => {
@@ -92,8 +76,8 @@ describe('GamePlayScript', () => {
     script.setCondition('exploration');
     const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultGameState));
     const output = script.executeTurn('<search>', mockState, {});
-    expect(output.prompt).not.toBeNull();
-    expect(output.prompt!.text).toContain('search');
+    const searchEvent = output.gamePlayEvents.find((e: GamePlayEvent) => e.ruleKey === 'search');
+    expect(searchEvent).toBeDefined();
   });
 
   test('executeTurn should work in social condition', () => {
@@ -101,13 +85,11 @@ describe('GamePlayScript', () => {
     script.setCondition('social');
     const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultGameState));
     const output = script.executeTurn('<persuade merchant>', mockState, {});
-    expect(output.prompt).not.toBeNull();
-    expect(output.prompt!.text).toContain('persuade');
-    expect(output.prompt!.text).toContain('merchant');
+    const persuadeEvent = output.gamePlayEvents.find((e: GamePlayEvent) => e.ruleKey === 'persuade');
+    expect(persuadeEvent).toBeDefined();
   });
 
   test('processTurn should trigger aspectFunction and mutate state', () => {
-    // 1. Create a minimal cartridge with an aspectFunction
     const customCartridge: GameCartridge = {
       name: 'Test Aspect Cartridge',
       version: '1.0.0',
@@ -115,7 +97,7 @@ describe('GamePlayScript', () => {
       availableActions: { combat: ['use_item'] },
       defaultGameState: {
         timestamp: '1000-01-01T08:00:00',
-        stats: { hp: 20 }, // Starting HP is 20
+        stats: { hp: 20 },
         activeConditions: [],
         flags: []
       },
@@ -128,7 +110,9 @@ describe('GamePlayScript', () => {
                 actionName: 'use_item',
                 status: 'success',
                 mechanicsLogs: [],
-                narrationGuidance: ['The item drained 5 HP.']
+                mustHappen: ['The item drained 5 HP.'],
+                mustNotHappen: [],
+                mayHappen: []
               },
               stateMutations: [
                 {
@@ -142,7 +126,7 @@ describe('GamePlayScript', () => {
             };
           }
           return {
-            outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: [] },
+            outcome: { status: 'neutral', mechanicsLogs: [], mustHappen: [], mustNotHappen: [], mayHappen: [] },
             stateMutations: []
           };
         }
@@ -151,21 +135,13 @@ describe('GamePlayScript', () => {
       turnEndTriggers: []
     };
 
-    // 2. Initialize script with our custom cartridge
-    const script = new GamePlayScript(customCartridge, mapBasicFantasySillyTavern);
+    const script = new GamePlayScript(customCartridge);
     const mockState = JSON.parse(JSON.stringify(customCartridge.defaultGameState));
-
-    // 3. Process the turn
     const output = script.executeTurn('<use_item potion>', mockState, {});
 
-    // 4. Verify the state was mutated by the aspectFunction
-    expect(output.newState.stats.hp).toBe(15); // 20 - 5 = 15
+    expect(output.newState.stats.hp).toBe(15);
 
-    // 5. Verify the narrationGuidance was appended to the success/failure event in the prompt
-    expect(output.prompt).not.toBeNull();
-    // Events array is where narrationGuidance is pushed to
-    // Let's examine the last event in output.prompt.events
-    const hasGuide = output.prompt!.events.some(e => e.type === 'action_resolution' && e.narrationGuidance?.join(' ').includes('drained 5 HP.'));
+    const hasGuide = output.gamePlayEvents.some((e: GamePlayEvent) => e.mustHappen.join(' ').includes('drained 5 HP.'));
     expect(hasGuide).toBe(true);
   });
 });

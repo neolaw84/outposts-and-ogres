@@ -1,7 +1,6 @@
 import { GamePlayScript } from '../src/systems/game-play-script';
 import { basicFantasyCartridge } from '../src/cartridges/basic-fantasy';
 import { GameCartridge, GameState, GamePlayEvent, RuleResolution } from '../src/types';
-import { mapBasicFantasyJanitorAI } from '../src/prompt-mappers/basic-fantasy/janitorai';
 
 function makeSheet(overrides?: Partial<GameState>): GameState {
   return JSON.parse(JSON.stringify({
@@ -17,7 +16,7 @@ function makeSheet(overrides?: Partial<GameState>): GameState {
 describe('GamePlayEvent - standardized game play loop output', () => {
   describe('always-call-all-rules behavior', () => {
     test('executeTurn returns gamePlayEvents for every rule in the sequence', () => {
-      const script = new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+      const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet();
       const result = script.executeTurn('<attack goblin>', sheet, {});
 
@@ -27,7 +26,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
     });
 
     test('gamePlayEvents contain mustNotHappen for untriggered rules', () => {
-      const script = new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+      const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet();
       const result = script.executeTurn('<attack goblin>', sheet, {});
 
@@ -45,7 +44,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
     });
 
     test('gamePlayEvents contain mustHappen for triggered action rules', () => {
-      const script = new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+      const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, strength: 100 } });
       const result = script.executeTurn('<attack goblin>', sheet, {});
 
@@ -56,7 +55,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
     });
 
     test('gamePlayEvents have correct structure', () => {
-      const script = new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+      const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet();
       const result = script.executeTurn('<attack goblin>', sheet, {});
 
@@ -76,7 +75,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
 
   describe('conditionsToReportBack', () => {
     test('executeTurn returns conditionsToReportBack from the cartridge', () => {
-      const script = new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+      const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet();
       const result = script.executeTurn('<attack goblin>', sheet, {});
 
@@ -88,7 +87,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
 
   describe('mustHappen / mustNotHappen / mayHappen from world events', () => {
     test('drink_potion with effect data produces mustHappen', () => {
-      const script = new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+      const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 50 } });
       const narrationSummary = {
         elapsed_time: 'PT5M',
@@ -104,7 +103,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
     });
 
     test('drink_potion without effect data produces mustNotHappen and mayHappen', () => {
-      const script = new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+      const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet();
 
       const result = script.executeTurn('', sheet, {});
@@ -118,7 +117,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
     });
 
     test('combat_event without effect data produces mustNotHappen', () => {
-      const script = new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+      const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet();
 
       const result = script.executeTurn('', sheet, {});
@@ -132,7 +131,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
 
   describe('player action mustNotHappen', () => {
     test('untriggered player actions have mustNotHappen entries', () => {
-      const script = new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+      const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet();
       // Only attacking - all other actions should have mustNotHappen
       const result = script.executeTurn('<attack goblin>', sheet, {});
@@ -150,34 +149,32 @@ describe('GamePlayEvent - standardized game play loop output', () => {
   });
 
   describe('backward compatibility', () => {
-    test('executeTurn still returns prompt when promptMapper is provided', () => {
-      const script = new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+    test('executeTurn returns gamePlayEvents with attack data', () => {
+      const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet();
       const result = script.executeTurn('<attack goblin>', sheet, {});
 
-      // Legacy prompt field should still work when promptMapper is provided
-      expect(result.prompt).not.toBeNull();
-      expect(result.prompt!.text).toContain('attack');
+      const attackEvent = result.gamePlayEvents.find(e => e.ruleKey === 'attack');
+      expect(attackEvent).toBeDefined();
+      expect(attackEvent!.actionName).toBe('attack');
+      expect(attackEvent!.actionTarget).toBe('goblin');
     });
 
-    test('executeTurn returns null prompt when no promptMapper and no meaningful event', () => {
+    test('executeTurn returns gamePlayEvents for all rules even with no action', () => {
       const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet();
       const result = script.executeTurn('I look around confused', sheet, {});
 
-      expect(result.prompt).toBeNull();
-      // But gamePlayEvents should still have entries for all rules
+      // gamePlayEvents should still have entries for all rules
       expect(result.gamePlayEvents.length).toBe(basicFantasyCartridge.ruleSequence.length);
     });
 
-    test('GamePlayScript works without a promptMapper', () => {
+    test('GamePlayScript works with single constructor arg', () => {
       const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet();
       const result = script.executeTurn('<attack goblin>', sheet, {});
 
-      // prompt is null when there's no promptMapper
-      expect(result.prompt).toBeNull();
-      // But gamePlayEvents should have full data
+      // gamePlayEvents should have full data
       expect(result.gamePlayEvents.length).toBe(basicFantasyCartridge.ruleSequence.length);
 
       const attackEvent = result.gamePlayEvents.find(e => e.ruleKey === 'attack');
@@ -186,8 +183,8 @@ describe('GamePlayEvent - standardized game play loop output', () => {
       expect(attackEvent!.actionTarget).toBe('goblin');
     });
 
-    test('narrationGuide is still populated for backward compatibility', () => {
-      const script = new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+    test('gamePlayEvents contain mustHappen for drink_potion effect', () => {
+      const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 50 } });
       const narrationSummary = {
         elapsed_time: 'PT5M',
@@ -195,7 +192,9 @@ describe('GamePlayEvent - standardized game play loop output', () => {
       };
 
       const result = script.executeTurn('', sheet, narrationSummary);
-      expect(result.narrationGuide).toContain('Healed 30 HP');
+      const potionEvent = result.gamePlayEvents.find(e => e.ruleKey === 'drink_potion');
+      expect(potionEvent).toBeDefined();
+      expect(potionEvent!.mustHappen.join(' ')).toContain('Healed 30 HP');
     });
   });
 
@@ -221,7 +220,6 @@ describe('GamePlayEvent - standardized game play loop output', () => {
                 outcome: {
                   status: 'success',
                   mechanicsLogs: ['Rolled 18 vs DC 12'],
-                  narrationGuidance: [],
                   mustHappen: ['Player strikes the goblin with full force.', 'Goblin takes damage.'],
                   mustNotHappen: ['Goblin must not die from this single hit.'],
                   mayHappen: ['Goblin staggers backward.', 'Other goblins look alarmed.'],
@@ -235,8 +233,9 @@ describe('GamePlayEvent - standardized game play loop output', () => {
               outcome: {
                 status: 'neutral',
                 mechanicsLogs: [],
-                narrationGuidance: [],
-                mustNotHappen: ['Do not narrate player striking anything.']
+                mustHappen: [],
+                mustNotHappen: ['Do not narrate player striking anything.'],
+                mayHappen: []
               },
               stateMutations: []
             };

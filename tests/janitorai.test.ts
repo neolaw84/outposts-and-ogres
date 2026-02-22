@@ -1,5 +1,4 @@
 import { JanitorAIAdapter } from '../src/systems/janitorai/index';
-import { OutputPrompt } from '../src/types';
 import { encodeState, buildRpStateBlock } from '../src/utils/llm-utils';
 
 describe('JanitorAIAdapter', function () {
@@ -62,58 +61,6 @@ describe('JanitorAIAdapter', function () {
   test('should return null when last_messages is empty array', function () {
     var adapter = new JanitorAIAdapter({ chat: { last_messages: [] } });
     expect(adapter.getPlayerMessage()).toBeNull();
-  });
-
-  // ----------------------------------------------------------------
-  // applyPrompt
-  // ----------------------------------------------------------------
-
-  test('should prepend prompt to personality and scenario', function () {
-    var context: Record<string, unknown> = {
-      character: {
-        personality: 'Existing personality',
-        scenario: 'Existing scenario'
-      }
-    };
-    var adapter = new JanitorAIAdapter(context);
-    var prompt: OutputPrompt = {
-      text: 'combined text',
-      channels: {
-        campaignContinuity: 'Long horizon',
-        sceneGuidance: 'Mid term',
-        immediateInstruction: 'Short term',
-        combined: 'Long horizon\n\nMid term\n\nShort term'
-      },
-      events: []
-    };
-    adapter.applyPrompt(prompt);
-    var character = context['character'] as Record<string, unknown>;
-    // Personality should have prompt prepended to existing text
-    expect(character['personality']).toContain('Long horizon');
-    expect(character['personality']).toContain('Mid term');
-    expect(character['personality']).toContain('Existing personality');
-    // Scenario should have short-term prepended to existing text
-    expect(character['scenario']).toContain('Short term');
-    expect(character['scenario']).toContain('Existing scenario');
-  });
-
-  test('should work when character fields are initially empty', function () {
-    var context: Record<string, unknown> = {};
-    var adapter = new JanitorAIAdapter(context);
-    var prompt: OutputPrompt = {
-      text: 'combined text',
-      channels: {
-        campaignContinuity: 'Long horizon',
-        sceneGuidance: 'Mid term',
-        immediateInstruction: 'Short term',
-        combined: 'Long horizon\n\nMid term\n\nShort term'
-      },
-      events: []
-    };
-    adapter.applyPrompt(prompt);
-    var character = context['character'] as Record<string, unknown>;
-    expect(character['personality']).toContain('Long horizon');
-    expect(character['scenario']).toContain('Short term');
   });
 
   // ----------------------------------------------------------------

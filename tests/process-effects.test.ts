@@ -1,11 +1,10 @@
 import { GamePlayScript } from '../src/systems/game-play-script';
 import { basicFantasyCartridge } from '../src/cartridges/basic-fantasy';
-import { mapBasicFantasyJanitorAI } from '../src/prompt-mappers/basic-fantasy/janitorai';
-import { GameState } from '../src/types';
+import { GameState, GamePlayEvent } from '../src/types';
 import { applySideEffect } from '../src/core/game-state';
 
 function createScript(): GamePlayScript {
-  return new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+  return new GamePlayScript(basicFantasyCartridge);
 }
 
 function makeSheet(overrides?: Partial<GameState>): GameState {
@@ -37,7 +36,9 @@ describe('processEffects integration', () => {
     const result = script.executeTurn('', sheet, narrationSummary);
 
     expect(result.newState.stats['hp']).toBe(80); // 50 + 30 (3 * 10)
-    expect(result.narrationGuide).toContain('Healed 30 HP');
+    const potionEvent = result.gamePlayEvents.find((e: GamePlayEvent) => e.ruleKey === 'drink_potion');
+    expect(potionEvent).toBeDefined();
+    expect(potionEvent!.mustHappen.join(' ')).toContain('Healed 30 HP');
   });
 
   test('should update time from elapsed_time', () => {
@@ -98,7 +99,9 @@ describe('processEffects integration', () => {
     const result = script.executeTurn('', sheet, narrationSummary);
 
     expect(result.newState.stats['hp']).toBe(85); // 100 - (20 - 5 defense) = 85
-    expect(result.narrationGuide).toContain('15 damage');
+    const combatEvent = result.gamePlayEvents.find((e: GamePlayEvent) => e.ruleKey === 'combat_event');
+    expect(combatEvent).toBeDefined();
+    expect(combatEvent!.mustHappen.join(' ')).toContain('15 damage');
   });
 
   test('should process multiple effects in order', () => {
@@ -138,8 +141,10 @@ describe('processEffects integration', () => {
     const result = script.executeTurn('', sheet, narrationSummary);
 
     expect(result.newState.stats['hp']).toBe(100); // unchanged
-    // Aspect functions called with null effect should return ambient narration
-    expect(result.narrationGuide.length).toBeGreaterThan(0);
+    // All rules should produce gamePlayEvents
+    expect(result.gamePlayEvents.length).toBeGreaterThan(0);
+    const hasEntries = result.gamePlayEvents.some((e: GamePlayEvent) => e.mustNotHappen.length > 0);
+    expect(hasEntries).toBe(true);
   });
 
   test('should track midnights passed in num_day', () => {
