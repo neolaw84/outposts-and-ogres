@@ -1,5 +1,5 @@
 import { Character } from './character';
-import { GamePlayScript } from './systems/game-play-script';
+import { GameEngine } from './engine';
 import { basicFantasyCartridge } from './cartridges/basic-fantasy';
 
 /**
@@ -21,10 +21,10 @@ class OutpostsAndOgres {
     return new Character(name, maxHealth);
   }
 
-  public createGamePlayScript(): GamePlayScript {
+  public createGameEngine(): GameEngine {
     void basicFantasyCartridge;
     throw new Error(
-      'GamePlayScript composition is build-time only. Use a composed bundle (e.g. build:basic:aidungeon) that binds cartridge and system mapper.'
+      'GameEngine composition is build-time only. Use a composed bundle (e.g. build:basic:aidungeon) that binds cartridge and system mapper.'
     );
   }
 }
@@ -35,7 +35,7 @@ rpgSystem.createCharacter('Hero', 150);
 
 export default rpgSystem;
 export { Character };
-export { GamePlayScript } from './systems/game-play-script';
+export { GameEngine } from './engine';
 export { basicFantasyCartridge } from './cartridges/basic-fantasy';
 export {
   Signal,
@@ -60,18 +60,18 @@ export {
   decodeState,
   buildRpStateBlock,
   extractNarrationSummary,
-  generateEffectInstruction,
-  findEffectByKey,
-  cleanInput
+  renderSchemaInstruction,
+  findSignalByKey,
+  validateSignalTypes
 } from './utils/llm-utils';
 export { extractMatch } from './utils/text-utils';
 export {
-  parsePlayerInput,
-  understandScenario
-} from './inputs';
-export { JanitorAIAdapter } from './systems/janitorai/index';
-export { SillyTavernAdapter } from './systems/sillytavern/index';
-export { AIDungeonAdapter } from './systems/aidungeon/index';
+  detectSignals,
+  readScene
+} from './signals';
+export { JanitorAIAdapter } from './platform/janitorai/index';
+export { SillyTavernAdapter } from './platform/sillytavern/index';
+export { AIDungeonAdapter } from './platform/aidungeon/index';
 export { applySideEffect, revertSideEffect } from './core/game-state';
 export {
   parseDuration,

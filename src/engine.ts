@@ -26,7 +26,7 @@ import {
 import { detectSignals } from './signals/detect';
 import { applySideEffect, revertSideEffect } from './core/game-state';
 import { addDuration, getMidnightsPassed } from './utils/time-utils';
-import { cleanInput as validateSignalTypes, findEffectByKey as findSignalByKey, generateEffectInstruction as renderSchemaInstruction } from './utils/llm-utils';
+import { validateSignalTypes, findSignalByKey, renderSchemaInstruction } from './utils/llm-utils';
 
 class GameEngine {
   private cartridge: Cartridge;

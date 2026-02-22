@@ -1,5 +1,5 @@
 import { Character } from '../../character';
-import { GamePlayScript } from '../../systems/game-play-script';
+import { GameEngine } from '../../engine';
 import { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 
 class OutpostsAndOgres {
@@ -17,8 +17,8 @@ class OutpostsAndOgres {
     return new Character(name, maxHealth);
   }
 
-  public createGamePlayScript(): GamePlayScript {
-    return new GamePlayScript(basicFantasyCartridge);
+  public createGameEngine(): GameEngine {
+    return new GameEngine(basicFantasyCartridge);
   }
 }
 
@@ -26,7 +26,7 @@ const rpgSystem = new OutpostsAndOgres();
 
 export default rpgSystem;
 export { Character };
-export { GamePlayScript } from '../../systems/game-play-script';
+export { GameEngine } from '../../engine';
 export { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 export {
   Cartridge,
@@ -42,5 +42,5 @@ export {
   SignalDetector
 } from '../../types';
 export { rollDie, rollDice, sumRolls } from '../../utils/dice';
-export { parsePlayerInput } from '../../inputs/input-matcher';
-export { AIDungeonAdapter } from '../../systems/aidungeon/index';
+export { detectSignals } from '../../signals/detect';
+export { AIDungeonAdapter } from '../../platform/aidungeon/index';

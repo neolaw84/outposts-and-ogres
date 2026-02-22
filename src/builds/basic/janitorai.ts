@@ -1,5 +1,5 @@
 import { Character } from '../../character';
-import { GamePlayScript } from '../../systems/game-play-script';
+import { GameEngine } from '../../engine';
 import { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 import { State } from '../../types';
 
@@ -18,8 +18,8 @@ class OutpostsAndOgres {
     return new Character(name, maxHealth);
   }
 
-  public createGamePlayScript(): GamePlayScript {
-    return new GamePlayScript(basicFantasyCartridge);
+  public createGameEngine(): GameEngine {
+    return new GameEngine(basicFantasyCartridge);
   }
 }
 
@@ -27,7 +27,7 @@ const rpgSystem = new OutpostsAndOgres();
 
 export default rpgSystem;
 export { Character };
-export { GamePlayScript } from '../../systems/game-play-script';
+export { GameEngine } from '../../engine';
 export { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 export {
   Cartridge,
@@ -43,19 +43,19 @@ export {
   SignalDetector
 } from '../../types';
 export { rollDie, rollDice, sumRolls } from '../../utils/dice';
-export { parsePlayerInput } from '../../inputs/input-matcher';
+export { detectSignals } from '../../signals/detect';
 export { base64EncodeRaw, base64DecodeRaw, base64Encode, base64Decode } from '../../utils/base64';
 export {
   encodeState,
   decodeState,
   buildRpStateBlock,
   extractNarrationSummary,
-  generateEffectInstruction,
-  findEffectByKey,
-  cleanInput
+  renderSchemaInstruction,
+  findSignalByKey,
+  validateSignalTypes
 } from '../../utils/llm-utils';
 import { extractMatch } from '../../utils/text-utils';
-import { JanitorAIAdapter } from '../../systems/janitorai/index';
+import { JanitorAIAdapter } from '../../platform/janitorai/index';
 export { applySideEffect, revertSideEffect } from '../../core/game-state';
 export {
   parseDuration,
@@ -81,7 +81,7 @@ declare const context: Record<string, unknown>;
 // Only execute if we are in the JanitorAI environment (context is present)
 if (typeof context !== 'undefined') {
   const adapter = new JanitorAIAdapter(context);
-  const script = rpgSystem.createGamePlayScript();
+  const script = rpgSystem.createGameEngine();
   const cartridge = script.getCartridge();
 
   // 1. DECODE – Extract state and narration summary from chat history
@@ -128,7 +128,7 @@ if (typeof context !== 'undefined') {
 
     // 4. ENCODE & INJECT
     adapter.saveState(rpState as unknown as Record<string, unknown>);
-    adapter.applyGamePlayOutput(turnResult.gamePlayEvents, rpState, turnResult.effectInstructions);
+    adapter.applyGamePlayOutput(turnResult.directives, rpState, turnResult.schemaInstructions);
   } else if (dataCorrupted) {
     // Handle data corruption
     const character = (context['character'] || {}) as Record<string, unknown>;

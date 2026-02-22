@@ -5,7 +5,7 @@
  * - Encoding game state to Base64 inside [RP_STATE]...[/RP_STATE] tags
  * - Decoding game state from LLM responses
  * - Extracting [NARRATION_SUMMARY]...[/NARRATION_SUMMARY] JSON blocks
- * - Generating effect instructions for the LLM
+ * - Rendering schema instructions for the LLM
  */
 
 import { base64EncodeRaw, base64DecodeRaw } from './base64';
@@ -19,8 +19,8 @@ interface SignalSchema {
   [prop: string]: unknown;
 }
 
-/** Result of finding an effect by key. */
-interface FoundEffect {
+/** Result of finding a signal by key. */
+interface FoundSignal {
   effect: Signal | null;
   typeCheck: Record<string, unknown> | null;
 }
@@ -103,38 +103,38 @@ function extractNarrationSummary(message: string | null): Record<string, unknown
 }
 
 /**
- * Generate instruction text for the LLM to include a specific effect
+ * Render instruction text for the LLM to include a specific signal
  * in the NARRATION_SUMMARY based on a condition.
  */
-function generateEffectInstruction(effectDef: SignalSchema): string {
-  if (!effectDef || !effectDef.key || !effectDef.condition) {
+function renderSchemaInstruction(schemaDef: SignalSchema): string {
+  if (!schemaDef || !schemaDef.key || !schemaDef.condition) {
     return '';
   }
 
   const jsonBlock: Record<string, unknown> = {};
-  const keys = Object.keys(effectDef);
+  const keys = Object.keys(schemaDef);
   for (let i = 0; i < keys.length; i++) {
     if (keys[i] !== 'condition') {
-      jsonBlock[keys[i]] = effectDef[keys[i]];
+      jsonBlock[keys[i]] = schemaDef[keys[i]];
     }
   }
 
   const jsonString = JSON.stringify(jsonBlock, null, 4);
   return 'In the above narration of yours, if and only if ' +
-    effectDef.condition +
+    schemaDef.condition +
     ', include one instance of the following in the "effects" array.\n\n' +
     jsonString;
 }
 
 /**
- * Find an effect by its key in a narration summary.
+ * Find a signal by its key in a narration summary.
  * Converts the raw JSON record into a typed Signal.
  */
-function findEffectByKey(
+function findSignalByKey(
   key: string,
   narrationSummary: Record<string, unknown>,
   typeChecks: Record<string, unknown>
-): FoundEffect {
+): FoundSignal {
   let foundEffect: Signal | null = null;
   let foundTypeCheck: Record<string, unknown> | null = null;
 
@@ -166,10 +166,10 @@ function findEffectByKey(
 
 /**
  * Validate a narration summary object recursively and return a mirror
- * object indicating which fields are valid.
+ * object indicating which signal types are valid.
  * Used by aspect functions to safely access LLM-provided data.
  */
-function cleanInput(inputObject: Record<string, unknown>): Record<string, unknown> {
+function validateSignalTypes(inputObject: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
   // 1. Validate elapsed_time
@@ -247,12 +247,12 @@ function cleanInput(inputObject: Record<string, unknown>): Record<string, unknow
 
 export {
   SignalSchema,
-  FoundEffect,
+  FoundSignal,
   encodeState,
   decodeState,
   buildRpStateBlock,
   extractNarrationSummary,
-  generateEffectInstruction,
-  findEffectByKey,
-  cleanInput
+  renderSchemaInstruction,
+  findSignalByKey,
+  validateSignalTypes
 };

@@ -26,7 +26,7 @@ import {
 import { parsePlayerInput } from '../inputs/input-matcher';
 import { applySideEffect, revertSideEffect } from '../core/game-state';
 import { addDuration, getMidnightsPassed } from '../utils/time-utils';
-import { cleanInput, findEffectByKey, generateEffectInstruction } from '../utils/llm-utils';
+import { validateSignalTypes, findSignalByKey, renderSchemaInstruction } from '../utils/llm-utils';
 
 class GamePlayScript {
   private cartridge: Cartridge;
@@ -114,7 +114,7 @@ class GamePlayScript {
     let newState = JSON.parse(JSON.stringify(currentState));
 
     // First: Handle Time Advance and Expired Effects (Always happens first)
-    const typeChecks = cleanInput(narrationSummary);
+    const typeChecks = validateSignalTypes(narrationSummary);
     let durationToAdd = 'PT0M';
     if (typeChecks['elapsed_time']) {
       durationToAdd = narrationSummary['elapsed_time'] as string;
@@ -142,7 +142,7 @@ class GamePlayScript {
         let foundEffect: Signal | null = null;
         let foundTypeCheck: Record<string, unknown> | null = null;
         if (def) {
-          const found = findEffectByKey(key, narrationSummary, typeChecks);
+          const found = findSignalByKey(key, narrationSummary, typeChecks);
           foundEffect = found.effect;
           foundTypeCheck = found.typeCheck;
         }
@@ -172,10 +172,10 @@ class GamePlayScript {
       }
     }
 
-    // Generate effect instructions from signalSchemas using generateEffectInstruction.
+    // Generate schema instructions from signalSchemas using renderSchemaInstruction.
     const instructionParts: string[] = [];
     for (const tracker of this.cartridge.signalSchemas) {
-      const instruction = generateEffectInstruction(tracker);
+      const instruction = renderSchemaInstruction(tracker);
       if (instruction) {
         instructionParts.push(instruction);
       }

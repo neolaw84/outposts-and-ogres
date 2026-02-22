@@ -1,23 +1,23 @@
-import { cleanInput } from '../src/utils/llm-utils';
+import { validateSignalTypes } from '../src/utils/llm-utils';
 
-describe('cleanInput', () => {
+describe('validateSignalTypes', () => {
   test('should validate elapsed_time as valid ISO duration', () => {
-    const result = cleanInput({ elapsed_time: 'PT5M', effects: [] });
+    const result = validateSignalTypes({ elapsed_time: 'PT5M', effects: [] });
     expect(result['elapsed_time']).toBe(true);
   });
 
   test('should reject invalid elapsed_time', () => {
-    const result = cleanInput({ elapsed_time: 'invalid', effects: [] });
+    const result = validateSignalTypes({ elapsed_time: 'invalid', effects: [] });
     expect(result['elapsed_time']).toBe(false);
   });
 
   test('should reject numeric elapsed_time', () => {
-    const result = cleanInput({ elapsed_time: 123, effects: [] });
+    const result = validateSignalTypes({ elapsed_time: 123, effects: [] });
     expect(result['elapsed_time']).toBe(false);
   });
 
   test('should validate effects array', () => {
-    const result = cleanInput({
+    const result = validateSignalTypes({
       elapsed_time: 'PT1M',
       effects: [
         {
@@ -49,12 +49,12 @@ describe('cleanInput', () => {
   });
 
   test('should reject non-array effects', () => {
-    const result = cleanInput({ elapsed_time: 'PT1M', effects: 'not an array' });
+    const result = validateSignalTypes({ elapsed_time: 'PT1M', effects: 'not an array' });
     expect(result['effects']).toBe(false);
   });
 
   test('should validate invalid field types within effects', () => {
-    const result = cleanInput({
+    const result = validateSignalTypes({
       elapsed_time: 'PT1M',
       effects: [
         {
