@@ -8,6 +8,7 @@
 
 import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
+import { formatGamePlayEventLines, formatConditionsToReportBack } from '../adapter-helpers';
 
 class SillyTavernAdapter implements SystemAdapter {
   readonly name: string = 'SillyTavern';
@@ -85,33 +86,11 @@ class SillyTavernAdapter implements SystemAdapter {
     state: GameState,
     conditionsToReportBack: WorldEventTracker[]
   ): void {
-    const lines: string[] = [];
-    for (let i = 0; i < events.length; i++) {
-      const gpe = events[i];
-      for (let j = 0; j < gpe.mustHappen.length; j++) {
-        lines.push('MUST: ' + gpe.mustHappen[j]);
-      }
-      for (let j = 0; j < gpe.mustNotHappen.length; j++) {
-        lines.push('MUST NOT: ' + gpe.mustNotHappen[j]);
-      }
-      for (let j = 0; j < gpe.mayHappen.length; j++) {
-        lines.push('MAY: ' + gpe.mayHappen[j]);
-      }
-    }
+    const lines = formatGamePlayEventLines(events);
 
     if (conditionsToReportBack.length > 0) {
       lines.push('');
-      for (let i = 0; i < conditionsToReportBack.length; i++) {
-        const def = conditionsToReportBack[i];
-        const jsonBlock: Record<string, unknown> = {};
-        const keys = Object.keys(def);
-        for (let j = 0; j < keys.length; j++) {
-          if (keys[j] !== 'condition') {
-            jsonBlock[keys[j]] = def[keys[j]];
-          }
-        }
-        lines.push('If ' + def.condition + ', include: ' + JSON.stringify(jsonBlock));
-      }
+      lines.push(...formatConditionsToReportBack(conditionsToReportBack));
     }
 
     this.context['systemPrompt'] = lines.join('\n');

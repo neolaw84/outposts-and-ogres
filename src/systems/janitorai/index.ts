@@ -35,6 +35,7 @@
 
 import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
 import { decodeState, buildRpStateBlock, extractNarrationSummary } from '../../utils/llm-utils';
+import { formatGamePlayEventLines, formatConditionsToReportBack } from '../adapter-helpers';
 
 /** Content of the last LLM response message. */
 interface ChatMessage {
@@ -179,43 +180,13 @@ class JanitorAIAdapter implements SystemAdapter {
 
     const lines: string[] = [];
     lines.push('[NARRATION_GUIDE]');
-
-    for (let i = 0; i < events.length; i++) {
-      const gpe = events[i];
-      if (gpe.mustHappen.length > 0) {
-        for (let j = 0; j < gpe.mustHappen.length; j++) {
-          lines.push('MUST: ' + gpe.mustHappen[j]);
-        }
-      }
-      if (gpe.mustNotHappen.length > 0) {
-        for (let j = 0; j < gpe.mustNotHappen.length; j++) {
-          lines.push('MUST NOT: ' + gpe.mustNotHappen[j]);
-        }
-      }
-      if (gpe.mayHappen.length > 0) {
-        for (let j = 0; j < gpe.mayHappen.length; j++) {
-          lines.push('MAY: ' + gpe.mayHappen[j]);
-        }
-      }
-    }
-
+    lines.push(...formatGamePlayEventLines(events));
     lines.push('[/NARRATION_GUIDE]');
 
-    // Append conditions to report back
     if (conditionsToReportBack.length > 0) {
       lines.push('');
       lines.push('Report the following conditions in your [NARRATION_SUMMARY]:');
-      for (let i = 0; i < conditionsToReportBack.length; i++) {
-        const def = conditionsToReportBack[i];
-        const jsonBlock: Record<string, unknown> = {};
-        const keys = Object.keys(def);
-        for (let j = 0; j < keys.length; j++) {
-          if (keys[j] !== 'condition') {
-            jsonBlock[keys[j]] = def[keys[j]];
-          }
-        }
-        lines.push('If ' + def.condition + ', include: ' + JSON.stringify(jsonBlock));
-      }
+      lines.push(...formatConditionsToReportBack(conditionsToReportBack));
     }
 
     character['scenario'] = lines.join('\n') + '\n' + existingScenario;

@@ -8,6 +8,7 @@
 
 import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
+import { collectGamePlayEventArrays, formatConditionsToReportBack } from '../adapter-helpers';
 
 /** A single entry in the AI Dungeon action history. */
 interface HistoryEntry {
@@ -89,44 +90,17 @@ class AIDungeonAdapter implements SystemAdapter {
     const globalState = (this.context['state'] || {}) as Record<string, unknown>;
     const memory = (globalState['memory'] || {}) as Record<string, unknown>;
 
-    const mustLines: string[] = [];
-    const mustNotLines: string[] = [];
-    const mayLines: string[] = [];
+    const { mustLines, mustNotLines, mayLines } = collectGamePlayEventArrays(events);
+    const reportBackLines = formatConditionsToReportBack(conditionsToReportBack);
 
-    for (let i = 0; i < events.length; i++) {
-      const gpe = events[i];
-      for (let j = 0; j < gpe.mustHappen.length; j++) {
-        mustLines.push(gpe.mustHappen[j]);
-      }
-      for (let j = 0; j < gpe.mustNotHappen.length; j++) {
-        mustNotLines.push(gpe.mustNotHappen[j]);
-      }
-      for (let j = 0; j < gpe.mayHappen.length; j++) {
-        mayLines.push(gpe.mayHappen[j]);
-      }
-    }
+    const contextParts: string[] = [];
+    if (mustLines.length > 0) { contextParts.push('MUST:\n' + mustLines.join('\n')); }
+    if (mustNotLines.length > 0) { contextParts.push('MUST NOT:\n' + mustNotLines.join('\n')); }
+    memory['context'] = contextParts.join('\n');
 
-    let reportBack = '';
-    if (conditionsToReportBack.length > 0) {
-      const parts: string[] = [];
-      for (let i = 0; i < conditionsToReportBack.length; i++) {
-        const def = conditionsToReportBack[i];
-        const jsonBlock: Record<string, unknown> = {};
-        const keys = Object.keys(def);
-        for (let j = 0; j < keys.length; j++) {
-          if (keys[j] !== 'condition') {
-            jsonBlock[keys[j]] = def[keys[j]];
-          }
-        }
-        parts.push('If ' + def.condition + ', include: ' + JSON.stringify(jsonBlock));
-      }
-      reportBack = parts.join('\n');
-    }
-
-    memory['context'] = (mustLines.length > 0 ? 'MUST:\n' + mustLines.join('\n') + '\n' : '') +
-      (mustNotLines.length > 0 ? 'MUST NOT:\n' + mustNotLines.join('\n') + '\n' : '');
     memory['authorsNote'] = mayLines.length > 0 ? 'MAY:\n' + mayLines.join('\n') : '';
-    memory['frontMemory'] = reportBack;
+    memory['frontMemory'] = reportBackLines.join('\n');
+
     globalState['memory'] = memory;
     this.context['state'] = globalState;
   }
