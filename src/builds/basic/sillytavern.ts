@@ -1,7 +1,6 @@
 import { Character } from '../../character';
 import { GamePlayScript } from '../../systems/game-play-script';
 import { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
-import { mapBasicFantasySillyTavern } from '../../prompt-mappers/basic-fantasy/sillytavern';
 
 class OutpostsAndOgres {
   private version: string;
@@ -19,7 +18,7 @@ class OutpostsAndOgres {
   }
 
   public createGamePlayScript(): GamePlayScript {
-    return new GamePlayScript(basicFantasyCartridge, mapBasicFantasySillyTavern);
+    return new GamePlayScript(basicFantasyCartridge);
   }
 }
 

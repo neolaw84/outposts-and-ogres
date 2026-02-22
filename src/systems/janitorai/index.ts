@@ -33,7 +33,7 @@
  *   to scenario so the LLM produces a plain-JSON summary block.
  */
 
-import { SystemAdapter, OutputPrompt, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
+import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
 import { decodeState, buildRpStateBlock, extractNarrationSummary } from '../../utils/llm-utils';
 
 /** Content of the last LLM response message. */
@@ -75,31 +75,6 @@ class JanitorAIAdapter implements SystemAdapter {
     }
 
     return null;
-  }
-
-  // ------------------------------------------------------------------
-  // Prompt application
-  // ------------------------------------------------------------------
-
-  applyPrompt(prompt: OutputPrompt): void {
-    const character = (this.context['character'] || {}) as Record<string, unknown>;
-    const existingPersonality = (character['personality'] || '') as string;
-    const existingScenario = (character['scenario'] || '') as string;
-
-    // Prepend long-horizon + mid-term guidance to personality.
-    character['personality'] =
-      prompt.channels.campaignContinuity + '\n\n' +
-      prompt.channels.sceneGuidance + '\n\n' +
-      existingPersonality;
-
-    // Prepend narration guide and append narration-summary instructions
-    // to scenario (immediateInstruction contains both sections already composed
-    // by the prompt mapper).
-    character['scenario'] =
-      prompt.channels.immediateInstruction + '\n\n' +
-      existingScenario;
-
-    this.context['character'] = character;
   }
 
   // ------------------------------------------------------------------

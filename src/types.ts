@@ -215,14 +215,6 @@ interface SystemAdapter {
   getPlayerMessage(): string | null;
 
   /**
-   * Apply the generated prompt to the platform's context so that the
-   * AI will use it for its next narration. For example, Janitor AI
-   * allows modifying `context.character.personality` and
-   * `context.character.scenario`.
-   */
-  applyPrompt(prompt: OutputPrompt): void;
-
-  /**
    * Load persisted game state from the platform's storage mechanism.
    * Returns an empty object if no state exists yet.
    */
@@ -264,7 +256,7 @@ interface SystemAdapter {
    * @param conditionsToReportBack - The cartridge's WorldEventTrackers telling
    *   the LLM what to report back (e.g. potion type, damage dealt).
    */
-  applyGamePlayOutput?(
+  applyGamePlayOutput(
     events: GamePlayEvent[],
     state: GameState,
     conditionsToReportBack: WorldEventTracker[]
@@ -307,17 +299,12 @@ interface RuleResolution {
     status: 'success' | 'failure' | 'mixed' | 'neutral';
     /** Optional mechanical logs, e.g. "Rolled 15 vs 12" or "Consumed 5 mana". */
     mechanicsLogs: string[];
-    /**
-     * Direct instructions for the LLM on how to narrate this specific outcome.
-     * @deprecated Prefer mustHappen / mustNotHappen / mayHappen for new rules.
-     */
-    narrationGuidance: string[];
     /** Things that MUST be narrated by the LLM. */
-    mustHappen?: string[];
+    mustHappen: string[];
     /** Things that MUST NOT be narrated by the LLM. */
-    mustNotHappen?: string[];
+    mustNotHappen: string[];
     /** Things that MAY optionally be narrated by the LLM. */
-    mayHappen?: string[];
+    mayHappen: string[];
     /** Override the action name reported to the prompt-mapper/LLM (defaults to ruleKey). */
     actionName?: string;
     /** Optional target reported to the prompt-mapper/LLM. */

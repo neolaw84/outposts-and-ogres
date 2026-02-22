@@ -1,9 +1,7 @@
 import { Character } from '../../character';
 import { GamePlayScript } from '../../systems/game-play-script';
 import { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
-import { mapBasicFantasyJanitorAI } from '../../prompt-mappers/basic-fantasy/janitorai';
 import { GameState } from '../../types';
-import { getDow, formatDate12Hr } from '../../utils/time-utils';
 
 class OutpostsAndOgres {
   private version: string;
@@ -21,7 +19,7 @@ class OutpostsAndOgres {
   }
 
   public createGamePlayScript(): GamePlayScript {
-    return new GamePlayScript(basicFantasyCartridge, mapBasicFantasyJanitorAI);
+    return new GamePlayScript(basicFantasyCartridge);
   }
 }
 
@@ -118,8 +116,6 @@ if (typeof context !== 'undefined') {
 
   // 2. PROCESS EFFECTS AND ACTION via Unified executeTurn Sequence
   const playerMsg = adapter.getPlayerMessage();
-  let actionPrompt: import('../../types').OutputPrompt | null = null;
-  let effectNarrationGuide = '';
 
   if (!dataCorrupted && playerMsg) {
     let preParsedAction: import('../../types').ParsedAction[] | null = null;
@@ -131,13 +127,12 @@ if (typeof context !== 'undefined') {
       }
     }
     const turnResult = script.executeTurn(playerMsg, rpState as GameState, narrationSummary, preParsedAction);
-    actionPrompt = turnResult.prompt;
     rpState = turnResult.newState;
-    effectNarrationGuide = turnResult.narrationGuide;
-  }
 
-  // 4. ENCODE & INJECT
-  if (dataCorrupted) {
+    // 4. ENCODE & INJECT
+    adapter.saveState(rpState as unknown as Record<string, unknown>);
+    adapter.applyGamePlayOutput(turnResult.gamePlayEvents, rpState, turnResult.conditionsToReportBack);
+  } else if (dataCorrupted) {
     // Handle data corruption
     const character = (context['character'] || {}) as Record<string, unknown>;
     character['personality'] = 'You are a fair game master that ALWAYS AND PROMPTLY INFORMS the player {{user}} when ' +
@@ -158,53 +153,7 @@ if (typeof context !== 'undefined') {
     character['scenario'] = corruptionInfo;
     context['character'] = character;
   } else {
-    // Save state
+    // No player message and no corruption – just save state
     adapter.saveState(rpState as unknown as Record<string, unknown>);
-
-    // Apply prompt with effect narration guide + action prompt
-    if (actionPrompt) {
-      adapter.applyPrompt(actionPrompt);
-    }
-
-    // Build and prepend the effect-driven narration guide
-    const character = (context['character'] || {}) as Record<string, unknown>;
-    const existingScenario = (character['scenario'] || '') as string;
-
-    let turnEndInstructions = '';
-    if (cartridge.turnEndTriggers && cartridge.turnEndTriggers.length > 0) {
-      turnEndInstructions = '\nIf any of the following events occur, you MUST narrate it briefly and then IMMEDIATELY END this turn (provide NARRATION_SUMMARY):\n';
-      for (let i = 0; i < cartridge.turnEndTriggers.length; i++) {
-        turnEndInstructions += '- ' + cartridge.turnEndTriggers[i] + '\n';
-      }
-      turnEndInstructions += 'Do not narrate past these events. Wait for the script to process them.\n';
-    }
-
-    // Build narration summary instructions from effect definitions
-    let effectInstructions = '';
-    for (let i = 0; i < cartridge.worldEventTrackers.length; i++) {
-      const def = cartridge.worldEventTrackers[i];
-      const jsonBlock: Record<string, unknown> = {};
-      const keys = Object.keys(def);
-      for (let j = 0; j < keys.length; j++) {
-        if (keys[j] !== 'condition') {
-          jsonBlock[keys[j]] = def[keys[j]];
-        }
-      }
-      effectInstructions += '\nIf ' + def.condition + ', include in "effects":\n' +
-        JSON.stringify(jsonBlock, null, 2) + '\n';
-    }
-
-    const narrationGuide = '\n\nThis is the narration guide for you to follow (for this response):\n\n' +
-      '[NARRATION_GUIDE]\n' +
-      '"In-Game Date/Time: ' + getDow(rpState.timestamp) + ' ' + formatDate12Hr(rpState.timestamp) + '."\n\n' +
-      effectNarrationGuide +
-      turnEndInstructions +
-      '[/NARRATION_GUIDE]\n\n' +
-      '**YOU MUST NEVER CONTRADICT OR CONFLICT WITH ANY PART OF THE NARRATION GUIDE.**\n\n' +
-      'However, feel free to be creative and add more details to the story as long as it doesn\'t conflict with the narration guide.\n\n' +
-      effectInstructions;
-
-    character['scenario'] = narrationGuide + existingScenario;
-    context['character'] = character;
   }
 }

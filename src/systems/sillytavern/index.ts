@@ -6,7 +6,7 @@
  * State can be persisted via the extension data mechanism.
  */
 
-import { SystemAdapter, OutputPrompt, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
+import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 
 class SillyTavernAdapter implements SystemAdapter {
@@ -28,11 +28,6 @@ class SillyTavernAdapter implements SystemAdapter {
       return lastMessage['mes'] || null;
     }
     return null;
-  }
-
-  applyPrompt(prompt: OutputPrompt): void {
-    // SillyTavern allows modifying the system prompt and character description
-    this.context['systemPrompt'] = prompt.channels.combined;
   }
 
   loadState(): Record<string, unknown> {

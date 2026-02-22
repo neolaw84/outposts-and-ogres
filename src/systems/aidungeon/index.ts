@@ -6,7 +6,7 @@
  * fields for influencing AI behaviour.
  */
 
-import { SystemAdapter, OutputPrompt, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
+import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 
 /** A single entry in the AI Dungeon action history. */
@@ -28,20 +28,6 @@ class AIDungeonAdapter implements SystemAdapter {
     // AI Dungeon provides the latest player input as `text`
     const text = this.context['text'] as string | undefined;
     return text || null;
-  }
-
-  applyPrompt(prompt: OutputPrompt): void {
-    // AI Dungeon supports segmented memory channels
-    const state = (this.context['state'] || {}) as Record<string, unknown>;
-    const memory = (state['memory'] || {}) as Record<string, unknown>;
-    memory['context'] = prompt.channels.campaignContinuity;
-    memory['authorsNote'] = prompt.channels.sceneGuidance;
-    memory['frontMemory'] = prompt.channels.immediateInstruction;
-    state['memory'] = memory;
-    this.context['state'] = state;
-
-    // Keep a single-field fallback for compatibility
-    this.context['memory'] = prompt.text;
   }
 
   loadState(): Record<string, unknown> {

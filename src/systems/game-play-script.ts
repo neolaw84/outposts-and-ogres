@@ -17,18 +17,14 @@ import {
   Message,
   ParsedAction,
   GameCartridge,
-  OutputPrompt,
-  TurnEvent,
   GamePlayEvent,
   GameState,
   RuleResolution,
-  ActionResolutionEvent,
   RuleContext,
   ActiveCondition,
   WorldEventTracker
 } from '../types';
 import { understandPlayerInput } from '../inputs/player-input-understanding';
-import { PromptMapper } from '../prompt-mappers';
 import { applySideEffect, revertSideEffect } from '../core/game-state';
 import { addDuration, getMidnightsPassed } from '../utils/time-utils';
 import { cleanInput, findEffectByKey } from '../utils/llm-utils';
@@ -36,15 +32,13 @@ import { cleanInput, findEffectByKey } from '../utils/llm-utils';
 class GamePlayScript {
   private cartridge: GameCartridge;
   private currentCondition: string;
-  private promptMapper: PromptMapper | null;
 
-  constructor(cartridge: GameCartridge, promptMapper?: PromptMapper) {
+  constructor(cartridge: GameCartridge) {
     this.cartridge = cartridge;
     // Default to the first stop condition
     this.currentCondition = cartridge.stopConditions.length > 0
       ? cartridge.stopConditions[0]
       : 'default';
-    this.promptMapper = promptMapper || null;
   }
 
   /** Get the currently loaded cartridge. */
@@ -121,9 +115,7 @@ class GamePlayScript {
     narrationSummary: Record<string, unknown>,
     preParsedActions?: ParsedAction[] | null
   ): {
-    prompt: OutputPrompt | null;
     newState: GameState;
-    narrationGuide: string;
     gamePlayEvents: GamePlayEvent[];
     conditionsToReportBack: WorldEventTracker[];
   } {
@@ -132,7 +124,6 @@ class GamePlayScript {
 
     // Phase 2 – Process (Unified Aspect Sequence)
     let newState = JSON.parse(JSON.stringify(currentState));
-    let finalNarrationGuide = '';
 
     // First: Handle Time Advance and Expired Effects (Always happens first)
     const typeChecks = cleanInput(narrationSummary);
@@ -149,9 +140,7 @@ class GamePlayScript {
     newState.timestamp = newCurrentTime;
     newState = revertSideEffect(newState);
 
-    const aspectEvents: TurnEvent[] = [];
     const gamePlayEvents: GamePlayEvent[] = [];
-    let worldEventFired = false;
 
     // Iterate through the cartridge-defined aspect sequence.
     // Every rule is called – even if there is no matching event – so that it
@@ -187,25 +176,8 @@ class GamePlayScript {
 
         if (result) {
           if (result.stateMutations && result.stateMutations.length > 0) {
-            worldEventFired = true;
             for (let j = 0; j < result.stateMutations.length; j++) {
               newState = applySideEffect(newState, result.stateMutations[j]);
-            }
-          }
-          if (result.outcome) {
-            if (result.outcome.status !== 'neutral') {
-              worldEventFired = true;
-            }
-            if (result.outcome.mechanicsLogs.length > 0 || result.outcome.narrationGuidance.length > 0) {
-              finalNarrationGuide += result.outcome.narrationGuidance.join('\n') + '\n';
-              aspectEvents.push({
-                type: 'action_resolution',
-                action: result.outcome.actionName || key,
-                target: result.outcome.actionTarget,
-                status: result.outcome.status,
-                mechanicsLogs: result.outcome.mechanicsLogs,
-                narrationGuidance: result.outcome.narrationGuidance
-              });
             }
           }
         }
@@ -215,27 +187,8 @@ class GamePlayScript {
     // Conditions to report back are the cartridge's worldEventTrackers.
     const conditionsToReportBack = this.cartridge.worldEventTrackers;
 
-    if (!parsedActions && !worldEventFired) {
-      return {
-        prompt: null,
-        newState: newState,
-        narrationGuide: finalNarrationGuide,
-        gamePlayEvents: gamePlayEvents,
-        conditionsToReportBack: conditionsToReportBack
-      };
-    }
-
-    // Phase 3 – Output (legacy prompt path, used when a promptMapper is set)
-    let prompt: OutputPrompt | null = null;
-    if (this.promptMapper) {
-      const events = this.buildTurnEvents(playerMessage, parsedActions, aspectEvents);
-      prompt = this.buildPrompt(events);
-    }
-
     return {
-      prompt: prompt,
       newState: newState,
-      narrationGuide: finalNarrationGuide,
       gamePlayEvents: gamePlayEvents,
       conditionsToReportBack: conditionsToReportBack
     };
@@ -247,11 +200,6 @@ class GamePlayScript {
 
   /**
    * Convert a RuleResolution into a standardised GamePlayEvent.
-   *
-   * - `narrationGuidance` is treated as `mustHappen` when the new fields
-   *   are not explicitly set by the rule.
-   * - If the rule provides `mustHappen` / `mustNotHappen` / `mayHappen`
-   *   directly, those take precedence.
    */
   private buildGamePlayEvent(ruleKey: string, result: RuleResolution | null): GamePlayEvent {
     if (!result || !result.outcome) {
@@ -267,96 +215,17 @@ class GamePlayScript {
     }
 
     const o = result.outcome;
-    const mustHappen = o.mustHappen || (o.narrationGuidance.length > 0 ? o.narrationGuidance.slice() : []);
-    const mustNotHappen = o.mustNotHappen || [];
-    const mayHappen = o.mayHappen || [];
 
     return {
       ruleKey: ruleKey,
       status: o.status,
       mechanicsLogs: o.mechanicsLogs.slice(),
-      mustHappen: mustHappen,
-      mustNotHappen: mustNotHappen,
-      mayHappen: mayHappen,
+      mustHappen: o.mustHappen.slice(),
+      mustNotHappen: o.mustNotHappen.slice(),
+      mayHappen: o.mayHappen.slice(),
       actionName: o.actionName,
       actionTarget: o.actionTarget,
       stateMutations: result.stateMutations ? result.stateMutations.slice() : []
-    };
-  }
-
-  // ----------------------------------------------------------------
-  // Phase 3 – OUTPUT (legacy prompt path)
-  // ----------------------------------------------------------------
-
-  /**
-   * Build the prompt that instructs the AI on how to narrate the outcome.
-   * The prompt covers:
-   *   (a) narrate the player's action
-   *   (b) whether the action succeeded/failed and how
-   *   (c) upcoming NPC actions
-   *   (d) what the player can do next turn
-   */
-  public buildTurnEvents(
-    playerMessage: string,
-    parsedActions: ParsedAction[] | null,
-    aspectEvents: TurnEvent[]
-  ): TurnEvent[] {
-    const actions = this.cartridge.availableActions[this.currentCondition] || [];
-
-    const understanding = this.cartridge.parseInput
-      ? this.cartridge.parseInput(playerMessage, actions, this.currentCondition)
-      : understandPlayerInput(
-        playerMessage,
-        actions,
-        this.cartridge.stopConditions
-      );
-
-    const availableActions = this.cartridge.availableActions[this.currentCondition] || [];
-    const eventsList: TurnEvent[] = [];
-
-    if (parsedActions && parsedActions.length > 0) {
-      eventsList.push({
-        type: 'player_input',
-        rawText: playerMessage,
-        condition: this.currentCondition,
-        parsedActions: parsedActions,
-        emotions: understanding.emotions,
-        scenarioUnderstanding: understanding.scenario
-      });
-    }
-
-    // Insert all the individual aspect events
-    for (let i = 0; i < aspectEvents.length; i++) {
-      eventsList.push(aspectEvents[i]);
-    }
-
-    eventsList.push({
-      type: 'available_choices',
-      condition: this.currentCondition,
-      choices: availableActions
-    });
-
-    return eventsList;
-  }
-
-  public buildPrompt(events: TurnEvent[]): OutputPrompt {
-    if (!this.promptMapper) {
-      return {
-        text: '',
-        channels: {
-          campaignContinuity: '',
-          sceneGuidance: '',
-          immediateInstruction: '',
-          combined: ''
-        },
-        events: events
-      };
-    }
-    const channels = this.promptMapper(events);
-    return {
-      text: channels.combined,
-      channels: channels,
-      events: events
     };
   }
 }

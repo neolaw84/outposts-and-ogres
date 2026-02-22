@@ -109,9 +109,9 @@ const basicFantasyCartridge: GameCartridge = {
         return {
           outcome: {
             status: 'neutral', mechanicsLogs: [],
-            narrationGuidance: ['If {{user}} finds a potion, describe its appearance (color, smell).'],
-            mayHappen: ['If {{user}} finds a potion, describe its appearance (color, smell).'],
-            mustNotHappen: ['Do not narrate {{user}} drinking a potion unless the player explicitly says so.']
+            mustHappen: [],
+            mustNotHappen: ['Do not narrate {{user}} drinking a potion unless the player explicitly says so.'],
+            mayHappen: ['If {{user}} finds a potion, describe its appearance (color, smell).']
           },
           stateMutations: []
         };
@@ -139,7 +139,7 @@ const basicFantasyCartridge: GameCartridge = {
       }
 
       const sideEffects: ActiveCondition[] = [];
-      let narrationGuide = '';
+      let mustHappenMsg = '';
 
       if (potionType === 'healing') {
         const healAmount = potency * 10;
@@ -156,9 +156,9 @@ const basicFantasyCartridge: GameCartridge = {
             temp: false,
             impacts: [{ stats: 'hp', op: 'add', val: actualHeal }]
           });
-          narrationGuide = '{{user}} feels a warm energy. Wounds close up. (Healed ' + actualHeal + ' HP).\n';
+          mustHappenMsg = '{{user}} feels a warm energy. Wounds close up. (Healed ' + actualHeal + ' HP).\n';
         } else {
-          narrationGuide = '{{user}} feels warm, but is already at full health.\n';
+          mustHappenMsg = '{{user}} feels warm, but is already at full health.\n';
         }
       } else if (potionType === 'strength') {
         const duration = 'PT10M';
@@ -170,7 +170,7 @@ const basicFantasyCartridge: GameCartridge = {
           expiry: expiryTime,
           impacts: [{ stats: 'strength', op: 'add', val: potency * 5 }]
         });
-        narrationGuide = '{{user}} feels a surge of power! Strength increased by ' + (potency * 5) + ' for 10 minutes.\n';
+        mustHappenMsg = '{{user}} feels a surge of power! Strength increased by ' + (potency * 5) + ' for 10 minutes.\n';
       } else if (potionType === 'poison') {
         const duration = 'PT1H';
         const expiryTime = addDuration(whenTime, duration);
@@ -181,12 +181,12 @@ const basicFantasyCartridge: GameCartridge = {
           expiry: expiryTime,
           impacts: [{ stats: 'poisoned', op: 'set', val: 1 }]
         });
-        narrationGuide = '{{user}} feels sick. You are Poisoned for 1 hour.\n';
+        mustHappenMsg = '{{user}} feels sick. You are Poisoned for 1 hour.\n';
       }
 
       return {
         stateMutations: sideEffects,
-        outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: [narrationGuide] }
+        outcome: { status: 'neutral', mechanicsLogs: [], mustHappen: [mustHappenMsg], mustNotHappen: [], mayHappen: [] }
       };
     },
 
@@ -195,9 +195,9 @@ const basicFantasyCartridge: GameCartridge = {
         return {
           outcome: {
             status: 'neutral', mechanicsLogs: [],
-            narrationGuidance: ["If combat starts, describe the enemy and the environment. Wait for {{user}}'s action."],
-            mayHappen: ["If combat starts, describe the enemy and the environment. Wait for {{user}}'s action."],
-            mustNotHappen: ['Do not resolve combat damage or combat outcomes without a corresponding combat event.']
+            mustHappen: [],
+            mustNotHappen: ['Do not resolve combat damage or combat outcomes without a corresponding combat event.'],
+            mayHappen: ["If combat starts, describe the enemy and the environment. Wait for {{user}}'s action."]
           },
           stateMutations: []
         };
@@ -220,7 +220,7 @@ const basicFantasyCartridge: GameCartridge = {
       }
 
       const sideEffects: ActiveCondition[] = [];
-      let narrationGuide = '';
+      let mustHappenMsg = '';
 
       if (eventType === 'enemy_attack') {
         const isCritical = !!(typeCheck && typeCheck['flags'] &&
@@ -240,7 +240,7 @@ const basicFantasyCartridge: GameCartridge = {
           impacts: [{ stats: 'hp', op: 'sub', val: actualDamage }]
         });
 
-        narrationGuide = '{{user}} takes ' + actualDamage + ' damage! (Defense reduced it from ' + damage + ').\n';
+        mustHappenMsg = '{{user}} takes ' + actualDamage + ' damage! (Defense reduced it from ' + damage + ').\n';
 
         if (isCritical && actualDamage > 10) {
           // 50% chance of permanent scar
@@ -250,7 +250,7 @@ const basicFantasyCartridge: GameCartridge = {
               temp: false,
               impacts: [{ stats: 'scars', op: 'add', val: 1 }]
             });
-            narrationGuide += 'The attack leaves a nasty, permanent scar.\n';
+            mustHappenMsg += 'The attack leaves a nasty, permanent scar.\n';
           }
         }
 
@@ -263,9 +263,9 @@ const basicFantasyCartridge: GameCartridge = {
             expiry: stunnedExpiry,
             impacts: [{ stats: 'stunned', op: 'set', val: 1 }]
           });
-          narrationGuide += '{{user}} is STUNNED and cannot act next turn!\n' + END_THIS_TURN;
+          mustHappenMsg += '{{user}} is STUNNED and cannot act next turn!\n' + END_THIS_TURN;
         } else {
-          narrationGuide += 'Describe the hit impact.\n';
+          mustHappenMsg += 'Describe the hit impact.\n';
         }
       } else if (eventType === 'combat_end') {
         let gold = 0;
@@ -285,12 +285,12 @@ const basicFantasyCartridge: GameCartridge = {
             { stats: 'xp', op: 'add', val: xp }
           ]
         });
-        narrationGuide = 'Combat Over! Gained ' + gold + ' gold and ' + xp + ' XP.\n';
+        mustHappenMsg = 'Combat Over! Gained ' + gold + ' gold and ' + xp + ' XP.\n';
       }
 
       return {
         stateMutations: sideEffects,
-        outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: [narrationGuide] }
+        outcome: { status: 'neutral', mechanicsLogs: [], mustHappen: [mustHappenMsg], mustNotHappen: [], mayHappen: [] }
       };
     },
 
@@ -299,8 +299,9 @@ const basicFantasyCartridge: GameCartridge = {
         return {
           outcome: {
             status: 'neutral', mechanicsLogs: [],
-            narrationGuidance: [],
-            mustNotHappen: ['Do not narrate {{user}} traveling to a new location unless the player explicitly says so.']
+            mustHappen: [],
+            mustNotHappen: ['Do not narrate {{user}} traveling to a new location unless the player explicitly says so.'],
+            mayHappen: []
           },
           stateMutations: []
         };
@@ -339,7 +340,7 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         stateMutations: sideEffects,
-        outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: ['Arrived at destination at ' + formatDate(new Date(arrivalTime)) + '.\n' + END_THIS_TURN] }
+        outcome: { status: 'neutral', mechanicsLogs: [], mustHappen: ['Arrived at destination at ' + formatDate(new Date(arrivalTime)) + '.\n' + END_THIS_TURN], mustNotHappen: [], mayHappen: [] }
       };
     },
 
@@ -348,8 +349,9 @@ const basicFantasyCartridge: GameCartridge = {
         return {
           outcome: {
             status: 'neutral', mechanicsLogs: [],
-            narrationGuidance: [],
-            mustNotHappen: ['Do not narrate {{user}} resting unless the player explicitly says so.']
+            mustHappen: [],
+            mustNotHappen: ['Do not narrate {{user}} resting unless the player explicitly says so.'],
+            mayHappen: []
           },
           stateMutations: []
         };
@@ -391,7 +393,7 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         stateMutations: sideEffects,
-        outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: ['Awoke from rest at ' + formatDate(new Date(wakeTime)) + '. HP is now ' + (hp + (restType === 'short' ? Math.floor(maxHP * 0.25) : maxHP)) + '.\n' + END_THIS_TURN] }
+        outcome: { status: 'neutral', mechanicsLogs: [], mustHappen: ['Awoke from rest at ' + formatDate(new Date(wakeTime)) + '. HP is now ' + (hp + (restType === 'short' ? Math.floor(maxHP * 0.25) : maxHP)) + '.\n' + END_THIS_TURN], mustNotHappen: [], mayHappen: [] }
       };
     },
   }
@@ -423,8 +425,9 @@ logicMap.forEach(match => {
       return {
         outcome: {
           status: 'neutral', mechanicsLogs: [],
-          narrationGuidance: [],
-          mustNotHappen: ['Do not narrate {{user}} performing ' + match.action + ' unless the player explicitly says so.']
+          mustHappen: [],
+          mustNotHappen: ['Do not narrate {{user}} performing ' + match.action + ' unless the player explicitly says so.'],
+          mayHappen: []
         },
         stateMutations: []
       };
@@ -437,7 +440,9 @@ logicMap.forEach(match => {
           actionTarget: parentIntent.target,
           status: 'neutral',
           mechanicsLogs: [`Action '${parentIntent.action}' is not optimal in condition '${context.currentCondition}'.`],
-          narrationGuidance: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`]
+          mustHappen: [`The player attempts to ${parentIntent.action}${parentIntent.target ? ' ' + parentIntent.target : ''}.`],
+          mustNotHappen: [],
+          mayHappen: []
         },
         stateMutations: []
       };
@@ -465,7 +470,9 @@ logicMap.forEach(match => {
         mechanicsLogs: [
           `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty ${match.diff}.`
         ],
-        narrationGuidance: [isSuccess ? match.success : match.failure]
+        mustHappen: [isSuccess ? match.success : match.failure],
+        mustNotHappen: [],
+        mayHappen: []
       },
       stateMutations: []
     };
