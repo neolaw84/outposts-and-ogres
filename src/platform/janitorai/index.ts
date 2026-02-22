@@ -33,7 +33,7 @@
  *   to scenario so the LLM produces a plain-JSON summary block.
  */
 
-import { Platform, NarrationSummary, NarrationDirective, State, Signal } from '../../types';
+import { Platform, NarrationSummary, NarrationDirective, State, Signal, SignalDetector } from '../../types';
 import { decodeState, buildRpStateBlock, extractNarrationSummary } from '../../utils/llm-utils';
 import { formatDirectiveLines } from '../helpers';
 
@@ -166,7 +166,7 @@ class JanitorAIAdapter implements Platform {
     };
   }
 
-  deducePlayerIntent(rawMessage: string, detectors: import('../../types').SignalDetector[]): import('../../types').Signal[] | null {
+  deducePlayerIntent(rawMessage: string, detectors: SignalDetector[]): Signal[] | null {
     return null; // To be implemented later
   }
 

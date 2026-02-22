@@ -6,7 +6,7 @@
  * State can be persisted via the extension data mechanism.
  */
 
-import { Platform, NarrationSummary, NarrationDirective, State, Signal } from '../../types';
+import { Platform, NarrationSummary, NarrationDirective, State, Signal, SignalDetector } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 import { formatDirectiveLines } from '../helpers';
 
@@ -77,7 +77,7 @@ class SillyTavernAdapter implements Platform {
     return null;
   }
 
-  deducePlayerIntent(rawMessage: string, detectors: import('../../types').SignalDetector[]): import('../../types').Signal[] | null {
+  deducePlayerIntent(rawMessage: string, detectors: SignalDetector[]): Signal[] | null {
     return null; // To be implemented later via SillyTavern hidden prompt injection
   }
 

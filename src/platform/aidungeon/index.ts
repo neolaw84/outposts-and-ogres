@@ -6,7 +6,7 @@
  * fields for influencing AI behaviour.
  */
 
-import { Platform, NarrationSummary, NarrationDirective, State, Signal } from '../../types';
+import { Platform, NarrationSummary, NarrationDirective, State, Signal, SignalDetector } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 import { collectDirectiveArrays } from '../helpers';
 
@@ -78,7 +78,7 @@ class AIDungeonAdapter implements Platform {
     return null;
   }
 
-  deducePlayerIntent(rawMessage: string, detectors: import('../../types').SignalDetector[]): import('../../types').Signal[] | null {
+  deducePlayerIntent(rawMessage: string, detectors: SignalDetector[]): Signal[] | null {
     return null; // To be implemented later
   }
 
