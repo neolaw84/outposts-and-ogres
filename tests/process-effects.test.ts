@@ -1,10 +1,10 @@
-import { GamePlayScript } from '../src/systems/game-play-script';
+import { GameEngine } from '../src/engine';
 import { basicFantasyCartridge } from '../src/cartridges/basic-fantasy';
 import { State, NarrationDirective } from '../src/types';
 import { applySideEffect } from '../src/core/game-state';
 
-function createScript(): GamePlayScript {
-  return new GamePlayScript(basicFantasyCartridge);
+function createScript(): GameEngine {
+  return new GameEngine(basicFantasyCartridge);
 }
 
 function makeSheet(overrides?: Partial<State>): State {
@@ -36,7 +36,7 @@ describe('processEffects integration', () => {
     const result = script.executeTurn('', sheet, narrationSummary);
 
     expect(result.newState.stats['hp']).toBe(80); // 50 + 30 (3 * 10)
-    const potionEvent = result.gamePlayEvents.find((e: NarrationDirective) => e.ruleKey === 'drink_potion');
+    const potionEvent = result.directives.find((e: NarrationDirective) => e.ruleKey === 'drink_potion');
     expect(potionEvent).toBeDefined();
     expect(potionEvent!.mustHappen.join(' ')).toContain('Healed 30 HP');
   });
@@ -99,7 +99,7 @@ describe('processEffects integration', () => {
     const result = script.executeTurn('', sheet, narrationSummary);
 
     expect(result.newState.stats['hp']).toBe(85); // 100 - (20 - 5 defense) = 85
-    const combatEvent = result.gamePlayEvents.find((e: NarrationDirective) => e.ruleKey === 'combat_event');
+    const combatEvent = result.directives.find((e: NarrationDirective) => e.ruleKey === 'combat_event');
     expect(combatEvent).toBeDefined();
     expect(combatEvent!.mustHappen.join(' ')).toContain('15 damage');
   });
@@ -141,9 +141,9 @@ describe('processEffects integration', () => {
     const result = script.executeTurn('', sheet, narrationSummary);
 
     expect(result.newState.stats['hp']).toBe(100); // unchanged
-    // All rules should produce gamePlayEvents
-    expect(result.gamePlayEvents.length).toBeGreaterThan(0);
-    const hasEntries = result.gamePlayEvents.some((e: NarrationDirective) => e.mustNotHappen.length > 0);
+    // All rules should produce directives
+    expect(result.directives.length).toBeGreaterThan(0);
+    const hasEntries = result.directives.some((e: NarrationDirective) => e.mustNotHappen.length > 0);
     expect(hasEntries).toBe(true);
   });
 

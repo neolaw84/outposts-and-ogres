@@ -1,12 +1,12 @@
-import { GamePlayScript } from '../src/systems/game-play-script';
+import { GameEngine } from '../src/engine';
 import { basicFantasyCartridge } from '../src/cartridges/basic-fantasy';
 import { Cartridge, NarrationDirective } from '../src/types';
 
-function createScript(): GamePlayScript {
-  return new GamePlayScript(basicFantasyCartridge);
+function createScript(): GameEngine {
+  return new GameEngine(basicFantasyCartridge);
 }
 
-describe('GamePlayScript', () => {
+describe('GameEngine', () => {
   test('should initialise with the default cartridge', () => {
     const script = createScript();
     expect(script.getCartridge()).toBe(basicFantasyCartridge);
@@ -39,36 +39,36 @@ describe('GamePlayScript', () => {
     expect(script.getCondition()).toBe('puzzle');
   });
 
-  test('extractIntents should find a bracketed action in combat', () => {
+  test('detectSignals should find a bracketed action in combat', () => {
     const script = createScript();
-    const intents = script.extractIntents('<attack goblin>');
+    const intents = script.detectSignals('<attack goblin>');
     expect(intents.length).toBeGreaterThan(0);
     expect(intents[0].key).toBe('attack');
     expect(intents[0].what).toBe('goblin');
   });
 
-  test('extractIntents should return empty array for input with no matching keywords', () => {
+  test('detectSignals should return empty array for input with no matching keywords', () => {
     const script = createScript();
-    const intents = script.extractIntents('I ponder silently');
+    const intents = script.detectSignals('I ponder silently');
     expect(intents.length).toBe(0);
   });
 
 
   test('executeTurn should run full 3-phase loop', () => {
-    const script = new GamePlayScript(basicFantasyCartridge);
+    const script = new GameEngine(basicFantasyCartridge);
     const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultState));
     const output = script.executeTurn('<attack goblin>', mockState, {});
-    const attackEvent = output.gamePlayEvents.find((e: NarrationDirective) => e.ruleKey === 'attack');
+    const attackEvent = output.directives.find((e: NarrationDirective) => e.ruleKey === 'attack');
     expect(attackEvent).toBeDefined();
     expect(attackEvent!.mustHappen.length).toBeGreaterThan(0);
   });
 
-  test('executeTurn should return gamePlayEvents with no mustHappen for fully unrecognised input', () => {
+  test('executeTurn should return directives with no mustHappen for fully unrecognised input', () => {
     const script = createScript();
     const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultState));
     const output = script.executeTurn('I ponder silently', mockState, {});
-    expect(output.gamePlayEvents.length).toBeGreaterThan(0);
-    const withMustHappen = output.gamePlayEvents.filter((e: NarrationDirective) => e.mustHappen.length > 0);
+    expect(output.directives.length).toBeGreaterThan(0);
+    const withMustHappen = output.directives.filter((e: NarrationDirective) => e.mustHappen.length > 0);
     expect(withMustHappen.length).toBe(0);
   });
 
@@ -77,7 +77,7 @@ describe('GamePlayScript', () => {
     script.setCondition('exploration');
     const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultState));
     const output = script.executeTurn('<search>', mockState, {});
-    const searchEvent = output.gamePlayEvents.find((e: NarrationDirective) => e.ruleKey === 'search');
+    const searchEvent = output.directives.find((e: NarrationDirective) => e.ruleKey === 'search');
     expect(searchEvent).toBeDefined();
   });
 
@@ -86,7 +86,7 @@ describe('GamePlayScript', () => {
     script.setCondition('social');
     const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultState));
     const output = script.executeTurn('<persuade merchant>', mockState, {});
-    const persuadeEvent = output.gamePlayEvents.find((e: NarrationDirective) => e.ruleKey === 'persuade');
+    const persuadeEvent = output.directives.find((e: NarrationDirective) => e.ruleKey === 'persuade');
     expect(persuadeEvent).toBeDefined();
   });
 
@@ -137,13 +137,13 @@ describe('GamePlayScript', () => {
       ruleOrder: ['use_item']
     };
 
-    const script = new GamePlayScript(customCartridge);
+    const script = new GameEngine(customCartridge);
     const mockState = JSON.parse(JSON.stringify(customCartridge.defaultState));
     const output = script.executeTurn('<use_item potion>', mockState, {});
 
     expect(output.newState.stats.hp).toBe(15);
 
-    const hasGuide = output.gamePlayEvents.some((e: NarrationDirective) => e.mustHappen.join(' ').includes('drained 5 HP.'));
+    const hasGuide = output.directives.some((e: NarrationDirective) => e.mustHappen.join(' ').includes('drained 5 HP.'));
     expect(hasGuide).toBe(true);
   });
 });

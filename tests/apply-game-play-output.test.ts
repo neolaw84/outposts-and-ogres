@@ -1,6 +1,6 @@
-import { JanitorAIAdapter } from '../src/systems/janitorai/index';
-import { SillyTavernAdapter } from '../src/systems/sillytavern/index';
-import { AIDungeonAdapter } from '../src/systems/aidungeon/index';
+import { JanitorAIAdapter } from '../src/platform/janitorai/index';
+import { SillyTavernAdapter } from '../src/platform/sillytavern/index';
+import { AIDungeonAdapter } from '../src/platform/aidungeon/index';
 import { NarrationDirective, State } from '../src/types';
 
 function makeSampleEvents(): NarrationDirective[] {

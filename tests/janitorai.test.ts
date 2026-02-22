@@ -1,4 +1,4 @@
-import { JanitorAIAdapter } from '../src/systems/janitorai/index';
+import { JanitorAIAdapter } from '../src/platform/janitorai/index';
 import { encodeState, buildRpStateBlock } from '../src/utils/llm-utils';
 
 describe('JanitorAIAdapter', function () {

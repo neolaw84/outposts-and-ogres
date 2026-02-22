@@ -1,4 +1,4 @@
-import { SillyTavernAdapter } from '../src/systems/sillytavern/index';
+import { SillyTavernAdapter } from '../src/platform/sillytavern/index';
 
 describe('SillyTavernAdapter', () => {
   test('should have correct name', () => {

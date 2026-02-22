@@ -1,4 +1,4 @@
-import { AIDungeonAdapter } from '../src/systems/aidungeon/index';
+import { AIDungeonAdapter } from '../src/platform/aidungeon/index';
 
 describe('AIDungeonAdapter', () => {
   test('should have correct name', () => {
