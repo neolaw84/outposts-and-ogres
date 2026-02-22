@@ -68,7 +68,7 @@ function parsePlayerInput(
         const regexMatch = pattern.exec(message);
         if (regexMatch) {
           const record: EffectRecord = { key: matcher.key };
-          // If there's a capture group, use it as `what`
+          // Use first capture group as `what` if present (e.g. /cast\s+(\w+)/i → "fireball")
           if (regexMatch[1]) {
             record.what = regexMatch[1].trim();
           }
