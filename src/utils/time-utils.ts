@@ -1,14 +1,4 @@
-/**
- * Time and duration utilities for the RPG system.
- *
- * Handles ISO 8601 duration parsing, date arithmetic,
- * midnight counting, and date formatting.
- */
-
-/**
- * Parse an ISO 8601 duration string into milliseconds.
- * Supports P[n]Y[n]M[n]W[n]DT[n]H[n]M[n]S format.
- */
+/** Parse an ISO 8601 duration string into milliseconds. */
 function parseDuration(durationStr: string): number {
   const regex = /P(?:([0-9]+)Y)?(?:([0-9]+)M)?(?:([0-9]+)W)?(?:([0-9]+)D)?(?:T(?:([0-9]+)H)?(?:([0-9]+)M)?(?:([0-9]+)S)?)?/;
   const matches = durationStr.match(regex);
@@ -35,11 +25,7 @@ function parseDuration(durationStr: string): number {
   return ms;
 }
 
-/**
- * Add an ISO 8601 duration (string or ms) to a date string.
- * Uses strict arithmetic to avoid JavaScript Date timezone shifting bugs on old dates.
- * Returns a date string in "yyyy-MM-ddTHH:mm:ss" format.
- */
+/** Add an ISO 8601 duration to a date string. Uses strict arithmetic to avoid JS Date timezone bugs. */
 function addDuration(dateStr: string, duration: string | number): string {
   let msToAdd: number;
   if (typeof duration === 'string') {
@@ -48,7 +34,6 @@ function addDuration(dateStr: string, duration: string | number): string {
     msToAdd = duration;
   }
 
-  // Parse YYYY-MM-DDTHH:mm:ss manually
   const parts = dateStr.split('T');
   if (parts.length !== 2) return dateStr;
 
@@ -64,9 +49,9 @@ function addDuration(dateStr: string, duration: string | number): string {
   let min = parseInt(timeParts[1], 10);
   let s = parseInt(timeParts[2], 10);
 
-  // UTC Date constructor avoids local time zone shifts across centuries
+  // UTC avoids local time zone shifts across centuries
   const date = new Date(Date.UTC(y, m, d, h, min, s));
-  // JavaScript has a quirk where year 0-99 is mapped to 1900-1999
+  // JS maps year 0-99 to 1900-1999
   if (y < 100) {
     date.setUTCFullYear(y);
   }
@@ -86,16 +71,10 @@ function addDuration(dateStr: string, duration: string | number): string {
   return `${padYear(y)}-${pad(m)}-${pad(d)}T${pad(h)}:${pad(min)}:${pad(s)}`;
 }
 
-/**
- * Check if a date is in the past relative to a reference date.
- */
 function isPast(dateStr: string, referenceDateStr: string): boolean {
   return dateStr < referenceDateStr; // ISO strings sort naturally
 }
 
-/**
- * Validate a "yyyy-MM-ddTHH:mm:ss" date string.
- */
 function isValidDateStr(dateStr: string): boolean {
   const regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
   if (!regex.test(dateStr)) return false;
@@ -103,18 +82,12 @@ function isValidDateStr(dateStr: string): boolean {
   return !isNaN(date.getTime());
 }
 
-/**
- * Validate an ISO 8601 duration string.
- */
 function isValidDurationStr(durationStr: string): boolean {
   const regex = /^P(?:\d+Y)?(?:\d+M)?(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?$/;
   if (!regex.test(durationStr)) return false;
   return durationStr.length > 1 && durationStr !== 'PT';
 }
 
-/**
- * Format a Date object to "yyyy-MM-ddTHH:mm:ss".
- */
 function formatDate(date: Date): string {
   const pad = function (num: number): string { return (num < 10 ? '0' : '') + num; };
   return date.getFullYear() +
@@ -125,9 +98,6 @@ function formatDate(date: Date): string {
     ':' + pad(date.getSeconds());
 }
 
-/**
- * Format a date or date string to 12-hour format "yyyy-MM-ddThh:mm:ss AM/PM".
- */
 function formatDate12Hr(date: Date | string): string {
   const pad = function (num: number): string { return (num < 10 ? '0' : '') + num; };
   const d = (typeof date === 'string') ? new Date(date) : date;
@@ -144,18 +114,12 @@ function formatDate12Hr(date: Date | string): string {
     ' ' + ampm;
 }
 
-/**
- * Get day of week string from a date or date string.
- */
 function getDow(date: Date | string): string {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const d = (typeof date === 'string') ? new Date(date) : date;
   return days[d.getDay()];
 }
 
-/**
- * Clamp a timestamp between optional min and max bounds.
- */
 function clampTime(minTime: string | null, maxTime: string | null, inputTime: string): string {
   if (maxTime !== null && inputTime > maxTime) {
     return maxTime;
@@ -166,9 +130,6 @@ function clampTime(minTime: string | null, maxTime: string | null, inputTime: st
   return inputTime;
 }
 
-/**
- * Count the number of midnights that have passed between two timestamps.
- */
 function getMidnightsPassed(oldTime: string, newTime: string): number {
   const oldMs = Date.parse(oldTime + 'Z');
   const newMs = Date.parse(newTime + 'Z');

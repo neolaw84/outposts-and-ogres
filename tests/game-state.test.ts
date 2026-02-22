@@ -1,7 +1,7 @@
 import { applySideEffect, revertSideEffect } from '../src/core/game-state';
-import { GameState, ActiveCondition } from '../src/types';
+import { State, SideEffect } from '../src/types';
 
-function makeSheet(overrides?: Partial<GameState>): GameState {
+function makeSheet(overrides?: Partial<State>): State {
   return {
     timestamp: '1000-01-01T08:00:00',
     stats: {
@@ -25,7 +25,7 @@ describe('CharacterSheetUtils', () => {
   describe('applySideEffect', () => {
     test('should apply permanent add effect', () => {
       const sheet = makeSheet();
-      const effect: ActiveCondition = {
+      const effect: SideEffect = {
         what: 'healed',
         temp: false,
         impacts: [{ stats: 'hp', op: 'add', val: 20 }]
@@ -38,7 +38,7 @@ describe('CharacterSheetUtils', () => {
 
     test('should apply permanent sub effect', () => {
       const sheet = makeSheet();
-      const effect: ActiveCondition = {
+      const effect: SideEffect = {
         what: 'took damage',
         temp: false,
         impacts: [{ stats: 'hp', op: 'sub', val: 30 }]
@@ -50,7 +50,7 @@ describe('CharacterSheetUtils', () => {
 
     test('should apply permanent set effect', () => {
       const sheet = makeSheet();
-      const effect: ActiveCondition = {
+      const effect: SideEffect = {
         what: 'full heal',
         temp: false,
         impacts: [{ stats: 'hp', op: 'set', val: 100 }]
@@ -62,7 +62,7 @@ describe('CharacterSheetUtils', () => {
 
     test('should apply temporary effect with expiry and store in activeConditions[]', () => {
       const sheet = makeSheet();
-      const effect: ActiveCondition = {
+      const effect: SideEffect = {
         what: 'strength potion',
         temp: true,
         expiry: '1000-01-01T08:10:00',
@@ -79,7 +79,7 @@ describe('CharacterSheetUtils', () => {
 
     test('should apply array of side effects', () => {
       const sheet = makeSheet();
-      const effects: ActiveCondition[] = [
+      const effects: SideEffect[] = [
         {
           what: 'damage',
           temp: false,

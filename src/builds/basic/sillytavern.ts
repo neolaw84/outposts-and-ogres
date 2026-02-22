@@ -1,7 +1,6 @@
 import { Character } from '../../character';
-import { GamePlayScript } from '../../systems/game-play-script';
+import { GameEngine } from '../../engine';
 import { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
-import { mapBasicFantasySillyTavern } from '../../prompt-mappers/basic-fantasy/sillytavern';
 
 class OutpostsAndOgres {
   private version: string;
@@ -18,8 +17,8 @@ class OutpostsAndOgres {
     return new Character(name, maxHealth);
   }
 
-  public createGamePlayScript(): GamePlayScript {
-    return new GamePlayScript(basicFantasyCartridge, mapBasicFantasySillyTavern);
+  public createGameEngine(): GameEngine {
+    return new GameEngine(basicFantasyCartridge);
   }
 }
 
@@ -27,22 +26,21 @@ const rpgSystem = new OutpostsAndOgres();
 
 export default rpgSystem;
 export { Character };
-export { GamePlayScript } from '../../systems/game-play-script';
+export { GameEngine } from '../../engine';
 export { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 export {
-  Message,
-  ParsedAction,
-  GameCartridge,
-  OutputPrompt,
-  SystemAdapter,
-  GameState,
-  ActiveCondition,
-  StatModifier,
-  WorldEventTracker,
-  GameRule,
-  RuleResolution
+  Cartridge,
+  Platform,
+  State,
+  SideEffect,
+  StatImpact,
+  SignalSchema,
+  Rule,
+  RuleOutcome,
+  NarrationDirective,
+  Signal,
+  SignalDetector
 } from '../../types';
 export { rollDie, rollDice, sumRolls } from '../../utils/dice';
-export { parseActionInput } from '../../inputs/action-parser';
-export { parsePlayerInput } from '../../utils/input-parser';
-export { SillyTavernAdapter } from '../../systems/sillytavern/index';
+export { detectSignals } from '../../signals/detect';
+export { SillyTavernAdapter } from '../../platform/sillytavern/index';

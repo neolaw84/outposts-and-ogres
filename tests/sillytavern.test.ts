@@ -1,5 +1,4 @@
-import { SillyTavernAdapter } from '../src/systems/sillytavern/index';
-import { OutputPrompt } from '../src/types';
+import { SillyTavernAdapter } from '../src/platform/sillytavern/index';
 
 describe('SillyTavernAdapter', () => {
   test('should have correct name', () => {
@@ -21,23 +20,6 @@ describe('SillyTavernAdapter', () => {
   test('should return null when chat is empty', () => {
     const adapter = new SillyTavernAdapter({ chat: [] });
     expect(adapter.getPlayerMessage()).toBeNull();
-  });
-
-  test('should apply prompt to systemPrompt', () => {
-    const context: Record<string, unknown> = {};
-    const adapter = new SillyTavernAdapter(context);
-    const prompt: OutputPrompt = {
-      text: 'Narrate the attack.',
-      channels: {
-        campaignContinuity: 'Long horizon',
-        sceneGuidance: 'Mid term',
-        immediateInstruction: 'Short term',
-        combined: 'Combined prompt text'
-      },
-      events: []
-    };
-    adapter.applyPrompt(prompt);
-    expect(context['systemPrompt']).toBe('Combined prompt text');
   });
 
   test('should load empty state when none exists', () => {
@@ -108,7 +90,7 @@ describe('SillyTavernAdapter', () => {
     expect(adapter.getScenarioUpdate()).toEqual({ ...update, effects: [] });
   });
 
-  test('should use defaults for missing WorldSimulationUpdate fields', () => {
+  test('should use defaults for missing NarrationSummary fields', () => {
     const context = {
       chat: [
         { is_user: 'false', mes: 'Narration [NARRATION_SUMMARY]{}[/NARRATION_SUMMARY]' }

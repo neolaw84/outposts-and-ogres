@@ -2,36 +2,46 @@
 
 Welcome to the Outposts and Ogres Game Engine! This document is the definitive guide for engineers and designers building **Game Cartridges**—the domain-specific modules that define the mechanics, actions, and narrative extraction rules for an individual game setting.
 
-By the end of this guide, you will understand the engine's event-driven architecture, the semantics and syntax of every Cartridge interface, and why developing Prompt-Mappers is an essential part of the cartridge lifecycle.
+By the end of this guide, you will understand the engine's event-driven architecture, the semantics and syntax of every Cartridge interface, and how the standardized `NarrationDirective` output drives LLM narration across any platform.
 
 ---
 
 ## 1. Engine Architecture & The Gameplay Loop
 
-The engine strictly separates programmatic rule evaluation from Large Language Model (LLM) text generation. It operates on a deterministic, three-phase gameplay loop (`src/systems/game-play-script.ts`):
+The engine strictly separates programmatic rule evaluation from Large Language Model (LLM) text generation. It operates on a deterministic gameplay loop (`src/engine.ts`):
 
-1. **Phase 1 – Input (Intent Extraction)**  
+1. **Load Save State**
+   The engine loads the persisted `State` via the System Adapter.
+
+2. **Load World Input & Revert Expired Effects**
+   The engine reads the `NarrationSummary` (structured JSON from the previous LLM response), works out the in-game timestamp, and reverts any `StoredSideEffect`s that have expired.
+
+3. **Extract Player Intent**
    The engine intercepts the player's raw free-text message. Using the cartridge's custom `parseInput` hook (Inversion of Control), the unstructured text is translated into a `PlayerInputUnderstanding` object (containing parsed actions, emotional signals, and scenario suggestions).
 
-2. **Phase 2 – Process (Unified Rule Resolution)**  
-   The engine evaluates a unified timeline of events according to the sequence defined in `ruleSequence`. It integrates **World Simulation Updates** (structured JSON extracted from the previous LLM response) alongside the player's intent. As it iterates over the sequence, the engine invokes the corresponding `GameRule` closures, which calculate mechanics, mutate the `GameState` (applying `StatusEffect`s), and produce `RuleResolution`s.
+4. **Rule Sequence – Call Every Rule, Accumulate `NarrationDirective`s**
+   The engine iterates through the cartridge's `ruleOrder` and calls **every** `Rule`, even when there is no matching player action or world event. Each rule returns a `RuleOutcome`, which is converted into exactly one `NarrationDirective`. After each rule, its `stateMutations` (side effects) are applied to the state.
 
-3. **Phase 3 – Output (Prompt Generation)**  
-   The outcomes from Phase 2 are aggregated into an array of `TurnEvent` objects. These events are handed off to the **Prompt Mapper**, which marshals the programmatic results into natural language `PromptInstructions` that guide the LLM's next narrative generation.
+   > **Why call every rule?** Rules that don't match an action still emit `mustNotHappen` entries (e.g., *"Do not narrate the player drinking a potion"*), which prevent the LLM from hallucinating events that did not mechanically occur.
+
+5. **Output – Generate Effect Instructions & Pass to the System Adapter**
+   The engine calls `renderSchemaInstruction()` on each of the cartridge's `signalSchemas` to produce a formatted instruction string. The accumulated `NarrationDirective[]` plus this `schemaInstructions` string are handed to the System Adapter's `applyGamePlayOutput()` method, which converts them into whatever mutations the underlying platform requires (prompt fields, memory slots, system-prompt injections, etc.).
+
+Because the output is a standardized array of `NarrationDirective` objects, **Prompt Mappers are no longer required**. The System Adapter handles the platform-specific conversion directly.
 
 ---
 
 ## 2. Defining Cartridge Elements: Semantics & Syntax
 
-When developing a Cartridge, you implement the `GameCartridge` TypeScript interface. Each property has a specific semantic purpose in guiding the engine.
+When developing a Cartridge, you implement the `Cartridge` TypeScript interface. Each property has a specific semantic purpose in guiding the engine.
 
 ### 2.1 Basic Metadata & Flow Control
-- **Semantic Purpose**: Identifies your cartridge and defines the boundaries of the LLM's autonomy. `stopConditions` dictate when the AI should stop narrating and yield control back to the player, while `availableActions` defines what the player is mechanically allowed to do in those conditions.
+- **Semantic Purpose**: Identifies your cartridge and defines the boundaries of the LLM's autonomy. `breakpoints` dictate when the AI should stop narrating and yield control back to the player, while `availableActions` defines what the player is mechanically allowed to do in those conditions.
 - **Syntax**:
   ```typescript
   name: "Basic Fantasy RPG",
   version: "1.0.0",
-  stopConditions: ["combat", "exploration", "dialogue"],
+  breakpoints: ["combat", "exploration", "dialogue"],
   availableActions: {
     "combat": ["attack", "defend", "flee", "cast"],
     "exploration": ["search", "travel", "rest"]
@@ -52,11 +62,11 @@ When developing a Cartridge, you implement the `GameCartridge` TypeScript interf
   }
   ```
 
-### 2.3 State Management (`defaultGameState`)
-- **Semantic Purpose**: The initial state vector when a new session begins. It holds a numeric `stats` dictionary and an `activeConditions` array spanning temporary buffs, debuffs, or world states (represented by `StatusEffect`s).
+### 2.3 State Management (`defaultState`)
+- **Semantic Purpose**: The initial state vector when a new session begins. It holds a numeric `stats` dictionary and an `activeConditions` array spanning temporary buffs, debuffs, or world states (represented by `StoredSideEffect`s).
 - **Syntax**:
   ```typescript
-  defaultGameState: {
+  defaultState: {
     timestamp: "2024-01-01T12:00:00Z",
     stats: { hp: 20, max_hp: 20, gold: 0, strength: 15 },
     activeConditions: [],
@@ -64,11 +74,11 @@ When developing a Cartridge, you implement the `GameCartridge` TypeScript interf
   }
   ```
 
-### 2.4 Narrative Extraction Tools (`worldEventTrackers`)
-- **Semantic Purpose**: Instructs the LLM on what structured data it needs to extract from its own prose. During narration, the LLM produces a `WorldSimulationUpdate` JSON block containing `flags`, `meters`, and `tags`. 
+### 2.4 Narrative Extraction Tools (`signalSchemas`)
+- **Semantic Purpose**: Instructs the LLM on what structured data it needs to extract from its own prose. During narration, the LLM produces a `NarrationSummary` JSON block containing `flags`, `meters`, and `tags`. At the end of the game play loop, the engine calls `renderSchemaInstruction()` on each tracker to produce formatted instructions telling the LLM how to populate the `"effects"` array in its `[NARRATION_SUMMARY]` response.
 - **Syntax**:
   ```typescript
-  worldEventTrackers: [
+  signalSchemas: [
     { 
       key: "weather_change", 
       what: "Changes in atmospheric conditions", 
@@ -78,26 +88,41 @@ When developing a Cartridge, you implement the `GameCartridge` TypeScript interf
   ]
   ```
 
-### 2.5 Mechanics & Evaluation (`ruleSequence` & `gameRules`)
+### 2.5 Mechanics & Evaluation (`ruleOrder` & `rules`)
 These elements replace monolithic hardcoded execution logic by creating a pipeline of modular mechanic resolvers.
-- **`ruleSequence` (Semantic)**: A strictly ordered array dictating the chronological evaluation of game rules. Order matters profoundly (e.g., environmental effects should resolve before player actions).
+- **`ruleOrder` (Semantic)**: A strictly ordered array dictating the chronological evaluation of game rules. Order matters profoundly (e.g., environmental effects should resolve before player actions). **Every rule in the sequence is always called**, regardless of whether the current turn has a matching player action or world event.
   ```typescript
-  ruleSequence: ['time_advance', 'weather_change', 'player_action', 'enemy_counter']
+  ruleOrder: ['time_advance', 'weather_change', 'player_action', 'enemy_counter']
   ```
-- **`gameRules` (Semantic & Syntax)**: A dictionary mapping the keys in your sequence to actual `GameRule` closures. Each rule reads the `GameState` and `RuleContext`, executes mechanical logic (like rolling dice), and returns a `RuleResolution` alongside optional state-mutating `StatModifier`s.
+- **`rules` (Semantic & Syntax)**: A dictionary mapping the keys in your sequence to `Rule` closures. Each rule reads the `State` and `TurnContext`, executes mechanical logic (like rolling dice), and returns a `RuleOutcome`. The resolution's `outcome` uses `mustHappen`, `mustNotHappen`, and `mayHappen` arrays to control what the LLM narrates.
   ```typescript
-  gameRules: {
+  rules: {
     player_action: (state, context) => {
-      // Access context.action to see what the player attempted
-      // Access state.stats.strength for dice rolls
-      
+      if (!context.action || context.action.length === 0) {
+        // No player action this turn – prevent hallucination
+        return {
+          outcome: {
+            status: "neutral",
+            mechanicsLogs: [],
+            mustHappen: [],
+            mustNotHappen: ["Do not narrate the player attacking."],
+            mayHappen: []
+          },
+          stateMutations: []
+        };
+      }
+      // Resolve the action mechanically
       return {
         outcome: { 
           status: "success", 
           mechanicsLogs: ["Rolled 15 vs AC 12"], 
-          narrationGuidance: ["Narrate a solid, staggering hit."] 
+          mustHappen: ["The player lands a solid, staggering hit on the goblin."],
+          mustNotHappen: [],
+          mayHappen: ["The goblin staggers and calls for reinforcements."],
+          actionName: "attack",
+          actionTarget: "goblin"
         },
-        stateMutations: [] // e.g., dealing damage, adding bleeding StatusEffect
+        stateMutations: [] // e.g., dealing damage, adding a bleeding StoredSideEffect
       };
     }
   }
@@ -105,23 +130,39 @@ These elements replace monolithic hardcoded execution logic by creating a pipeli
 
 ---
 
-## 3. Co-Developing Prompt-Mappers
+## 3. NarrationDirective & the Output Contract
 
-**A Cartridge is incomplete without its corresponding Prompt-Mappers.**
+Every rule in the `ruleOrder` produces exactly one `NarrationDirective`. This is the standardized output of the game play loop—no custom Prompt Mappers are needed.
 
-While the Cartridge implementation handles *what* mechanically happened, the Prompt-Mapper controls *how* that outcome is communicated to the LLM. 
-
-Different frontend platforms (SillyTavern, Janitor AI, AI Dungeon) have wholly different architectures for context injection. Some support distinct memory channels, while others only possess a single prompt field. **As the cartridge developer, you explicitly co-develop the `PromptMapper` to seamlessly marshal your mechanical logs into specific platform configurations.**
-
-### The Interface Contract
-You supply functions matching the following signature:
+### The `NarrationDirective` Interface
 ```typescript
-type PromptMapper = (events: TurnEvent[]) => PromptInstructions;
+interface NarrationDirective {
+  ruleKey: string;
+  mustHappen: string[];       // Things the LLM MUST narrate
+  mustNotHappen: string[];    // Things the LLM MUST NOT narrate
+  mayHappen: string[];        // Things the LLM MAY optionally narrate
+}
 ```
 
-You are responsible for analyzing the `TurnEvent` inputs (which contain the `ActionResolutionEvent` strings you formulated in your `gameRules`) and dispatching them into standard instruction channels:
-* **`immediateInstruction`**: High-priority guidance specifically dictating the LLM's very next paragraph.
-* **`sceneGuidance`**: Context regarding NPC behavior logic based on player actions.
-* **`campaignContinuity`**: Background prompts ensuring the LLM doesn't forget long-term stakes or conditions.
+| Field | Purpose |
+|---|---|
+| `mustHappen` | Mandatory narration beats. The LLM **must** include these in its response. |
+| `mustNotHappen` | Forbidden narration beats. The LLM **must not** include these. Critical for preventing hallucination when a rule has no matching action. |
+| `mayHappen` | Optional narration beats. The LLM **may** weave these in for flavour. |
 
-By co-developing Prompt-Mappers alongside your Cartridge, you ensure the stylistic narrative tone and raw mathematical mechanics of your design are preserved perfectly, regardless of which UI platform your player uses.
+### System Adapter: `applyGamePlayOutput()`
+The System Adapter consumes the `NarrationDirective[]` and a pre-formatted `schemaInstructions` string:
+```typescript
+interface Platform {
+  // ... other methods ...
+  applyGamePlayOutput(
+    events: NarrationDirective[],
+    state: State,
+    schemaInstructions: string
+  ): void;
+}
+```
+
+The `schemaInstructions` string is generated by the engine by calling `renderSchemaInstruction()` on each `SignalSchema`. It tells the LLM how to populate the `"effects"` array in the `[NARRATION_SUMMARY]` JSON block when certain conditions are met.
+
+Different AI platforms (SillyTavern, Janitor AI, AI Dungeon) have different architectures for context injection. The System Adapter encapsulates these platform-specific details, converting the generic `NarrationDirective` array and effect instructions into whatever mutations the platform requires—prompt fields, memory slots, system-prompt injections, etc. As a cartridge developer, you do **not** need to write platform-specific mapping code; you only need to return clear `mustHappen` / `mustNotHappen` / `mayHappen` entries from your rules and define your `signalSchemas`.

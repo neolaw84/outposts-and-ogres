@@ -1,15 +1,8 @@
-/**
- * SillyTavern system adapter.
- *
- * SillyTavern provides access to chat messages and allows modifying
- * the system prompt and character card fields for prompting the AI.
- * State can be persisted via the extension data mechanism.
- */
-
-import { SystemAdapter, OutputPrompt, WorldSimulationUpdate } from '../../types';
+import { Platform, NarrationSummary, NarrationDirective, State, Signal, SignalDetector } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
+import { formatDirectiveLines } from '../helpers';
 
-class SillyTavernAdapter implements SystemAdapter {
+class SillyTavernAdapter implements Platform {
   readonly name: string = 'SillyTavern';
   private context: Record<string, unknown>;
 
@@ -18,7 +11,6 @@ class SillyTavernAdapter implements SystemAdapter {
   }
 
   getPlayerMessage(): string | null {
-    // SillyTavern provides chat as an array of message objects
     const chat = this.context['chat'] as Array<Record<string, string>> | undefined;
     if (!chat || chat.length === 0) {
       return null;
@@ -30,13 +22,7 @@ class SillyTavernAdapter implements SystemAdapter {
     return null;
   }
 
-  applyPrompt(prompt: OutputPrompt): void {
-    // SillyTavern allows modifying the system prompt and character description
-    this.context['systemPrompt'] = prompt.channels.combined;
-  }
-
   loadState(): Record<string, unknown> {
-    // SillyTavern extension data for persistence
     const extensionData = this.context['extensionData'] as Record<string, unknown> | undefined;
     if (extensionData && extensionData['gameState']) {
       return extensionData['gameState'] as Record<string, unknown>;
@@ -50,20 +36,14 @@ class SillyTavernAdapter implements SystemAdapter {
     this.context['extensionData'] = extensionData;
   }
 
-  /**
-   * Extract the [NARRATION_SUMMARY] JSON from the last AI message in the
-   * SillyTavern chat array and return it as a `WorldSimulationUpdate`.
-   * SillyTavern chat messages use `is_user` ('true'/'false') and `mes` fields.
-   * Returns null if no valid block is found.
-   */
-  getScenarioUpdate(): WorldSimulationUpdate | null {
+  getScenarioUpdate(): NarrationSummary | null {
     const chat = this.context['chat'] as Array<Record<string, string>> | undefined;
     if (!chat || chat.length === 0) {
       return null;
     }
 
     for (let i = chat.length - 1; i >= 0; i--) {
-      // SillyTavern represents the is_user field as the string 'true'/'false'.
+      // SillyTavern uses string 'true'/'false' for is_user
       if (chat[i]['is_user'] !== 'true') {
         const raw = extractNarrationSummary(chat[i]['mes'] || null);
         if (!raw) {
@@ -74,15 +54,30 @@ class SillyTavernAdapter implements SystemAdapter {
           flags: (raw['flags'] as Record<string, number>) || {},
           tags: (raw['tags'] as Record<string, string>) || {},
           meters: (raw['meters'] as Record<string, number>) || {},
-          effects: (raw['effects'] as Array<Record<string, unknown>>) || []
+          effects: (raw['effects'] as Signal[]) || []
         };
       }
     }
     return null;
   }
 
-  deducePlayerIntent(rawMessage: string, availableActions: string[]): import('../../types').ParsedAction[] | null {
+  deducePlayerIntent(rawMessage: string, detectors: SignalDetector[]): Signal[] | null {
     return null; // To be implemented later via SillyTavern hidden prompt injection
+  }
+
+  applyGamePlayOutput(
+    directives: NarrationDirective[],
+    state: State,
+    effectInstructions: string
+  ): void {
+    const lines = formatDirectiveLines(directives);
+
+    if (effectInstructions) {
+      lines.push('');
+      lines.push(effectInstructions);
+    }
+
+    this.context['systemPrompt'] = lines.join('\n');
   }
 }
 

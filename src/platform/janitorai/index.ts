@@ -1,0 +1,141 @@
+import { Platform, NarrationSummary, NarrationDirective, State, Signal, SignalDetector } from '../../types';
+import { decodeState, buildRpStateBlock, extractNarrationSummary } from '../../utils/llm-utils';
+import { formatDirectiveLines } from '../helpers';
+
+interface ChatMessage {
+  message?: string;
+}
+
+class JanitorAIAdapter implements Platform {
+  readonly name: string = 'Janitor AI';
+  private context: Record<string, unknown>;
+
+  constructor(context: Record<string, unknown>) {
+    this.context = context;
+  }
+
+  getPlayerMessage(): string | null {
+    const chat = this.context['chat'] as Record<string, unknown> | undefined;
+    if (!chat) {
+      return null;
+    }
+
+    const singular = chat['last_message'] as string | undefined;
+    if (singular) {
+      return singular;
+    }
+
+    const messages = chat['last_messages'] as Array<ChatMessage> | undefined;
+    if (messages && messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg && lastMsg['message']) {
+        return lastMsg['message'] as string;
+      }
+    }
+
+    return null;
+  }
+
+  loadState(): Record<string, unknown> {
+    const chat = this.context['chat'] as Record<string, unknown> | undefined;
+    if (!chat) {
+      return {};
+    }
+
+    // Previous LLM response is second-last in last_messages
+    const messages = chat['last_messages'] as Array<ChatMessage> | undefined;
+    if (!messages || messages.length < 2) {
+      return {};
+    }
+
+    const prevResponse = messages[messages.length - 2];
+    if (!prevResponse || !prevResponse['message']) {
+      return {};
+    }
+
+    const decoded = decodeState(prevResponse['message'] as string);
+    return decoded || {};
+  }
+
+  saveState(state: Record<string, unknown>): void {
+    const character = (this.context['character'] || {}) as Record<string, unknown>;
+    let personality = (character['personality'] || '') as string;
+
+    const stateBlock = buildRpStateBlock(state);
+
+    const instruction =
+      'IMPORTANT: The following block contains encoded game state. ' +
+      'You MUST include it EXACTLY as-is in your response, without ' +
+      'any modification whatsoever.\n' +
+      stateBlock;
+
+    const rpStateRegex = /[\s\S]*?\[RP_STATE\][\s\S]*?\[\/RP_STATE\]/;
+    if (personality.indexOf('[RP_STATE]') !== -1) {
+      personality = personality.replace(rpStateRegex, instruction);
+    } else {
+      personality = instruction + '\n\n' + personality;
+    }
+
+    character['personality'] = personality;
+    this.context['character'] = character;
+  }
+
+  getScenarioUpdate(): NarrationSummary | null {
+    const chat = this.context['chat'] as Record<string, unknown> | undefined;
+    if (!chat) {
+      return null;
+    }
+
+    const messages = chat['last_messages'] as Array<ChatMessage> | undefined;
+    if (!messages || messages.length < 2) {
+      return null;
+    }
+
+    const prevResponse = messages[messages.length - 2];
+    if (!prevResponse || !prevResponse['message']) {
+      return null;
+    }
+
+    const raw = extractNarrationSummary(prevResponse['message'] as string);
+    if (!raw) {
+      return null;
+    }
+    return {
+      elapsed_time: (raw['elapsed_time'] as string) || 'PT0S',
+      flags: (raw['flags'] as Record<string, number>) || {},
+      tags: (raw['tags'] as Record<string, string>) || {},
+      meters: (raw['meters'] as Record<string, number>) || {},
+      effects: (raw['effects'] as Signal[]) || []
+    };
+  }
+
+  deducePlayerIntent(rawMessage: string, detectors: SignalDetector[]): Signal[] | null {
+    return null; // To be implemented later
+  }
+
+  applyGamePlayOutput(
+    directives: NarrationDirective[],
+    state: State,
+    effectInstructions: string
+  ): void {
+    const character = (this.context['character'] || {}) as Record<string, unknown>;
+    const existingScenario = (character['scenario'] || '') as string;
+
+    const lines: string[] = [];
+    lines.push('[NARRATION_GUIDE]');
+    lines.push(...formatDirectiveLines(directives));
+    lines.push('[/NARRATION_GUIDE]');
+
+    if (effectInstructions) {
+      lines.push('');
+      lines.push('[NARRATION_SUMMARY_INSTRUCTIONS]');
+      lines.push(effectInstructions);
+      lines.push('[/NARRATION_SUMMARY_INSTRUCTIONS]');
+    }
+
+    character['scenario'] = lines.join('\n') + '\n' + existingScenario;
+    this.context['character'] = character;
+  }
+}
+
+export { JanitorAIAdapter };

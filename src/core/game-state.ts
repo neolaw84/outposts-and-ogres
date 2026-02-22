@@ -1,38 +1,19 @@
-/**
- * Character sheet utilities for applying and reverting side effects.
- *
- * This module owns all mutations to the character sheet state.
- * - applySideEffect: Applies impacts to stats, tracks temporary effects in activeConditions[] for later reversion.
- * - revertSideEffect: Checks expired effects against current time and reverts them.
- */
-
-import { GameState, ActiveCondition, StatusEffect, StoredStatModifier } from '../types';
+import { State, SideEffect, StoredSideEffect, StoredStatImpact } from '../types';
 import { isPast } from '../utils/time-utils';
 
-/**
- * Apply one or more side effects to a character sheet.
- * Returns a new sheet (immutable – the original is not modified).
- *
- * For each impact:
- *   - "set": replaces the stat value
- *   - "add": adds to the stat value
- *   - "sub": subtracts from the stat value
- *
- * If the side effect has an expiry, it is stored in the activeConditions[] array
- * with original values for later reversion.
- */
-function applySideEffect(sheet: GameState, sideEffects: ActiveCondition | ActiveCondition[] | null): GameState {
-  const newSheet: GameState = JSON.parse(JSON.stringify(sheet));
+/** Apply side effects to a State. Returns a new State (immutable). */
+function applySideEffect(sheet: State, sideEffects: SideEffect | SideEffect[] | null): State {
+  const newSheet: State = JSON.parse(JSON.stringify(sheet));
 
   if (!sideEffects) return newSheet;
 
-  const effectsList: ActiveCondition[] = Array.isArray(sideEffects) ? sideEffects : [sideEffects];
+  const effectsList: SideEffect[] = Array.isArray(sideEffects) ? sideEffects : [sideEffects];
 
   for (let k = 0; k < effectsList.length; k++) {
     const sideEffect = effectsList[k];
     if (!sideEffect) continue;
 
-    const sideEffectEntry: StatusEffect = {
+    const sideEffectEntry: StoredSideEffect = {
       desc: sideEffect.what,
       expiry: sideEffect.expiry || null,
       re_lock: sideEffect.re_lock || null,
@@ -48,7 +29,7 @@ function applySideEffect(sheet: GameState, sideEffects: ActiveCondition | Active
           const currentValue = newSheet.stats[statKey];
           let newValue = currentValue;
 
-          const storedImpact: StoredStatModifier = {
+          const storedImpact: StoredStatImpact = {
             stats: statKey,
             op: imp.op,
             val: imp.val,
@@ -71,7 +52,7 @@ function applySideEffect(sheet: GameState, sideEffects: ActiveCondition | Active
       }
     }
 
-    // Only track side effects with valid expiry (saves tokens)
+    // Only track effects with valid expiry
     if (sideEffectEntry.expiry && sideEffectEntry.expiry !== null) {
       if (!newSheet.activeConditions) {
         newSheet.activeConditions = [];
@@ -83,25 +64,14 @@ function applySideEffect(sheet: GameState, sideEffects: ActiveCondition | Active
   return newSheet;
 }
 
-/**
- * Revert expired side effects from a character sheet.
- * Returns a new sheet (immutable – the original is not modified).
- *
- * For each stored effect:
- *   - If current time has passed the expiry, check re_lock flags.
- *   - If no re_lock prevents it, reverse the impacts:
- *     - "set": restore to oriVal
- *     - "add": subtract the val back
- *     - "sub": add the val back
- *   - Remove the effect from activeConditions[].
- */
-function revertSideEffect(sheet: GameState): GameState {
-  const newSheet: GameState = JSON.parse(JSON.stringify(sheet));
+/** Revert expired side effects. Returns a new State (immutable). */
+function revertSideEffect(sheet: State): State {
+  const newSheet: State = JSON.parse(JSON.stringify(sheet));
   const currentTime = newSheet.timestamp;
 
   if (!newSheet.activeConditions) return newSheet;
 
-  const activeEffects: StatusEffect[] = [];
+  const activeEffects: StoredSideEffect[] = [];
   for (let i = 0; i < newSheet.activeConditions.length; i++) {
     const eff = newSheet.activeConditions[i];
     let shouldExpire = false;
@@ -110,7 +80,7 @@ function revertSideEffect(sheet: GameState): GameState {
       if (isPast(eff.expiry, currentTime)) {
         shouldExpire = true;
 
-        // Check for re_locks that prevent expiration
+        // re_lock flags prevent expiration
         if (eff.re_lock && Array.isArray(eff.re_lock)) {
           for (let k = 0; k < eff.re_lock.length; k++) {
             const lockKey = eff.re_lock[k];

@@ -3,8 +3,8 @@ import {
   decodeState,
   buildRpStateBlock,
   extractNarrationSummary,
-  generateEffectInstruction,
-  findEffectByKey
+  renderSchemaInstruction,
+  findSignalByKey
 } from '../src/utils/llm-utils';
 
 describe('LLM utilities', function () {
@@ -94,18 +94,18 @@ describe('LLM utilities', function () {
   });
 
   // ----------------------------------------------------------------
-  // generateEffectInstruction
+  // renderSchemaInstruction
   // ----------------------------------------------------------------
 
-  describe('generateEffectInstruction', function () {
-    test('should generate instruction text for a valid effect definition', function () {
-      var effectDef = {
+  describe('renderSchemaInstruction', function () {
+    test('should generate instruction text for a valid schema definition', function () {
+      var schemaDef = {
         key: 'damage',
         condition: 'the player is hit',
         what: 'physical damage',
         meters: { hp: -10 }
       };
-      var result = generateEffectInstruction(effectDef);
+      var result = renderSchemaInstruction(schemaDef);
       expect(result).toContain('if and only if the player is hit');
       expect(result).toContain('"damage"');
       // The condition should NOT be in the JSON block
@@ -113,20 +113,20 @@ describe('LLM utilities', function () {
     });
 
     test('should return empty string for null definition', function () {
-      expect(generateEffectInstruction(null as any)).toBe('');
+      expect(renderSchemaInstruction(null as any)).toBe('');
     });
 
     test('should return empty string when key is missing', function () {
-      expect(generateEffectInstruction({ key: '', condition: 'test' })).toBe('');
+      expect(renderSchemaInstruction({ key: '', condition: 'test' })).toBe('');
     });
   });
 
   // ----------------------------------------------------------------
-  // findEffectByKey
+  // findSignalByKey
   // ----------------------------------------------------------------
 
-  describe('findEffectByKey', function () {
-    test('should find effect by key', function () {
+  describe('findSignalByKey', function () {
+    test('should find signal by key', function () {
       var narrationSummary = {
         effects: [
           { key: 'damage', what: 'hit' },
@@ -139,7 +139,7 @@ describe('LLM utilities', function () {
           { key: true, what: true }
         ]
       };
-      var result = findEffectByKey('heal', narrationSummary, typeChecks);
+      var result = findSignalByKey('heal', narrationSummary, typeChecks);
       expect(result.effect).toEqual({ key: 'heal', what: 'restore' });
       expect(result.typeCheck).toEqual({ key: true, what: true });
     });
@@ -147,13 +147,13 @@ describe('LLM utilities', function () {
     test('should return nulls when key not found', function () {
       var narrationSummary = { effects: [{ key: 'damage' }] };
       var typeChecks = { effects: [{ key: true }] };
-      var result = findEffectByKey('missing', narrationSummary, typeChecks);
+      var result = findSignalByKey('missing', narrationSummary, typeChecks);
       expect(result.effect).toBeNull();
       expect(result.typeCheck).toBeNull();
     });
 
     test('should return nulls when effects is not an array', function () {
-      var result = findEffectByKey('damage', {}, {});
+      var result = findSignalByKey('damage', {}, {});
       expect(result.effect).toBeNull();
       expect(result.typeCheck).toBeNull();
     });

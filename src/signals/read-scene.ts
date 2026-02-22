@@ -1,26 +1,16 @@
-import { WorldSimulationUpdate } from '../types';
+import { NarrationSummary } from '../types';
 
-interface ScenarioUnderstanding {
+interface SceneReading {
   suggestedCondition: string | null;
   confidence: 'low' | 'medium' | 'high';
   cues: string[];
 }
 
-/**
- * Interpret a `WorldSimulationUpdate` (the open-contract LLM output) into a
- * cartridge-specific `ScenarioUnderstanding`.
- *
- * Priority:
- *  1. A flag whose key matches an available condition and whose value is
- *     non-zero → high confidence.
- *  2. A tag whose value matches an available condition → medium confidence.
- *  3. No match → low confidence, no suggested condition.
- */
-function understandScenario(
-  update: WorldSimulationUpdate,
+/** Interpret a NarrationSummary into a SceneReading by matching flags/tags to conditions. */
+function readScene(
+  update: NarrationSummary,
   availableConditions: string[]
-): ScenarioUnderstanding {
-  // Check flags: flag key equals a condition name with non-zero value
+): SceneReading {
   for (let i = 0; i < availableConditions.length; i++) {
     const condition = availableConditions[i];
     if (update.flags[condition] !== undefined && update.flags[condition] > 0) {
@@ -28,7 +18,6 @@ function understandScenario(
     }
   }
 
-  // Check tags: tag value equals a condition name
   const tagKeys = Object.keys(update.tags);
   for (let i = 0; i < availableConditions.length; i++) {
     const condition = availableConditions[i];
@@ -42,4 +31,4 @@ function understandScenario(
   return { suggestedCondition: null, confidence: 'low', cues: [] };
 }
 
-export { ScenarioUnderstanding, understandScenario };
+export { SceneReading, readScene };

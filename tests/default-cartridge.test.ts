@@ -6,19 +6,23 @@ describe('Basic Fantasy Cartridge', () => {
     expect(basicFantasyCartridge.version).toBe('1.0.0');
   });
 
-  test('should define three stop conditions', () => {
-    expect(basicFantasyCartridge.stopConditions).toContain('combat');
-    expect(basicFantasyCartridge.stopConditions).toContain('exploration');
-    expect(basicFantasyCartridge.stopConditions).toContain('social');
+  test('should define three breakpoints', () => {
+    expect(basicFantasyCartridge.breakpoints).toContain('combat');
+    expect(basicFantasyCartridge.breakpoints).toContain('exploration');
+    expect(basicFantasyCartridge.breakpoints).toContain('social');
   });
 
-  test('should have available actions for each condition', () => {
-    expect(basicFantasyCartridge.availableActions['combat'].length).toBeGreaterThan(0);
-    expect(basicFantasyCartridge.availableActions['exploration'].length).toBeGreaterThan(0);
-    expect(basicFantasyCartridge.availableActions['social'].length).toBeGreaterThan(0);
+  test('should have signalDetectors for combat, social and exploration actions', () => {
+    const keys = basicFantasyCartridge.signalDetectors.map(m => m.key);
+    expect(keys).toContain('attack');
+    expect(keys).toContain('dodge');
+    expect(keys).toContain('cast');
+    expect(keys).toContain('persuade');
+    expect(keys).toContain('search');
+    expect(keys).toContain('move');
   });
 
   test('should have defined aspect functions for specific actions like attack', () => {
-    expect(basicFantasyCartridge.gameRules['attack']).toBeDefined();
+    expect(basicFantasyCartridge.rules['attack']).toBeDefined();
   });
 });

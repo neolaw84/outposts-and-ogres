@@ -1,5 +1,4 @@
-import { AIDungeonAdapter } from '../src/systems/aidungeon/index';
-import { OutputPrompt } from '../src/types';
+import { AIDungeonAdapter } from '../src/platform/aidungeon/index';
 
 describe('AIDungeonAdapter', () => {
   test('should have correct name', () => {
@@ -16,28 +15,6 @@ describe('AIDungeonAdapter', () => {
   test('should return null when text is absent', () => {
     const adapter = new AIDungeonAdapter({});
     expect(adapter.getPlayerMessage()).toBeNull();
-  });
-
-  test('should apply prompt to memory field', () => {
-    const context: Record<string, unknown> = {};
-    const adapter = new AIDungeonAdapter(context);
-    const prompt: OutputPrompt = {
-      text: 'Narrate the attack.',
-      channels: {
-        campaignContinuity: 'Long horizon',
-        sceneGuidance: 'Mid term',
-        immediateInstruction: 'Short term',
-        combined: 'Combined'
-      },
-      events: []
-    };
-    adapter.applyPrompt(prompt);
-    expect(context['memory']).toBe('Narrate the attack.');
-    const state = context['state'] as Record<string, unknown>;
-    const memory = state['memory'] as Record<string, unknown>;
-    expect(memory['context']).toBe('Long horizon');
-    expect(memory['authorsNote']).toBe('Mid term');
-    expect(memory['frontMemory']).toBe('Short term');
   });
 
   test('should load empty state when none exists', () => {
@@ -119,7 +96,7 @@ describe('AIDungeonAdapter', () => {
     expect(adapter.getScenarioUpdate()).toEqual({ ...update, effects: [] });
   });
 
-  test('should use defaults for missing WorldSimulationUpdate fields', () => {
+  test('should use defaults for missing NarrationSummary fields', () => {
     const context = {
       history: [
         { type: 'story', text: 'Narration [NARRATION_SUMMARY]{}[/NARRATION_SUMMARY]' }
