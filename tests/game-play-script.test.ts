@@ -58,8 +58,7 @@ describe('GamePlayScript', () => {
     const output = script.executeTurn('<attack goblin>', mockState, {});
     const attackEvent = output.gamePlayEvents.find((e: GamePlayEvent) => e.ruleKey === 'attack');
     expect(attackEvent).toBeDefined();
-    expect(attackEvent!.actionName).toBe('attack');
-    expect(attackEvent!.actionTarget).toBe('goblin');
+    expect(attackEvent!.mustHappen.length).toBeGreaterThan(0);
   });
 
   test('executeTurn should return gamePlayEvents for unrecognised input', () => {
@@ -67,8 +66,8 @@ describe('GamePlayScript', () => {
     const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultGameState));
     const output = script.executeTurn('I look around confused', mockState, {});
     expect(output.gamePlayEvents.length).toBeGreaterThan(0);
-    const nonNeutral = output.gamePlayEvents.filter((e: GamePlayEvent) => e.status !== 'neutral');
-    expect(nonNeutral.length).toBe(0);
+    const withMustHappen = output.gamePlayEvents.filter((e: GamePlayEvent) => e.mustHappen.length > 0);
+    expect(withMustHappen.length).toBe(0);
   });
 
   test('executeTurn should work in exploration condition', () => {

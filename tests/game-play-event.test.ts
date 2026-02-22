@@ -50,7 +50,6 @@ describe('GamePlayEvent - standardized game play loop output', () => {
 
       const attackEvent = result.gamePlayEvents.find(e => e.ruleKey === 'attack');
       expect(attackEvent).toBeDefined();
-      expect(attackEvent!.status).toBe('success');
       expect(attackEvent!.mustHappen.length).toBeGreaterThan(0);
     });
 
@@ -62,13 +61,9 @@ describe('GamePlayEvent - standardized game play loop output', () => {
       for (const gpe of result.gamePlayEvents) {
         expect(gpe.ruleKey).toBeDefined();
         expect(typeof gpe.ruleKey).toBe('string');
-        expect(gpe.status).toBeDefined();
-        expect(['success', 'failure', 'mixed', 'neutral']).toContain(gpe.status);
         expect(Array.isArray(gpe.mustHappen)).toBe(true);
         expect(Array.isArray(gpe.mustNotHappen)).toBe(true);
         expect(Array.isArray(gpe.mayHappen)).toBe(true);
-        expect(Array.isArray(gpe.mechanicsLogs)).toBe(true);
-        expect(Array.isArray(gpe.stateMutations)).toBe(true);
       }
     });
   });
@@ -148,16 +143,15 @@ describe('GamePlayEvent - standardized game play loop output', () => {
     });
   });
 
-  describe('backward compatibility', () => {
-    test('executeTurn returns gamePlayEvents with attack data', () => {
+  describe('action event output', () => {
+    test('executeTurn returns gamePlayEvents with attack mustHappen data', () => {
       const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet();
       const result = script.executeTurn('<attack goblin>', sheet, {});
 
       const attackEvent = result.gamePlayEvents.find(e => e.ruleKey === 'attack');
       expect(attackEvent).toBeDefined();
-      expect(attackEvent!.actionName).toBe('attack');
-      expect(attackEvent!.actionTarget).toBe('goblin');
+      expect(attackEvent!.mustHappen.length).toBeGreaterThan(0);
     });
 
     test('executeTurn returns gamePlayEvents for all rules even with no action', () => {
@@ -179,8 +173,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
 
       const attackEvent = result.gamePlayEvents.find(e => e.ruleKey === 'attack');
       expect(attackEvent).toBeDefined();
-      expect(attackEvent!.actionName).toBe('attack');
-      expect(attackEvent!.actionTarget).toBe('goblin');
+      expect(attackEvent!.mustHappen.length).toBeGreaterThan(0);
     });
 
     test('gamePlayEvents contain mustHappen for drink_potion effect', () => {
@@ -256,9 +249,6 @@ describe('GamePlayEvent - standardized game play loop output', () => {
       expect(event.mustHappen).toEqual(['Player strikes the goblin with full force.', 'Goblin takes damage.']);
       expect(event.mustNotHappen).toEqual(['Goblin must not die from this single hit.']);
       expect(event.mayHappen).toEqual(['Goblin staggers backward.', 'Other goblins look alarmed.']);
-      expect(event.status).toBe('success');
-      expect(event.actionName).toBe('strike');
-      expect(event.actionTarget).toBe('goblin');
 
       // Without action
       const result2 = script.executeTurn('I look around', sheet, {});

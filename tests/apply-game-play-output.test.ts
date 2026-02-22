@@ -7,23 +7,15 @@ function makeSampleEvents(): GamePlayEvent[] {
   return [
     {
       ruleKey: 'drink_potion',
-      status: 'neutral',
-      mechanicsLogs: [],
       mustHappen: [],
       mustNotHappen: ['Do not narrate player drinking a potion.'],
-      mayHappen: ['You may describe a potion bottle on a shelf.'],
-      stateMutations: []
+      mayHappen: ['You may describe a potion bottle on a shelf.']
     },
     {
       ruleKey: 'attack',
-      status: 'success',
-      mechanicsLogs: ['Rolled 18 + 2 = 20 vs DC 12.'],
       mustHappen: ['Player strikes the goblin decisively.'],
       mustNotHappen: ['Goblin must not die from this single hit.'],
-      mayHappen: ['Goblin staggers backward.'],
-      actionName: 'attack',
-      actionTarget: 'goblin',
-      stateMutations: []
+      mayHappen: ['Goblin staggers backward.']
     }
   ];
 }

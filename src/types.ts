@@ -85,22 +85,12 @@ export interface PlayerInputUnderstanding {
 interface GamePlayEvent {
   /** The rule key that produced this event. */
   ruleKey: string;
-  /** High-level resolution status. */
-  status: 'success' | 'failure' | 'mixed' | 'neutral';
-  /** Mechanical logs for debugging / display. */
-  mechanicsLogs: string[];
   /** Things that MUST be narrated. */
   mustHappen: string[];
   /** Things that MUST NOT be narrated. */
   mustNotHappen: string[];
   /** Things that MAY be narrated. */
   mayHappen: string[];
-  /** Action name override for reporting. */
-  actionName?: string;
-  /** Action target for reporting. */
-  actionTarget?: string;
-  /** Side effects produced by this rule (already applied to the state). */
-  stateMutations: ActiveCondition[];
 }
 
 /**

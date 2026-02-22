@@ -204,12 +204,9 @@ class GamePlayScript {
     if (!result || !result.outcome) {
       return {
         ruleKey: ruleKey,
-        status: 'neutral',
-        mechanicsLogs: [],
         mustHappen: [],
         mustNotHappen: [],
-        mayHappen: [],
-        stateMutations: []
+        mayHappen: []
       };
     }
 
@@ -217,14 +214,9 @@ class GamePlayScript {
 
     return {
       ruleKey: ruleKey,
-      status: o.status,
-      mechanicsLogs: o.mechanicsLogs.slice(),
       mustHappen: o.mustHappen.slice(),
       mustNotHappen: o.mustNotHappen.slice(),
-      mayHappen: o.mayHappen.slice(),
-      actionName: o.actionName,
-      actionTarget: o.actionTarget,
-      stateMutations: result.stateMutations ? result.stateMutations.slice() : []
+      mayHappen: o.mayHappen.slice()
     };
   }
 }
