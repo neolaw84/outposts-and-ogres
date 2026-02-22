@@ -18,9 +18,19 @@ interface WorldEventTracker {
   [prop: string]: unknown;
 }
 
+/** Concrete effect data record (matching the EffectRecord shape from types.ts). */
+interface EffectRecord {
+  key: string;
+  what?: string;
+  when?: string;
+  meters?: Record<string, number>;
+  flags?: Record<string, boolean>;
+  tags?: Record<string, string>;
+}
+
 /** Result of finding an effect by key. */
 interface FoundEffect {
-  effect: Record<string, unknown> | null;
+  effect: EffectRecord | null;
   typeCheck: Record<string, unknown> | null;
 }
 
@@ -133,7 +143,7 @@ function findEffectByKey(
   narrationSummary: Record<string, unknown>,
   typeChecks: Record<string, unknown>
 ): FoundEffect {
-  let foundEffect: Record<string, unknown> | null = null;
+  let foundEffect: EffectRecord | null = null;
   let foundTypeCheck: Record<string, unknown> | null = null;
 
   const effects = narrationSummary['effects'] as Array<Record<string, unknown>> | undefined;
@@ -142,7 +152,7 @@ function findEffectByKey(
   if (effects && Array.isArray(effects)) {
     for (let j = 0; j < effects.length; j++) {
       if (effects[j]['key'] === key) {
-        foundEffect = effects[j];
+        foundEffect = effects[j] as unknown as EffectRecord;
         if (typeCheckEffects && typeCheckEffects[j]) {
           foundTypeCheck = typeCheckEffects[j];
         }
@@ -237,6 +247,7 @@ function cleanInput(inputObject: Record<string, unknown>): Record<string, unknow
 
 export {
   WorldEventTracker,
+  EffectRecord,
   FoundEffect,
   encodeState,
   decodeState,

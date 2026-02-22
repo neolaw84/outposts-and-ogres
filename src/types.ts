@@ -11,12 +11,37 @@
  */
 
 
+/**
+ * Concrete data record matching the shape the LLM returns for each effect
+ * in the NARRATION_SUMMARY "effects" array.  This is `WorldEventTracker`
+ * minus `condition` (and minus the index signature), with actual values
+ * instead of descriptive strings.
+ *
+ * Used as the unified data envelope for:
+ * - LLM-reported effect data (`RuleContext.effectData`)
+ * - Parsed player actions (`ParsedAction.effect`)
+ * - Detected player emotions (`PlayerEmotionSignal.effect`)
+ * - Each entry in `WorldSimulationUpdate.effects`
+ */
+interface EffectRecord {
+  /** Unique identifier — maps to a key in `gameRules`. */
+  key: string;
+  /** Descriptive value, e.g. "healing", "goblin", "fear". */
+  what?: string;
+  /** Temporal marker, e.g. an ISO date string. */
+  when?: string;
+  /** Numeric meter values. */
+  meters?: Record<string, number>;
+  /** Boolean flag values. */
+  flags?: Record<string, boolean>;
+  /** Arbitrary string tag values. */
+  tags?: Record<string, string>;
+}
+
 /** Result of parsing a player's input. */
 interface ParsedAction {
-  /** The action keyword the player chose, e.g. "attack", "dodge". */
-  action: string;
-  /** Optional target or parameter for the action. */
-  target: string;
+  /** Structured effect record: `key` = action name, `what` = target. */
+  effect: EffectRecord;
   /** The raw text of the player's message. */
   raw: string;
 }
@@ -33,7 +58,7 @@ export interface RuleContext {
   /** The key of the aspect function currently being executed in the sequence */
   ruleKey: string;
   /** The matching effect data from the LLM narration summary (if matched by effectDefinition) */
-  effectData: Record<string, unknown> | null;
+  effectData: EffectRecord | null;
   /** The type check results for the effect data (if any) */
   typeCheck: Record<string, unknown> | null;
   /** The full raw narration summary object */
@@ -45,10 +70,8 @@ export interface RuleContext {
 
 /** Emotional signal extracted from free-text player input. */
 interface PlayerEmotionSignal {
-  /** Emotion label detected in the player text. */
-  emotion: 'fear' | 'anger' | 'hope' | 'calm' | 'curiosity';
-  /** Keyword that triggered the signal detection. */
-  sourceKeyword: string;
+  /** Structured effect record: `key` = emotion label (e.g. 'fear'), `tags.sourceKeyword` = trigger keyword. */
+  effect: EffectRecord;
 }
 
 /** 
@@ -120,7 +143,7 @@ export interface WorldSimulationUpdate {
   /** Numeric meters emitted by the LLM (e.g. tension, distance). */
   meters: Record<string, number>;
   /** Structured effects array reported by the LLM for aspect-function processing. */
-  effects?: Array<Record<string, unknown>>;
+  effects?: EffectRecord[];
 }
 
 /**
@@ -353,6 +376,7 @@ interface GameCartridge {
 }
 
 export {
+  EffectRecord,
   ParsedAction,
   GameCartridge,
   PlayerEmotionSignal,

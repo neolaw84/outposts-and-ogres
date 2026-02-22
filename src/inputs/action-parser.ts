@@ -12,17 +12,17 @@ function parseActionInput(message: string, knownActions: string[]): ParsedAction
     if (colonIndex !== -1) {
       const action = inner.substring(0, colonIndex).trim().toLowerCase();
       const target = inner.substring(colonIndex + 1).trim();
-      actions.push({ action: action, target: target, raw: message });
+      actions.push({ effect: { key: action, what: target }, raw: message });
       continue;
     }
     const spaceIndex = inner.indexOf(' ');
     if (spaceIndex !== -1) {
       const action = inner.substring(0, spaceIndex).trim().toLowerCase();
       const target = inner.substring(spaceIndex + 1).trim();
-      actions.push({ action: action, target: target, raw: message });
+      actions.push({ effect: { key: action, what: target }, raw: message });
       continue;
     }
-    actions.push({ action: inner.toLowerCase(), target: '', raw: message });
+    actions.push({ effect: { key: inner.toLowerCase() }, raw: message });
   }
 
   if (actions.length > 0) {
@@ -34,7 +34,7 @@ function parseActionInput(message: string, knownActions: string[]): ParsedAction
   for (let i = 0; i < knownActions.length; i++) {
     const keyword = knownActions[i].toLowerCase();
     if (lowerMessage.indexOf(keyword) !== -1) {
-      actions.push({ action: keyword, target: '', raw: message });
+      actions.push({ effect: { key: keyword }, raw: message });
       // Only extract the first plain-text keyword match to avoid over-parsing
       break;
     }

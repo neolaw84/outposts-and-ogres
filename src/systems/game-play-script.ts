@@ -21,7 +21,8 @@ import {
   RuleResolution,
   RuleContext,
   ActiveCondition,
-  WorldEventTracker
+  WorldEventTracker,
+  EffectRecord
 } from '../types';
 import { understandPlayerInput } from '../inputs/player-input-understanding';
 import { applySideEffect, revertSideEffect } from '../core/game-state';
@@ -150,7 +151,7 @@ class GamePlayScript {
         // Prepare context
         const def = this.cartridge.worldEventTrackers.find(d => d.key === key);
 
-        let foundEffect: Record<string, unknown> | null = null;
+        let foundEffect: EffectRecord | null = null;
         let foundTypeCheck: Record<string, unknown> | null = null;
         if (def) {
           const found = findEffectByKey(key, narrationSummary, typeChecks);

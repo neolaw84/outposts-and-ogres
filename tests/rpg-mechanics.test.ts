@@ -17,6 +17,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
     test('Healing potion restores HP', () => {
       const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 50 } });
       const effect = {
+        key: 'drink_potion',
         what: 'healing',
         meters: { potency: 5 }
       };
@@ -35,6 +36,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
     test('Healing potion does not overheal beyond max_hp', () => {
       const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 95 } });
       const effect = {
+        key: 'drink_potion',
         what: 'healing',
         meters: { potency: 5 }
       };
@@ -50,6 +52,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
     test('Healing potion at full health returns no side effect', () => {
       const sheet = makeSheet(); // hp = 100, max_hp = 100
       const effect = {
+        key: 'drink_potion',
         what: 'healing',
         meters: { potency: 5 }
       };
@@ -63,6 +66,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
     test('Strength potion adds temporary buff', () => {
       const sheet = makeSheet();
       const effect = {
+        key: 'drink_potion',
         what: 'strength',
         meters: { potency: 2 },
         when: '1000-01-01T08:00:00'
@@ -81,6 +85,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
     test('Poison sets poisoned flag temporarily', () => {
       const sheet = makeSheet();
       const effect = {
+        key: 'drink_potion',
         what: 'poison',
         meters: { potency: 3 },
         when: '1000-01-01T08:00:00'
@@ -107,6 +112,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
     test('Enemy attack deals damage reduced by defense', () => {
       const sheet = makeSheet();
       const effect = {
+        key: 'combat_event',
         what: 'enemy_attack',
         meters: { damage: 20 },
         flags: { critical: false }
@@ -124,6 +130,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
     test('Critical hit deals increased damage', () => {
       const sheet = makeSheet();
       const effect = {
+        key: 'combat_event',
         what: 'enemy_attack',
         meters: { damage: 20 },
         flags: { critical: true }
@@ -141,6 +148,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       const sheet = makeSheet();
       // Need 26 damage to cause > 20 actual damage (26 - 5 defense = 21)
       const effect = {
+        key: 'combat_event',
         what: 'enemy_attack',
         meters: { damage: 30 },
         flags: { critical: false }
@@ -159,6 +167,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
     test('Combat end awards gold and xp', () => {
       const sheet = makeSheet();
       const effect = {
+        key: 'combat_event',
         what: 'combat_end',
         meters: { gold_gained: 25, xp_gained: 100 }
       };
@@ -191,6 +200,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
     test('Travel ignores past timestamps', () => {
       const sheet = makeSheet();
       const effect = {
+        key: 'travel',
         what: 'walk',
         when: '1000-01-01T07:00:00' // Past
       };
@@ -203,7 +213,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
 
     test('Running causes fatigue', () => {
       const sheet = makeSheet();
-      const effect = { what: 'run', when: '1000-01-01T08:30:00' };
+      const effect = { key: 'travel', what: 'run', when: '1000-01-01T08:30:00' };
       const typeCheck = { what: true, when: true };
 
       const result = basicFantasyCartridge.gameRules['travel'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'travel', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
@@ -216,7 +226,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
 
     test('Walking does not cause fatigue', () => {
       const sheet = makeSheet();
-      const effect = { what: 'walk', when: '1000-01-01T08:30:00' };
+      const effect = { key: 'travel', what: 'walk', when: '1000-01-01T08:30:00' };
       const typeCheck = { what: true, when: true };
 
       const result = basicFantasyCartridge.gameRules['travel'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'travel', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
@@ -239,7 +249,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
   describe('rest', () => {
     test('Short rest restores 25% HP', () => {
       const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 50 } });
-      const effect = { what: 'short', when: '1000-01-01T10:00:00' };
+      const effect = { key: 'rest', what: 'short', when: '1000-01-01T10:00:00' };
       const typeCheck = { what: 'string', when: 'string' };
       const result = basicFantasyCartridge.gameRules['rest'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'rest', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
@@ -252,7 +262,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
 
     test('Long rest fully restores HP', () => {
       const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 30 } });
-      const effect = { what: 'long', when: '1000-01-01T10:00:00' };
+      const effect = { key: 'rest', what: 'long', when: '1000-01-01T10:00:00' };
       const typeCheck = { what: 'string', when: 'string' };
       const result = basicFantasyCartridge.gameRules['rest'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'rest', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
@@ -275,7 +285,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       test('Attack triggers combat logic correctly on success', () => {
         const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, strength: 100 } }); // auto-success
         const result = basicFantasyCartridge.gameRules['attack'](sheet, {
-          action: [{ action: 'attack', target: 'goblin', raw: '<attack goblin>' }],
+          action: [{ effect: { key: 'attack', what: 'goblin' }, raw: '<attack goblin>' }],
           currentCondition: 'combat',
           ruleKey: 'attack',
           narrationSummary: {}, effectData: null, typeCheck: null
@@ -290,7 +300,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       test('Attack triggers combat logic correctly on failure', () => {
         const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, strength: 1 } }); // very weak
         const result = basicFantasyCartridge.gameRules['attack'](sheet, {
-          action: [{ action: 'attack', target: 'goblin', raw: '<attack goblin>' }],
+          action: [{ effect: { key: 'attack', what: 'goblin' }, raw: '<attack goblin>' }],
           currentCondition: 'combat',
           ruleKey: 'attack',
           narrationSummary: {}, effectData: null, typeCheck: null
@@ -304,7 +314,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       test('Action used in wrong condition yields neutral outcome', () => {
         const sheet = makeSheet();
         const result = basicFantasyCartridge.gameRules['attack'](sheet, {
-          action: [{ action: 'attack', target: 'goblin', raw: '<attack goblin>' }],
+          action: [{ effect: { key: 'attack', what: 'goblin' }, raw: '<attack goblin>' }],
           currentCondition: 'social',
           ruleKey: 'attack',
           narrationSummary: {}, effectData: null, typeCheck: null
