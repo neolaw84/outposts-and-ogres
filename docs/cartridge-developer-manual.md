@@ -19,8 +19,7 @@ interface Cartridge {
   name: string;
   version: string;
   breakpoints: string[];
-  availableActions: Record<string, string[]>;
-  parseInput?: (message, availableActions, currentCondition) => PlayerInputUnderstanding;
+  signalDetectors: SignalDetector[];
   defaultState: State;
   signalSchemas: SignalSchema[];
   rules: Record<string, Rule>;
@@ -40,15 +39,31 @@ Each field is explained below.
 name: 'My Sci-Fi RPG',
 version: '1.0.0',
 breakpoints: ['combat', 'exploration', 'dialogue', 'Combat round ends', 'Critical injury'],
-availableActions: {
-  combat:      ['shoot', 'take_cover', 'throw_grenade', 'flee'],
-  exploration: ['scan', 'move', 'hack', 'rest'],
-  dialogue:    ['persuade', 'threaten', 'lie', 'bribe']
-}
+signalDetectors: [
+  // Combat actions
+  { key: 'shoot', description: 'Player shoots a target', keywords: ['shoot', 'fire', 'blast'] },
+  { key: 'take_cover', description: 'Player takes cover', keywords: ['cover', 'hide', 'duck'] },
+  { key: 'throw_grenade', description: 'Player throws a grenade', keywords: ['grenade', 'throw', 'lob'] },
+  { key: 'flee', description: 'Player flees from danger', keywords: ['flee', 'run', 'escape', 'retreat'] },
+  // Exploration actions
+  { key: 'scan', description: 'Player scans the area', keywords: ['scan', 'survey', 'detect'] },
+  { key: 'move', description: 'Player moves to a location', keywords: ['move', 'go', 'walk'] },
+  { key: 'hack', description: 'Player hacks a terminal', keywords: ['hack', 'crack', 'decrypt'] },
+  { key: 'rest', description: 'Player rests', keywords: ['rest', 'sleep', 'camp'] },
+  // Dialogue actions
+  { key: 'persuade', description: 'Player persuades an NPC', keywords: ['persuade', 'convince'] },
+  { key: 'threaten', description: 'Player threatens an NPC', keywords: ['threaten', 'intimidate'] },
+  { key: 'lie', description: 'Player lies to an NPC', keywords: ['lie', 'bluff', 'deceive'] },
+  { key: 'bribe', description: 'Player bribes an NPC', keywords: ['bribe', 'pay', 'offer'] }
+]
 ```
 
 * **`breakpoints`** — The scenarios in which the LLM should stop narrating and wait for the player's input. This includes both general game modes (e.g. `'combat'`, `'exploration'`) and specific events that force the LLM to end its turn immediately (e.g. `'Combat round ends'`, `'Critical injury'`).
-* **`availableActions`** — For each condition, the list of actions the player may attempt. The engine uses these to parse the player's free-text input.
+* **`signalDetectors`** — Defines how to detect player intents from free text. Each detector has:
+  * `key` — Maps to the corresponding function in `rules`.
+  * `description` — Free-text explanation of what this detector matches (can be used by LLM-based systems).
+  * `keywords` — Simple keyword strings to scan for (case-insensitive).
+  * `patterns?` — Optional regex patterns for more precise matching.
 
 ### 3.2 Default Game State
 
@@ -145,12 +160,12 @@ type Rule = (state: State, context: TurnContext) => RuleOutcome;
 
 ```typescript
 interface TurnContext {
-  action: ParsedAction[] | null;   // Player's parsed actions (if any)
-  currentCondition: string;         // e.g. 'combat'
-  ruleKey: string;                  // The key being evaluated
-  worldSignal: Record<string, unknown> | null;  // Matched LLM effect data
+  playerSignals: Signal[];                      // Detected player intents for this rule key
+  currentCondition: string;                     // e.g. 'combat'
+  ruleKey: string;                              // The key being evaluated
+  worldSignal: Signal | null;                   // Matched LLM effect data
   typeCheck: Record<string, unknown> | null;    // Type-check results
-  narrationSummary: Record<string, unknown>;     // Full raw summary
+  narrationSummary: Record<string, unknown>;    // Full raw summary
 }
 ```
 
@@ -184,7 +199,7 @@ Return `mustNotHappen` to prevent the LLM from hallucinating:
 ```typescript
 rules: {
   shoot: (state, context) => {
-    const intent = context.action?.find(a => a.action === 'shoot');
+    const intent = context.playerSignals.find(s => s.key === 'shoot');
     if (!intent) {
       return {
         outcome: {
@@ -213,10 +228,10 @@ Resolve the action mechanically and return the result:
     if (context.currentCondition !== 'combat') {
       return {
         outcome: {
-          actionName: 'shoot', actionTarget: intent.target,
+          actionName: 'shoot', actionTarget: intent.what || '',
           status: 'neutral',
           mechanicsLogs: [`Shooting is not optimal in '${context.currentCondition}'.`],
-          mustHappen: [`{{user}} tries to shoot${intent.target ? ' ' + intent.target : ''}.`],
+          mustHappen: [`{{user}} tries to shoot${intent.what ? ' ' + intent.what : ''}.`],
           mustNotHappen: [], mayHappen: []
         },
         stateMutations: []
@@ -231,7 +246,7 @@ Resolve the action mechanically and return the result:
 
     return {
       outcome: {
-        actionName: 'shoot', actionTarget: intent.target,
+        actionName: 'shoot', actionTarget: intent.what || '',
         status: isSuccess ? 'success' : 'failure',
         mechanicsLogs: [`Rolled ${total} + ${bonus} = ${total + bonus} vs DC 12.`],
         mustHappen: [isSuccess
@@ -320,30 +335,44 @@ rules: {
 
 ---
 
-## 7. Custom Input Parsing (`parseInput`)
+## 7. Signal Detection (`signalDetectors`)
 
-Override the engine's default input parser by providing a `parseInput` function:
+The engine detects player intents from free text using the cartridge's `signalDetectors` array. Each detector is a `SignalDetector`:
 
 ```typescript
-parseInput: (message, availableActions, currentCondition) => {
-  // Your custom parsing logic
-  const match = message.match(/<(\w+)\s*(.*?)>/);
-  if (match && availableActions.includes(match[1])) {
-    return {
-      parsedActions: [{ action: match[1], target: match[2] || '', raw: message }],
-      emotions: [],
-      scenario: { suggestedCondition: null, confidence: 'low', cues: [] }
-    };
-  }
-  return {
-    parsedActions: null,
-    emotions: [],
-    scenario: { suggestedCondition: null, confidence: 'low', cues: [] }
-  };
+interface SignalDetector {
+  key: string;          // Maps to a rule key
+  description: string;  // What this detector matches (for LLM-based systems)
+  keywords: string[];   // Keywords to scan for (case-insensitive)
+  patterns?: RegExp[];  // Optional regex patterns for precise matching
 }
 ```
 
-If omitted, the engine uses its built-in `<action target>` bracket parser.
+The engine's `detectSignals(message, detectors)` function:
+
+1. First tries bracket syntax: `<action:target>` or `<action target>`.
+2. Then for each detector, checks `patterns` (regex) first, then falls back to `keywords`.
+3. Returns `Signal[]` — each matched detector produces a `Signal` with `key` matching the detector's key.
+
+Platform adapters may override this with `deducePlayerIntent()` for LLM-assisted intent detection. The engine falls back to its built-in detector if the adapter returns `null`.
+
+Example detectors:
+
+```typescript
+signalDetectors: [
+  {
+    key: 'shoot',
+    description: 'Player shoots a target',
+    keywords: ['shoot', 'fire', 'blast'],
+    patterns: [/(?:shoot|fire)\s+(?:at\s+)?(.+)/i]  // First capture group populates Signal.what
+  },
+  {
+    key: 'fear',
+    description: 'Player expresses fear',
+    keywords: ['afraid', 'fear', 'terrified', 'scared', 'panic']
+  }
+]
+```
 
 ---
 
@@ -372,7 +401,9 @@ const myCartridge: Cartridge = {
   name: 'Minimal Example',
   version: '0.1.0',
   breakpoints: ['play'],
-  availableActions: { play: ['roll'] },
+  signalDetectors: [
+    { key: 'roll', description: 'Player rolls the dice', keywords: ['roll', 'dice', 'throw'] }
+  ],
   defaultState: {
     timestamp: '2025-01-01T12:00:00',
     stats: { score: 0 },
@@ -383,7 +414,7 @@ const myCartridge: Cartridge = {
   ruleOrder: ['roll'],
   rules: {
     roll: (state: State, context): RuleOutcome => {
-      const intent = context.action?.find(a => a.action === 'roll');
+      const intent = context.playerSignals.find(s => s.key === 'roll');
       if (!intent) {
         return {
           outcome: {

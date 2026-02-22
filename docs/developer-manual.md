@@ -143,7 +143,6 @@ Side effects use `applySideEffect` / `revertSideEffect` in `src/core/game-state.
 | `time-utils.ts` | ISO 8601 duration parsing, date arithmetic, formatting |
 | `llm-utils.ts` | State encode/decode, `[RP_STATE]` blocks, `[NARRATION_SUMMARY]` extraction, `validateSignalTypes`, `renderSchemaInstruction` |
 | `text-utils.ts` | `extractMatch` — fuzzy enum matcher |
-| `input-parser.ts` | `detectSignals` — `<action target>` bracket parser |
 
 ---
 

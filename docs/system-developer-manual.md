@@ -37,8 +37,8 @@ interface Platform {
   // (Optional) Deduce player intent using platform-specific features
   deducePlayerIntent?(
     rawMessage: string,
-    availableActions: string[]
-  ): Promise<ParsedAction[] | null> | ParsedAction[] | null;
+    matchers: SignalDetector[]
+  ): Promise<Signal[] | null> | Signal[] | null;
 
   // Apply the game play loop output to the platform's context
   applyGamePlayOutput(
@@ -101,7 +101,7 @@ interface NarrationSummary {
   flags: Record<string, number>;  // Integer flags
   tags: Record<string, string>;   // String tags
   meters: Record<string, number>; // Numeric meters
-  effects?: Array<Record<string, unknown>>;  // Structured effects
+  effects?: Signal[];                         // Structured effects
 }
 ```
 
