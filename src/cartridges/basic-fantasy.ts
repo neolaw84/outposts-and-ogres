@@ -399,6 +399,15 @@ const basicFantasyCartridge: GameCartridge = {
   }
 };
 
+/**
+ * Calculate the stat modifier bonus (D&D-style: (stat - 10) / 2, rounded down).
+ * Returns 0 when the stat equals 10.
+ */
+function calculateStatBonus(statValue: unknown): number {
+  const v = typeof statValue === 'number' ? statValue : 10;
+  return Math.floor((v - 10) / 2);
+}
+
 basicFantasyCartridge.gameRules['attack'] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
   const parentIntent = context.action?.find(a => a.action === 'attack');
   if (!parentIntent) {
@@ -428,15 +437,7 @@ basicFantasyCartridge.gameRules['attack'] = function (sheet: GameState, context:
     };
   }
 
-  let statValue = sheet.stats['strength'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['strength']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
@@ -487,15 +488,7 @@ basicFantasyCartridge.gameRules['cast'] = function (sheet: GameState, context: i
     };
   }
 
-  let statValue = sheet.stats['intelligence'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['intelligence']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
@@ -546,15 +539,7 @@ basicFantasyCartridge.gameRules['defend'] = function (sheet: GameState, context:
     };
   }
 
-  let statValue = sheet.stats['constitution'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['constitution']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
@@ -605,15 +590,7 @@ basicFantasyCartridge.gameRules['dodge'] = function (sheet: GameState, context: 
     };
   }
 
-  let statValue = sheet.stats['dexterity'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['dexterity']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
@@ -664,15 +641,7 @@ basicFantasyCartridge.gameRules['flee'] = function (sheet: GameState, context: i
     };
   }
 
-  let statValue = sheet.stats['dexterity'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['dexterity']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
@@ -723,15 +692,7 @@ basicFantasyCartridge.gameRules['persuade'] = function (sheet: GameState, contex
     };
   }
 
-  let statValue = sheet.stats['charisma'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['charisma']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
@@ -782,15 +743,7 @@ basicFantasyCartridge.gameRules['intimidate'] = function (sheet: GameState, cont
     };
   }
 
-  let statValue = sheet.stats['strength'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['strength']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
@@ -841,15 +794,7 @@ basicFantasyCartridge.gameRules['deceive'] = function (sheet: GameState, context
     };
   }
 
-  let statValue = sheet.stats['charisma'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['charisma']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
@@ -900,15 +845,7 @@ basicFantasyCartridge.gameRules['barter'] = function (sheet: GameState, context:
     };
   }
 
-  let statValue = sheet.stats['charisma'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['charisma']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
@@ -959,15 +896,7 @@ basicFantasyCartridge.gameRules['ask'] = function (sheet: GameState, context: im
     };
   }
 
-  let statValue = sheet.stats['wisdom'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['wisdom']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
@@ -1018,15 +947,7 @@ basicFantasyCartridge.gameRules['inspect'] = function (sheet: GameState, context
     };
   }
 
-  let statValue = sheet.stats['wisdom'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['wisdom']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
@@ -1077,15 +998,7 @@ basicFantasyCartridge.gameRules['search'] = function (sheet: GameState, context:
     };
   }
 
-  let statValue = sheet.stats['intelligence'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['intelligence']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
@@ -1136,15 +1049,7 @@ basicFantasyCartridge.gameRules['move'] = function (sheet: GameState, context: i
     };
   }
 
-  let statValue = sheet.stats['constitution'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['constitution']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
@@ -1195,15 +1100,7 @@ basicFantasyCartridge.gameRules['use'] = function (sheet: GameState, context: im
     };
   }
 
-  let statValue = sheet.stats['intelligence'];
-  if (typeof statValue !== 'number') statValue = 10;
-
-  let bonus = 0;
-  if (statValue > 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  } else if (statValue < 10) {
-    bonus = Math.floor((statValue - 10) / 2);
-  }
+  const bonus = calculateStatBonus(sheet.stats['intelligence']);
 
   const rolls = rollDice(1, 20);
   const total = sumRolls(rolls);
