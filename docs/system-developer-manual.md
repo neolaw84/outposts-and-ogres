@@ -1,0 +1,207 @@
+# Outposts & Ogres — System Developer Manual
+
+> For developers integrating ONO into a new AI platform (system).
+
+---
+
+## 1. What is a System?
+
+A **system** is a platform adapter that teaches the ONO engine how to interact with a specific AI platform. Each platform (Janitor AI, SillyTavern, AI Dungeon, etc.) has its own way of:
+
+* Exposing the player's message
+* Persisting game state between turns
+* Injecting instructions into the LLM's context
+
+The system adapter encapsulates all of these platform-specific details behind the `SystemAdapter` interface.
+
+---
+
+## 2. The `SystemAdapter` Interface
+
+```typescript
+interface SystemAdapter {
+  readonly name: string;
+
+  // Read the player's latest message
+  getPlayerMessage(): string | null;
+
+  // Load persisted game state
+  loadState(): Record<string, unknown>;
+
+  // Save game state
+  saveState(state: Record<string, unknown>): void;
+
+  // Extract the structured narration summary from the LLM's last response
+  getScenarioUpdate(): WorldSimulationUpdate | null;
+
+  // (Optional) Deduce player intent using platform-specific features
+  deducePlayerIntent?(
+    rawMessage: string,
+    availableActions: string[]
+  ): Promise<ParsedAction[] | null> | ParsedAction[] | null;
+
+  // Apply the game play loop output to the platform's context
+  applyGamePlayOutput(
+    events: GamePlayEvent[],
+    state: GameState,
+    conditionsToReportBack: WorldEventTracker[]
+  ): void;
+}
+```
+
+---
+
+## 3. How the Game Play Loop Calls Your Adapter
+
+The driver script (in `src/builds/basic/<system>.ts`) orchestrates the following sequence:
+
+```
+1.  adapter.loadState()          →  load saved GameState
+2.  adapter.getScenarioUpdate()  →  extract WorldSimulationUpdate from LLM output
+3.  adapter.getPlayerMessage()   →  read the player's latest message
+4.  script.executeTurn(...)       →  run all rules, produce GamePlayEvent[]
+5.  adapter.saveState(newState)   →  persist updated state
+6.  adapter.applyGamePlayOutput(events, state, conditions)
+                                  →  inject instructions into the LLM prompt
+```
+
+Steps 1–3 *read* from the platform. Steps 5–6 *write* back to it.
+
+---
+
+## 4. Implementing Each Method
+
+### 4.1 `getPlayerMessage()`
+
+Return the player's latest chat message as a plain string. Return `null` if no message is available.
+
+**Janitor AI example:** reads from `context.chat.last_message` or the last entry of `context.chat.last_messages`.
+
+**AI Dungeon example:** reads from `context.text`.
+
+### 4.2 `loadState()` / `saveState()`
+
+The engine needs to persist a JSON-serialisable `GameState` object between turns. The mechanism depends on the platform:
+
+| Platform | Mechanism |
+|---|---|
+| Janitor AI | No persistent storage — state is Base64-encoded inside `[RP_STATE]` tags, embedded in the LLM's personality field, and echoed back in each response. |
+| SillyTavern | Uses `context.extensionData.gameState`. |
+| AI Dungeon | Uses `context.state.gameState`. |
+
+`loadState()` must return `{}` when no state exists yet.
+
+### 4.3 `getScenarioUpdate()`
+
+Parse the `[NARRATION_SUMMARY]` JSON block from the LLM's last response and return it as a `WorldSimulationUpdate`:
+
+```typescript
+interface WorldSimulationUpdate {
+  elapsed_time: string;           // ISO 8601 duration, e.g. "PT5M"
+  flags: Record<string, number>;  // Integer flags
+  tags: Record<string, string>;   // String tags
+  meters: Record<string, number>; // Numeric meters
+  effects?: Array<Record<string, unknown>>;  // Structured effects
+}
+```
+
+Use the `extractNarrationSummary()` helper from `src/utils/llm-utils.ts` to extract and parse the block.
+
+### 4.4 `applyGamePlayOutput()`
+
+This is the most important method. It converts the engine's standardised output into platform-specific prompt mutations.
+
+**Input parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `events` | `GamePlayEvent[]` | One event per rule in the cartridge's `ruleSequence` |
+| `state` | `GameState` | The game state after all side effects have been applied |
+| `conditionsToReportBack` | `WorldEventTracker[]` | The cartridge's world-event tracker definitions |
+
+**What each event contains:**
+
+```typescript
+interface GamePlayEvent {
+  ruleKey: string;
+  status: 'success' | 'failure' | 'mixed' | 'neutral';
+  mechanicsLogs: string[];
+  mustHappen: string[];      // LLM MUST narrate these
+  mustNotHappen: string[];   // LLM MUST NOT narrate these
+  mayHappen: string[];       // LLM MAY narrate these
+  actionName?: string;
+  actionTarget?: string;
+  stateMutations: ActiveCondition[];
+}
+```
+
+**Typical implementation pattern:**
+
+1. Iterate over `events` and collect `mustHappen`, `mustNotHappen`, and `mayHappen` entries.
+2. Format them into the platform's prompt structure (e.g., `[NARRATION_GUIDE]` tags, memory slots, system prompt).
+3. Append the `conditionsToReportBack` as instructions telling the LLM what to report in its next `[NARRATION_SUMMARY]`.
+
+**Shared helpers** are available in `src/systems/adapter-helpers.ts`:
+
+```typescript
+// Flatten events into prefixed "MUST: …" / "MUST NOT: …" / "MAY: …" lines
+formatGamePlayEventLines(events: GamePlayEvent[]): string[]
+
+// Collect into three separate arrays
+collectGamePlayEventArrays(events: GamePlayEvent[]): {
+  mustLines: string[]; mustNotLines: string[]; mayLines: string[]
+}
+
+// Format WorldEventTrackers as "If <condition>, include: { … }" lines
+formatConditionsToReportBack(conditions: WorldEventTracker[]): string[]
+```
+
+### 4.5 `deducePlayerIntent()` (optional)
+
+Some platforms can use hidden LLM prompts or other mechanisms to better interpret the player's free-text input before it reaches the engine's default parser. Return `null` to fall back to the engine's built-in parsing.
+
+---
+
+## 5. Creating the Build Entry-Point
+
+Each system needs a build entry-point at `src/builds/basic/<system>.ts`. This file:
+
+1. Imports the cartridge and the system adapter.
+2. Instantiates the `GamePlayScript` with the cartridge.
+3. Contains the driver script that wires the adapter, script, and game loop together.
+4. Re-exports types and utilities for consumers.
+
+See `src/builds/basic/janitorai.ts` for a complete reference.
+
+Add corresponding build scripts to `package.json`:
+
+```json
+{
+  "scripts": {
+    "build:basic:<system>": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=<system> rollup -c rollup.config.js"
+  }
+}
+```
+
+---
+
+## 6. Testing Your Adapter
+
+Create `tests/<system>.test.ts` covering:
+
+* `getPlayerMessage()` — with and without messages
+* `loadState()` / `saveState()` — round-trip persistence
+* `getScenarioUpdate()` — with and without `[NARRATION_SUMMARY]` blocks
+* `applyGamePlayOutput()` — verify the platform context is mutated correctly
+
+See `tests/janitorai.test.ts` for an example test file.
+
+---
+
+## 7. Reference Implementations
+
+| Platform | Adapter | Build entry-point |
+|---|---|---|
+| Janitor AI | `src/systems/janitorai/index.ts` | `src/builds/basic/janitorai.ts` |
+| SillyTavern | `src/systems/sillytavern/index.ts` | `src/builds/basic/sillytavern.ts` |
+| AI Dungeon | `src/systems/aidungeon/index.ts` | `src/builds/basic/aidungeon.ts` |
