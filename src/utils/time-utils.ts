@@ -34,8 +34,8 @@ function addDuration(dateStr: string, duration: string | number): string {
     msToAdd = duration;
   }
 
-  // Parse YYYY-MM-DDTHH:mm:ss manually
-  const parts = dateStr.split('T');  if (parts.length !== 2) return dateStr;
+  const parts = dateStr.split('T');
+  if (parts.length !== 2) return dateStr;
 
   const dateParts = parts[0].split('-');
   const timeParts = parts[1].split(':');
