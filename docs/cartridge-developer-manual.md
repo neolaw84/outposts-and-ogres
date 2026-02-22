@@ -25,7 +25,6 @@ interface GameCartridge {
   worldEventTrackers: WorldEventTracker[];
   gameRules: Record<string, GameRule>;
   ruleSequence: string[];
-  turnEndTriggers: string[];
 }
 ```
 
@@ -40,18 +39,16 @@ Each field is explained below.
 ```typescript
 name: 'My Sci-Fi RPG',
 version: '1.0.0',
-stopConditions: ['combat', 'exploration', 'dialogue'],
+stopConditions: ['combat', 'exploration', 'dialogue', 'Combat round ends', 'Critical injury'],
 availableActions: {
   combat:      ['shoot', 'take_cover', 'throw_grenade', 'flee'],
   exploration: ['scan', 'move', 'hack', 'rest'],
   dialogue:    ['persuade', 'threaten', 'lie', 'bribe']
-},
-turnEndTriggers: ['Combat round ends', 'Critical injury']
+}
 ```
 
-* **`stopConditions`** — The scenarios in which the LLM should stop narrating and wait for the player's input.
+* **`stopConditions`** — The scenarios in which the LLM should stop narrating and wait for the player's input. This includes both general game modes (e.g. `'combat'`, `'exploration'`) and specific events that force the LLM to end its turn immediately (e.g. `'Combat round ends'`, `'Critical injury'`).
 * **`availableActions`** — For each condition, the list of actions the player may attempt. The engine uses these to parse the player's free-text input.
-* **`turnEndTriggers`** — Events that force the LLM to end its turn immediately.
 
 ### 3.2 Default Game State
 
@@ -79,7 +76,7 @@ defaultGameState: {
 
 ### 3.3 World Event Trackers (`worldEventTrackers`)
 
-These tell the LLM **what structured data to report back** at the end of each narration turn. The engine passes them through to the system adapter as `conditionsToReportBack`.
+These tell the LLM **what structured data to report back** at the end of each narration turn. At the end of the game play loop, the engine calls `generateEffectInstruction()` on each tracker to produce a formatted instruction string. This string is then passed to the system adapter's `applyGamePlayOutput()`, which injects it into the LLM's context alongside the narration guide.
 
 ```typescript
 worldEventTrackers: [
@@ -106,10 +103,16 @@ worldEventTrackers: [
 
 Each tracker has:
 * **`key`** — Unique identifier, matching a key in `gameRules`.
-* **`what`**, **`meters`**, **`flags`**, **`tags`** — Describe the fields the LLM should include.
+* **`what`**, **`meters`**, **`flags`**, **`tags`** — Describe the fields the LLM should include in the `"effects"` array entry.
 * **`condition`** — When the LLM should report this event.
 
-The `generateEffectInstruction()` utility in `src/utils/llm-utils.ts` can format a tracker into a human-readable instruction string for the LLM.
+The engine calls `generateEffectInstruction(tracker)` on each tracker at the end of `executeTurn()`. This produces instructions like:
+
+> *In the above narration of yours, if and only if {{user}} uses a medkit, include one instance of the following in the "effects" array.*
+>
+> `{ "key": "use_medkit", "what": "standard", "meters": { "potency": 5 } }`
+
+As a cartridge developer, you only need to define the trackers. The engine and system adapter handle the rest.
 
 ### 3.4 Rule Sequence & Game Rules
 
@@ -355,7 +358,7 @@ The engine provides these utilities you can use in your rules:
 | `addDuration(iso, dur)` | `utils/time-utils` | Add an ISO 8601 duration to a timestamp |
 | `formatDate(date)` | `utils/time-utils` | Format a Date as `yyyy-mm-ddTHH:MM:SS` |
 | `extractMatch(options, def, input)` | `utils/text-utils` | Fuzzy-match `input` against `options` |
-| `generateEffectInstruction(tracker)` | `utils/llm-utils` | Format a `WorldEventTracker` as an LLM instruction |
+| `generateEffectInstruction(tracker)` | `utils/llm-utils` | Format a `WorldEventTracker` as an LLM instruction (called automatically by the engine) |
 
 ---
 
@@ -378,7 +381,6 @@ const myCartridge: GameCartridge = {
   },
   worldEventTrackers: [],
   ruleSequence: ['roll'],
-  turnEndTriggers: [],
   gameRules: {
     roll: (state: GameState, context): RuleResolution => {
       const intent = context.action?.find(a => a.action === 'roll');

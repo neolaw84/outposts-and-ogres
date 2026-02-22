@@ -111,7 +111,10 @@ The project uses **Jest** with **ts-jest**. All tests live under `tests/`. Cover
 │        │   • Convert to GamePlayEvent                         │
 │        │   • Apply stateMutations to state                    │
 │        │                                                      │
-│  5. Return { newState, gamePlayEvents, conditionsToReportBack }│
+│  5. Generate effectInstructions from worldEventTrackers        │
+│     (calls generateEffectInstruction on each tracker)          │
+│                                                                │
+│  6. Return { newState, gamePlayEvents, effectInstructions }    │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -127,7 +130,7 @@ Key invariant: **every rule is always called**, even when there is no matching p
 | `SystemAdapter` | Platform adapter — reads input, saves state, injects output into the LLM prompt |
 | `RuleResolution` | What a single `GameRule` returns (outcome + side effects) |
 | `GameState` | Persisted state: timestamp, stats dict, active conditions, flags |
-| `WorldEventTracker` | Tells the LLM when and how to report game events in its narration summary |
+| `WorldEventTracker` | Describes effects the LLM can report; used by `generateEffectInstruction` to produce LLM instructions |
 
 ### 4.3 State Management
 
