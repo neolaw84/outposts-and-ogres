@@ -29,10 +29,8 @@ export { Character };
 export { GamePlayScript } from '../../systems/game-play-script';
 export { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 export {
-  Message,
   ParsedAction,
   GameCartridge,
-  OutputPrompt,
   SystemAdapter,
   GameState,
   ActiveCondition,

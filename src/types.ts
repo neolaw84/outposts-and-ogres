@@ -10,11 +10,6 @@
  *    - Output:  build a prompt instructing the AI how to narrate the result
  */
 
-/** Represents a single message in the conversation. */
-interface Message {
-  role: 'player' | 'ai';
-  content: string;
-}
 
 /** Result of parsing a player's input. */
 interface ParsedAction {
@@ -47,29 +42,6 @@ export interface RuleContext {
 
 /* GameCartridge is defined below together with effect-driven types. */
 
-/**
- * The prompt that the output phase produces for the AI.
- */
-interface OutputPrompt {
-  /** Complete prompt text to send to the AI. */
-  text: string;
-  /** Prompt split into channel-specific segments for each platform. */
-  channels: PromptInstructions;
-  /** Structured turn events used to build platform prompts. */
-  events: TurnEvent[];
-}
-
-/** Prompt fragments for systems that support separate memory channels. */
-interface PromptInstructions {
-  /** Long horizon context and world-state continuity. */
-  campaignContinuity: string;
-  /** Mid-term instructions for upcoming narration behaviour. */
-  sceneGuidance: string;
-  /** Immediate narration guidance for the very next model response. */
-  immediateInstruction: string;
-  /** Fallback full prompt for platforms with a single prompt field. */
-  combined: string;
-}
 
 /** Emotional signal extracted from free-text player input. */
 interface PlayerEmotionSignal {
@@ -98,41 +70,6 @@ export interface PlayerInputUnderstanding {
   scenario: ScenarioUnderstanding;
 }
 
-/** Player input event emitted for each processed turn. */
-interface PlayerInputEvent {
-  type: 'player_input';
-  rawText: string;
-  condition: string;
-  parsedActions: ParsedAction[];
-  emotions: PlayerEmotionSignal[];
-  scenarioUnderstanding: ScenarioUnderstanding;
-}
-
-/** Event emitted to expose what the player can do next. */
-interface AvailableChoicesEvent {
-  type: 'available_choices';
-  condition: string;
-  choices: string[];
-}
-
-/** 
- * Event emitted after the unified resolution phase. 
- * Replaces old DiceResolution and NarrativeCue events. 
- */
-interface ActionResolutionEvent {
-  type: 'action_resolution';
-  action: string;
-  target?: string;
-  status: 'success' | 'failure' | 'mixed' | 'neutral';
-  mechanicsLogs: string[];
-  narrationGuidance: string[];
-}
-
-/** Union of all gameplay events used by prompt mappers. */
-type TurnEvent =
-  | PlayerInputEvent
-  | ActionResolutionEvent
-  | AvailableChoicesEvent;
 
 /**
  * Standardized output of the game play loop for each rule execution.
@@ -428,16 +365,9 @@ interface GameCartridge {
 }
 
 export {
-  Message,
   ParsedAction,
   GameCartridge,
-  OutputPrompt,
-  PromptInstructions,
   PlayerEmotionSignal,
-  PlayerInputEvent,
-  ActionResolutionEvent,
-  AvailableChoicesEvent,
-  TurnEvent,
   GamePlayEvent,
   SystemAdapter,
   StatModifier,

@@ -6,15 +6,14 @@
  *                    Every rule is called in order – even with null context –
  *                    so that the output can instruct the LLM about what must
  *                    NOT be narrated (e.g. "do not narrate player drinking a potion").
- * Phase 3 – Output:  Build the AI narration prompt (legacy) and/or accumulate
- *                    a standardised `GamePlayEvent[]` for the system adapter.
+ * Phase 3 – Output:  Accumulate a standardised `GamePlayEvent[]` for the
+ *                    system adapter.
  *
  * The script is driven by a swappable GameCartridge that defines conditions,
  * available actions, resolution rules, effect definitions, and aspect functions.
  */
 
 import {
-  Message,
   ParsedAction,
   GameCartridge,
   GamePlayEvent,
@@ -107,7 +106,7 @@ class GamePlayScript {
    * @param narrationSummary The parsed narration summary from the LLM.
    * @param preParsedAction Optional parsed action provided by a system adapter.
    * @returns The new game state, accumulated narration guide, game play events,
-   *          conditions to report back, and an optional legacy OutputPrompt.
+   *          conditions to report back.
    */
   public executeTurn(
     playerMessage: string,
