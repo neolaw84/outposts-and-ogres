@@ -6,7 +6,7 @@
  * State can be persisted via the extension data mechanism.
  */
 
-import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState } from '../../types';
+import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, EffectRecord } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 import { formatGamePlayEventLines } from '../adapter-helpers';
 
@@ -70,7 +70,7 @@ class SillyTavernAdapter implements SystemAdapter {
           flags: (raw['flags'] as Record<string, number>) || {},
           tags: (raw['tags'] as Record<string, string>) || {},
           meters: (raw['meters'] as Record<string, number>) || {},
-          effects: (raw['effects'] as Array<Record<string, unknown>>) || []
+          effects: (raw['effects'] as EffectRecord[]) || []
         };
       }
     }

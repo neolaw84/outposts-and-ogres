@@ -33,7 +33,7 @@
  *   to scenario so the LLM produces a plain-JSON summary block.
  */
 
-import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState } from '../../types';
+import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, EffectRecord } from '../../types';
 import { decodeState, buildRpStateBlock, extractNarrationSummary } from '../../utils/llm-utils';
 import { formatGamePlayEventLines } from '../adapter-helpers';
 
@@ -162,7 +162,7 @@ class JanitorAIAdapter implements SystemAdapter {
       flags: (raw['flags'] as Record<string, number>) || {},
       tags: (raw['tags'] as Record<string, string>) || {},
       meters: (raw['meters'] as Record<string, number>) || {},
-      effects: (raw['effects'] as Array<Record<string, unknown>>) || []
+      effects: (raw['effects'] as EffectRecord[]) || []
     };
   }
 

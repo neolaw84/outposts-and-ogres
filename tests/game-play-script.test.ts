@@ -40,8 +40,8 @@ describe('GamePlayScript', () => {
     const script = createScript();
     const parsed = script.extractAction('<attack goblin>');
     expect(parsed).not.toBeNull();
-    expect(parsed![0].action).toBe('attack');
-    expect(parsed![0].target).toBe('goblin');
+    expect(parsed![0].effect.key).toBe('attack');
+    expect(parsed![0].effect.what).toBe('goblin');
   });
 
   test('extractAction should return null for unknown action without brackets', () => {
@@ -102,7 +102,7 @@ describe('GamePlayScript', () => {
       worldEventTrackers: [],
       gameRules: {
         'use_item': (state, context) => {
-          if (context.action && context.action.find(a => a.action === 'use_item')) {
+          if (context.action && context.action.find(a => a.effect.key === 'use_item')) {
             return {
               outcome: {
                 actionName: 'use_item',

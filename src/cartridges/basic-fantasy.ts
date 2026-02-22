@@ -119,26 +119,26 @@ const basicFantasyCartridge: GameCartridge = {
           stateMutations: []
         };
       }
-      const effect = context.effectData as Record<string, unknown>;
+      const effect = context.effectData!;
       const typeCheck = context.typeCheck as Record<string, unknown> | null;
 
       let potionType = 'healing';
       if (typeCheck && typeCheck['what'] && effect['what']) {
-        potionType = extractMatch(['healing', 'strength', 'poison'], 'healing', effect['what'] as string);
+        potionType = extractMatch(['healing', 'strength', 'poison'], 'healing', effect['what']);
       }
 
       let potency = 1;
       if (typeCheck && typeCheck['meters']) {
         const meters = typeCheck['meters'] as Record<string, boolean>;
-        const effectMeters = effect['meters'] as Record<string, number> | undefined;
+        const effectMeters = effect['meters'];
         if (meters['potency'] && effectMeters && typeof effectMeters['potency'] === 'number') {
           potency = Math.max(1, Math.min(10, effectMeters['potency']));
         }
       }
 
       let whenTime = sheet.timestamp;
-      if (typeCheck && typeCheck['when'] && effect['when'] && (effect['when'] as string) <= sheet.timestamp) {
-        whenTime = effect['when'] as string;
+      if (typeCheck && typeCheck['when'] && effect['when'] && effect['when'] <= sheet.timestamp) {
+        whenTime = effect['when'];
       }
 
       const sideEffects: ActiveCondition[] = [];
@@ -205,18 +205,18 @@ const basicFantasyCartridge: GameCartridge = {
           stateMutations: []
         };
       }
-      const effect = context.effectData as Record<string, unknown>;
+      const effect = context.effectData!;
       const typeCheck = context.typeCheck as Record<string, unknown> | null;
 
       let eventType = 'enemy_attack';
       if (typeCheck && typeCheck['what'] && effect['what']) {
-        eventType = extractMatch(['player_attack', 'enemy_attack', 'combat_end'], 'enemy_attack', effect['what'] as string);
+        eventType = extractMatch(['player_attack', 'enemy_attack', 'combat_end'], 'enemy_attack', effect['what']);
       }
 
       let damage = 0;
       if (typeCheck && typeCheck['meters']) {
         const meters = typeCheck['meters'] as Record<string, boolean>;
-        const effectMeters = effect['meters'] as Record<string, number> | undefined;
+        const effectMeters = effect['meters'];
         if (meters['damage'] && effectMeters && typeof effectMeters['damage'] === 'number') {
           damage = Math.max(0, effectMeters['damage']);
         }
@@ -228,7 +228,7 @@ const basicFantasyCartridge: GameCartridge = {
       if (eventType === 'enemy_attack') {
         const isCritical = !!(typeCheck && typeCheck['flags'] &&
           (typeCheck['flags'] as Record<string, boolean>)['critical'] &&
-          effect['flags'] && (effect['flags'] as Record<string, boolean>)['critical'] === true);
+          effect['flags'] && effect['flags']['critical'] === true);
 
         const defense = sheet.stats['defense'] || 0;
         let actualDamage = Math.max(1, damage - defense);
@@ -309,19 +309,19 @@ const basicFantasyCartridge: GameCartridge = {
           stateMutations: []
         };
       }
-      const effect = context.effectData as Record<string, unknown>;
+      const effect = context.effectData!;
       const typeCheck = context.typeCheck as Record<string, unknown> | null;
 
       let arrivalTime = sheet.timestamp;
       if (typeCheck && typeCheck['when'] && effect['when']) {
-        if ((effect['when'] as string) > sheet.timestamp) {
-          arrivalTime = effect['when'] as string;
+        if (effect['when'] > sheet.timestamp) {
+          arrivalTime = effect['when'];
         }
       }
 
       let travelMode = 'walk';
       if (typeCheck && typeCheck['what'] && effect['what']) {
-        travelMode = extractMatch(['walk', 'run', 'ride'], 'walk', effect['what'] as string);
+        travelMode = extractMatch(['walk', 'run', 'ride'], 'walk', effect['what']);
       }
 
       const sideEffects: ActiveCondition[] = [];
@@ -359,17 +359,17 @@ const basicFantasyCartridge: GameCartridge = {
           stateMutations: []
         };
       }
-      const effect = context.effectData as Record<string, unknown>;
+      const effect = context.effectData!;
       const typeCheck = context.typeCheck as Record<string, unknown> | null;
 
       let restType = 'short';
       if (typeCheck && typeCheck['what'] && effect['what']) {
-        restType = extractMatch(['short', 'long'], 'short', effect['what'] as string);
+        restType = extractMatch(['short', 'long'], 'short', effect['what']);
       }
 
       let wakeTime = sheet.timestamp;
-      if (typeCheck && typeCheck['when'] && effect['when'] && (effect['when'] as string) > sheet.timestamp) {
-        wakeTime = effect['when'] as string;
+      if (typeCheck && typeCheck['when'] && effect['when'] && effect['when'] > sheet.timestamp) {
+        wakeTime = effect['when'];
       } else {
         const duration = (restType === 'long') ? 'PT8H' : 'PT1H';
         wakeTime = addDuration(sheet.timestamp, duration);

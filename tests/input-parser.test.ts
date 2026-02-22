@@ -6,34 +6,34 @@ describe('Input Parser', () => {
   test('should parse bracket syntax with action only', () => {
     const result = parsePlayerInput('I want to <attack>', knownActions);
     expect(result).not.toBeNull();
-    expect(result![0].action).toBe('attack');
-    expect(result![0].target).toBe('');
+    expect(result![0].effect.key).toBe('attack');
+    expect(result![0].effect.what).toBeUndefined();
   });
 
   test('should parse bracket syntax with space-separated target', () => {
     const result = parsePlayerInput('<attack goblin>', knownActions);
     expect(result).not.toBeNull();
-    expect(result![0].action).toBe('attack');
-    expect(result![0].target).toBe('goblin');
+    expect(result![0].effect.key).toBe('attack');
+    expect(result![0].effect.what).toBe('goblin');
   });
 
   test('should parse bracket syntax with colon-separated target', () => {
     const result = parsePlayerInput('<cast:fireball>', knownActions);
     expect(result).not.toBeNull();
-    expect(result![0].action).toBe('cast');
-    expect(result![0].target).toBe('fireball');
+    expect(result![0].effect.key).toBe('cast');
+    expect(result![0].effect.what).toBe('fireball');
   });
 
   test('should be case-insensitive for action keyword', () => {
     const result = parsePlayerInput('<ATTACK>', knownActions);
     expect(result).not.toBeNull();
-    expect(result![0].action).toBe('attack');
+    expect(result![0].effect.key).toBe('attack');
   });
 
   test('should fallback to keyword matching when no brackets', () => {
     const result = parsePlayerInput('I want to attack the orc', knownActions);
     expect(result).not.toBeNull();
-    expect(result![0].action).toBe('attack');
+    expect(result![0].effect.key).toBe('attack');
   });
 
   test('should return null when no action is recognised', () => {
@@ -56,6 +56,6 @@ describe('Input Parser', () => {
   test('should still parse brackets even with empty known actions', () => {
     const result = parsePlayerInput('<attack>', []);
     expect(result).not.toBeNull();
-    expect(result![0].action).toBe('attack');
+    expect(result![0].effect.key).toBe('attack');
   });
 });

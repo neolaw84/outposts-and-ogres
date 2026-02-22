@@ -213,7 +213,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
         worldEventTrackers: [],
         gameRules: {
           'strike': (_state, context) => {
-            const action = context.action?.find(a => a.action === 'strike');
+            const action = context.action?.find(a => a.effect.key === 'strike');
             if (action) {
               return {
                 outcome: {
