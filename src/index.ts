@@ -39,7 +39,7 @@ export { GamePlayScript } from './systems/game-play-script';
 export { basicFantasyCartridge } from './cartridges/basic-fantasy';
 export {
   EffectRecord,
-  ParsedAction,
+  InputMatcher,
   GameCartridge,
   SystemAdapter,
   WorldSimulationUpdate,
@@ -54,7 +54,6 @@ export {
   GamePlayEvent
 } from './types';
 export { rollDie, rollDice, sumRolls } from './utils/dice';
-export { parsePlayerInput } from './utils/input-parser';
 export { base64EncodeRaw, base64DecodeRaw, base64Encode, base64Decode } from './utils/base64';
 export {
   encodeState,
@@ -67,10 +66,8 @@ export {
 } from './utils/llm-utils';
 export { extractMatch } from './utils/text-utils';
 export {
-  parseActionInput,
-  detectEmotionSignals,
-  understandScenario,
-  understandPlayerInput
+  parsePlayerInput,
+  understandScenario
 } from './inputs';
 export { JanitorAIAdapter } from './systems/janitorai/index';
 export { SillyTavernAdapter } from './systems/sillytavern/index';

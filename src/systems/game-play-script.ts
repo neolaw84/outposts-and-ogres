@@ -14,7 +14,6 @@
  */
 
 import {
-  ParsedAction,
   GameCartridge,
   GamePlayEvent,
   GameState,
@@ -24,7 +23,7 @@ import {
   WorldEventTracker,
   EffectRecord
 } from '../types';
-import { understandPlayerInput } from '../inputs/player-input-understanding';
+import { parsePlayerInput } from '../inputs/input-matcher';
 import { applySideEffect, revertSideEffect } from '../core/game-state';
 import { addDuration, getMidnightsPassed } from '../utils/time-utils';
 import { cleanInput, findEffectByKey, generateEffectInstruction } from '../utils/llm-utils';
@@ -69,23 +68,12 @@ class GamePlayScript {
   // ----------------------------------------------------------------
 
   /**
-   * Extract the player's intended action from the latest player message.
-   * Returns null if no recognisable action is found.
+   * Extract the player's intents from the latest player message using the
+   * cartridge's inputMatchers.
+   * Returns an empty array if no recognisable intent is found.
    */
-  public extractAction(playerMessage: string): ParsedAction[] | null {
-    const actions = this.cartridge.availableActions[this.currentCondition] || [];
-
-    if (this.cartridge.parseInput) {
-      const customUnderstanding = this.cartridge.parseInput(playerMessage, actions, this.currentCondition);
-      return customUnderstanding.parsedActions;
-    }
-
-    const understanding = understandPlayerInput(
-      playerMessage,
-      actions,
-      this.cartridge.stopConditions
-    );
-    return understanding.parsedActions;
+  public extractIntents(playerMessage: string): EffectRecord[] {
+    return parsePlayerInput(playerMessage, this.cartridge.inputMatchers);
   }
 
   // ----------------------------------------------------------------
@@ -105,7 +93,7 @@ class GamePlayScript {
    * @param playerMessage The player's raw free-text input.
    * @param currentState The current game state.
    * @param narrationSummary The parsed narration summary from the LLM.
-   * @param preParsedAction Optional parsed action provided by a system adapter.
+   * @param preParsedIntents Optional pre-parsed intents provided by a system adapter.
    * @returns The new game state, accumulated narration guide, game play events,
    *          conditions to report back.
    */
@@ -113,14 +101,14 @@ class GamePlayScript {
     playerMessage: string,
     currentState: GameState,
     narrationSummary: Record<string, unknown>,
-    preParsedActions?: ParsedAction[] | null
+    preParsedIntents?: EffectRecord[] | null
   ): {
     newState: GameState;
     gamePlayEvents: GamePlayEvent[];
     effectInstructions: string;
   } {
     // Phase 1 – Input
-    const parsedActions = preParsedActions || this.extractAction(playerMessage);
+    const allIntents = preParsedIntents || this.extractIntents(playerMessage);
 
     // Phase 2 – Process (Unified Aspect Sequence)
     let newState = JSON.parse(JSON.stringify(currentState));
@@ -160,7 +148,7 @@ class GamePlayScript {
         }
 
         const context: RuleContext = {
-          action: parsedActions,
+          intents: allIntents.filter(e => e.key === key),
           currentCondition: this.currentCondition,
           ruleKey: key,
           effectData: foundEffect,

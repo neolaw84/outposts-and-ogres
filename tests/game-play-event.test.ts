@@ -203,7 +203,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
         name: 'Test GamePlayEvent Cartridge',
         version: '1.0.0',
         stopConditions: ['combat'],
-        availableActions: { combat: ['strike'] },
+        inputMatchers: [{ key: 'strike', description: 'Player strikes', keywords: ['strike'] }],
         defaultGameState: {
           timestamp: '1000-01-01T08:00:00',
           stats: { hp: 100 },
@@ -213,8 +213,8 @@ describe('GamePlayEvent - standardized game play loop output', () => {
         worldEventTrackers: [],
         gameRules: {
           'strike': (_state, context) => {
-            const action = context.action?.find(a => a.effect.key === 'strike');
-            if (action) {
+            const intent = context.intents.find(a => a.key === 'strike');
+            if (intent) {
               return {
                 outcome: {
                   status: 'success',

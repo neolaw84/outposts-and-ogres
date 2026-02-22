@@ -50,11 +50,31 @@ const basicFantasyCartridge: GameCartridge = {
 
   stopConditions: ['combat', 'exploration', 'social', 'Combat Round Ends', 'Critical Injury', 'Travel complete'],
 
-  availableActions: {
-    combat: ['attack', 'dodge', 'cast', 'defend', 'flee'],
-    exploration: ['search', 'move', 'rest', 'use', 'inspect'],
-    social: ['persuade', 'intimidate', 'deceive', 'barter', 'ask']
-  },
+  inputMatchers: [
+    // Combat actions
+    { key: 'attack', description: 'Player attacks a target', keywords: ['attack', 'hit', 'strike', 'slash'] },
+    { key: 'cast', description: 'Player casts a spell', keywords: ['cast', 'spell', 'magic'] },
+    { key: 'defend', description: 'Player defends or braces', keywords: ['defend', 'block', 'brace', 'shield'] },
+    { key: 'dodge', description: 'Player dodges an attack', keywords: ['dodge', 'evade', 'duck', 'sidestep'] },
+    { key: 'flee', description: 'Player flees from combat', keywords: ['flee', 'run', 'escape', 'retreat'] },
+    // Social actions
+    { key: 'persuade', description: 'Player persuades an NPC', keywords: ['persuade', 'convince', 'reason'] },
+    { key: 'intimidate', description: 'Player intimidates an NPC', keywords: ['intimidate', 'threaten', 'scare'] },
+    { key: 'deceive', description: 'Player deceives an NPC', keywords: ['deceive', 'lie', 'bluff', 'trick'] },
+    { key: 'barter', description: 'Player barters or trades', keywords: ['barter', 'trade', 'haggle', 'negotiate'] },
+    { key: 'ask', description: 'Player asks an NPC a question', keywords: ['ask', 'question', 'inquire'] },
+    // Exploration actions
+    { key: 'inspect', description: 'Player inspects an object or area', keywords: ['inspect', 'examine', 'look', 'study'] },
+    { key: 'search', description: 'Player searches the area', keywords: ['search', 'explore', 'find', 'loot'] },
+    { key: 'move', description: 'Player moves to a new location', keywords: ['move', 'go', 'walk', 'travel'] },
+    { key: 'use', description: 'Player uses an item', keywords: ['use', 'activate', 'equip', 'apply'] },
+    // Emotions
+    { key: 'fear', description: 'Player expresses fear', keywords: ['afraid', 'fear', 'terrified', 'scared', 'panic'] },
+    { key: 'anger', description: 'Player expresses anger', keywords: ['angry', 'rage', 'furious', 'mad'] },
+    { key: 'hope', description: 'Player expresses hope', keywords: ['hope', 'trust', 'believe'] },
+    { key: 'calm', description: 'Player expresses calmness', keywords: ['calm', 'steady', 'focus', 'focused'] },
+    { key: 'curiosity', description: 'Player expresses curiosity', keywords: ['curious', 'wonder', 'investigate', 'question'] },
+  ],
 
   defaultGameState: defaultCharacterSheet,
 
@@ -401,7 +421,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     attack: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'attack');
+      const parentIntent = context.intents.find(a => a.key === 'attack');
       if (!parentIntent) {
         return {
           outcome: {
@@ -417,11 +437,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'combat') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -437,8 +457,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
@@ -452,7 +472,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     cast: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'cast');
+      const parentIntent = context.intents.find(a => a.key === 'cast');
       if (!parentIntent) {
         return {
           outcome: {
@@ -468,11 +488,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'combat') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -488,8 +508,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
@@ -503,7 +523,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     defend: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'defend');
+      const parentIntent = context.intents.find(a => a.key === 'defend');
       if (!parentIntent) {
         return {
           outcome: {
@@ -519,11 +539,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'combat') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -539,8 +559,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
@@ -554,7 +574,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     dodge: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'dodge');
+      const parentIntent = context.intents.find(a => a.key === 'dodge');
       if (!parentIntent) {
         return {
           outcome: {
@@ -570,11 +590,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'combat') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -590,8 +610,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
@@ -605,7 +625,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     flee: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'flee');
+      const parentIntent = context.intents.find(a => a.key === 'flee');
       if (!parentIntent) {
         return {
           outcome: {
@@ -621,11 +641,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'combat') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -641,8 +661,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 15.`
@@ -656,7 +676,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     persuade: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'persuade');
+      const parentIntent = context.intents.find(a => a.key === 'persuade');
       if (!parentIntent) {
         return {
           outcome: {
@@ -672,11 +692,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'social') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -692,8 +712,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
@@ -707,7 +727,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     intimidate: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'intimidate');
+      const parentIntent = context.intents.find(a => a.key === 'intimidate');
       if (!parentIntent) {
         return {
           outcome: {
@@ -723,11 +743,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'social') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -743,8 +763,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
@@ -758,7 +778,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     deceive: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'deceive');
+      const parentIntent = context.intents.find(a => a.key === 'deceive');
       if (!parentIntent) {
         return {
           outcome: {
@@ -774,11 +794,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'social') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -794,8 +814,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 15.`
@@ -809,7 +829,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     barter: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'barter');
+      const parentIntent = context.intents.find(a => a.key === 'barter');
       if (!parentIntent) {
         return {
           outcome: {
@@ -825,11 +845,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'social') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -845,8 +865,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
@@ -860,7 +880,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     ask: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'ask');
+      const parentIntent = context.intents.find(a => a.key === 'ask');
       if (!parentIntent) {
         return {
           outcome: {
@@ -876,11 +896,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'social') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -896,8 +916,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
@@ -911,7 +931,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     inspect: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'inspect');
+      const parentIntent = context.intents.find(a => a.key === 'inspect');
       if (!parentIntent) {
         return {
           outcome: {
@@ -927,11 +947,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'exploration') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -947,8 +967,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
@@ -962,7 +982,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     search: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'search');
+      const parentIntent = context.intents.find(a => a.key === 'search');
       if (!parentIntent) {
         return {
           outcome: {
@@ -978,11 +998,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'exploration') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -998,8 +1018,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 15.`
@@ -1013,7 +1033,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     move: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'move');
+      const parentIntent = context.intents.find(a => a.key === 'move');
       if (!parentIntent) {
         return {
           outcome: {
@@ -1029,11 +1049,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'exploration') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -1049,8 +1069,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 5.`
@@ -1064,7 +1084,7 @@ const basicFantasyCartridge: GameCartridge = {
     },
 
     use: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
-      const parentIntent = context.action?.find(a => a.effect.key === 'use');
+      const parentIntent = context.intents.find(a => a.key === 'use');
       if (!parentIntent) {
         return {
           outcome: {
@@ -1080,11 +1100,11 @@ const basicFantasyCartridge: GameCartridge = {
       if (context.currentCondition !== 'exploration') {
         return {
           outcome: {
-            actionName: parentIntent.effect.key,
-            actionTarget: (parentIntent.effect.what || ''),
+            actionName: parentIntent.key,
+            actionTarget: (parentIntent.what || ''),
             status: 'neutral',
-            mechanicsLogs: [`Action '${parentIntent.effect.key}' is not optimal in condition '${context.currentCondition}'.`],
-            mustHappen: [`The player attempts to ${parentIntent.effect.key}${parentIntent.effect.what ? ' ' + parentIntent.effect.what : ''}.`],
+            mechanicsLogs: [`Action '${parentIntent.key}' is not optimal in condition '${context.currentCondition}'.`],
+            mustHappen: [`The player attempts to ${parentIntent.key}${parentIntent.what ? ' ' + parentIntent.what : ''}.`],
             mustNotHappen: [],
             mayHappen: []
           },
@@ -1100,8 +1120,8 @@ const basicFantasyCartridge: GameCartridge = {
 
       return {
         outcome: {
-          actionName: parentIntent.effect.key,
-          actionTarget: (parentIntent.effect.what || ''),
+          actionName: parentIntent.key,
+          actionTarget: (parentIntent.what || ''),
           status: isSuccess ? 'success' : 'failure',
           mechanicsLogs: [
             `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`

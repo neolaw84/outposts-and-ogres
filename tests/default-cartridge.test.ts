@@ -12,10 +12,14 @@ describe('Basic Fantasy Cartridge', () => {
     expect(basicFantasyCartridge.stopConditions).toContain('social');
   });
 
-  test('should have available actions for each condition', () => {
-    expect(basicFantasyCartridge.availableActions['combat'].length).toBeGreaterThan(0);
-    expect(basicFantasyCartridge.availableActions['exploration'].length).toBeGreaterThan(0);
-    expect(basicFantasyCartridge.availableActions['social'].length).toBeGreaterThan(0);
+  test('should have inputMatchers for combat, social and exploration actions', () => {
+    const keys = basicFantasyCartridge.inputMatchers.map(m => m.key);
+    expect(keys).toContain('attack');
+    expect(keys).toContain('dodge');
+    expect(keys).toContain('cast');
+    expect(keys).toContain('persuade');
+    expect(keys).toContain('search');
+    expect(keys).toContain('move');
   });
 
   test('should have defined aspect functions for specific actions like attack', () => {

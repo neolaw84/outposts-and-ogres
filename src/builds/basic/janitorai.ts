@@ -30,7 +30,6 @@ export { Character };
 export { GamePlayScript } from '../../systems/game-play-script';
 export { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 export {
-  ParsedAction,
   GameCartridge,
   SystemAdapter,
   GameState,
@@ -39,11 +38,12 @@ export {
   WorldEventTracker,
   GameRule,
   RuleResolution,
-  GamePlayEvent
+  GamePlayEvent,
+  EffectRecord,
+  InputMatcher
 } from '../../types';
 export { rollDie, rollDice, sumRolls } from '../../utils/dice';
-export { parseActionInput } from '../../inputs/action-parser';
-export { parsePlayerInput } from '../../utils/input-parser';
+export { parsePlayerInput } from '../../inputs/input-matcher';
 export { base64EncodeRaw, base64DecodeRaw, base64Encode, base64Decode } from '../../utils/base64';
 export {
   encodeState,
@@ -116,15 +116,14 @@ if (typeof context !== 'undefined') {
   const playerMsg = adapter.getPlayerMessage();
 
   if (!dataCorrupted && playerMsg) {
-    let preParsedAction: import('../../types').ParsedAction[] | null = null;
+    let preParsedIntents: import('../../types').EffectRecord[] | null = null;
     if (adapter.deducePlayerIntent) {
-      const actions = cartridge.availableActions[script.getCondition()] || [];
-      const deduced = adapter.deducePlayerIntent(playerMsg, actions);
+      const deduced = adapter.deducePlayerIntent(playerMsg, cartridge.inputMatchers);
       if (!(deduced instanceof Promise)) {
-        preParsedAction = deduced;
+        preParsedIntents = deduced;
       }
     }
-    const turnResult = script.executeTurn(playerMsg, rpState as GameState, narrationSummary, preParsedAction);
+    const turnResult = script.executeTurn(playerMsg, rpState as GameState, narrationSummary, preParsedIntents);
     rpState = turnResult.newState;
 
     // 4. ENCODE & INJECT

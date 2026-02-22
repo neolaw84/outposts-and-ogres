@@ -19,8 +19,7 @@
  *
  * Used as the unified data envelope for:
  * - LLM-reported effect data (`RuleContext.effectData`)
- * - Parsed player actions (`ParsedAction.effect`)
- * - Detected player emotions (`PlayerEmotionSignal.effect`)
+ * - Detected player intents (actions, emotions, etc.)
  * - Each entry in `WorldSimulationUpdate.effects`
  */
 interface EffectRecord {
@@ -38,21 +37,31 @@ interface EffectRecord {
   tags?: Record<string, string>;
 }
 
-/** Result of parsing a player's input. */
-interface ParsedAction {
-  /** Structured effect record: `key` = action name, `what` = target. */
-  effect: EffectRecord;
-  /** The raw text of the player's message. */
-  raw: string;
+/**
+ * Describes how to detect a player intent from free text input.
+ * Analogous to `WorldEventTracker` (which describes how the LLM reports
+ * effects), this describes how the engine detects player intents.
+ *
+ * The `key` maps to the corresponding function in `gameRules`.
+ */
+interface InputMatcher {
+  /** Unique key — maps to the corresponding function in gameRules. */
+  key: string;
+  /** Free-text description of what this matcher detects (for LLM-based systems). */
+  description: string;
+  /** Simple keyword strings to scan for (case-insensitive substring match). */
+  keywords: string[];
+  /** Optional regex patterns for more precise matching. */
+  patterns?: RegExp[];
 }
 
 /**
- * Represents the unified context in which an GameRule is triggered.
- * Receives both the player intent (if any) and the parsed LLM summary data.
+ * Represents the unified context in which a GameRule is triggered.
+ * Receives both the player intents (if any) and the parsed LLM summary data.
  */
 export interface RuleContext {
-  /** The parsed actions from the player's input (if any) e.g., <attack goblin> <drink potion> */
-  action: ParsedAction[] | null;
+  /** Detected player intents for this rule key (actions, emotions, etc.) */
+  intents: EffectRecord[];
   /** The current condition/scenario of the engine (e.g., 'combat') */
   currentCondition: string;
   /** The key of the aspect function currently being executed in the sequence */
@@ -68,12 +77,6 @@ export interface RuleContext {
 /* GameCartridge is defined below together with effect-driven types. */
 
 
-/** Emotional signal extracted from free-text player input. */
-interface PlayerEmotionSignal {
-  /** Structured effect record: `key` = emotion label (e.g. 'fear'), `tags.sourceKeyword` = trigger keyword. */
-  effect: EffectRecord;
-}
-
 /** 
  * Cartridge-specific understanding of the raw LLM WorldSimulationUpdate.
  */
@@ -81,16 +84,6 @@ export interface ScenarioUnderstanding {
   suggestedCondition: string | null;
   confidence: 'low' | 'medium' | 'high';
   cues: string[];
-}
-
-/** 
- * Comprehensive understanding of the player's input intent, 
- * optionally provided by a cartridge's custom parser.
- */
-export interface PlayerInputUnderstanding {
-  parsedActions: ParsedAction[] | null;
-  emotions: PlayerEmotionSignal[];
-  scenario: ScenarioUnderstanding;
 }
 
 
@@ -191,8 +184,8 @@ interface SystemAdapter {
    */
   deducePlayerIntent?(
     rawMessage: string,
-    availableActions: string[]
-  ): Promise<ParsedAction[] | null> | ParsedAction[] | null;
+    matchers: InputMatcher[]
+  ): Promise<EffectRecord[] | null> | EffectRecord[] | null;
 
   /**
    * Apply the accumulated game play loop output to the platform's context.
@@ -346,20 +339,10 @@ interface GameCartridge {
   /** Conditions under which the AI should stop narrating and hand control to the player. */
   stopConditions: string[];
   /**
-   * Map from condition name to the list of actions the player may attempt.
-   * E.g. { "combat": ["attack", "dodge", "cast"] }
+   * Matchers that describe how to detect player intents from free text.
+   * Each matcher's `key` maps to a corresponding function in `gameRules`.
    */
-  availableActions: Record<string, string[]>;
-
-  /**
-   * Optional cartridge-level parser.
-   * Overrides the engine's default input understanding if provided.
-   */
-  parseInput?: (
-    message: string,
-    availableActions: string[],
-    currentCondition: string
-  ) => PlayerInputUnderstanding;
+  inputMatchers: InputMatcher[];
 
   /** Default character sheet used when no prior state exists. */
   defaultGameState: GameState;
@@ -377,9 +360,8 @@ interface GameCartridge {
 
 export {
   EffectRecord,
-  ParsedAction,
+  InputMatcher,
   GameCartridge,
-  PlayerEmotionSignal,
   GamePlayEvent,
   SystemAdapter,
   StatModifier,

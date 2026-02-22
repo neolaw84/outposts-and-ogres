@@ -25,7 +25,10 @@ describe('GamePlayScript', () => {
       name: 'Custom',
       version: '0.1.0',
       stopConditions: ['puzzle'],
-      availableActions: { puzzle: ['solve', 'hint'] },
+      inputMatchers: [
+        { key: 'solve', description: 'Solve puzzle', keywords: ['solve'] },
+        { key: 'hint', description: 'Get hint', keywords: ['hint'] }
+      ],
       defaultGameState: { timestamp: '1000-01-01T08:00:00', stats: {}, activeConditions: [], flags: [] },
       worldEventTrackers: [],
       gameRules: {},
@@ -36,18 +39,18 @@ describe('GamePlayScript', () => {
     expect(script.getCondition()).toBe('puzzle');
   });
 
-  test('extractAction should find a bracketed action in combat', () => {
+  test('extractIntents should find a bracketed action in combat', () => {
     const script = createScript();
-    const parsed = script.extractAction('<attack goblin>');
-    expect(parsed).not.toBeNull();
-    expect(parsed![0].effect.key).toBe('attack');
-    expect(parsed![0].effect.what).toBe('goblin');
+    const intents = script.extractIntents('<attack goblin>');
+    expect(intents.length).toBeGreaterThan(0);
+    expect(intents[0].key).toBe('attack');
+    expect(intents[0].what).toBe('goblin');
   });
 
-  test('extractAction should return null for unknown action without brackets', () => {
+  test('extractIntents should return empty array for input with no matching keywords', () => {
     const script = createScript();
-    const parsed = script.extractAction('I look around');
-    expect(parsed).toBeNull();
+    const intents = script.extractIntents('I ponder silently');
+    expect(intents.length).toBe(0);
   });
 
 
@@ -60,10 +63,10 @@ describe('GamePlayScript', () => {
     expect(attackEvent!.mustHappen.length).toBeGreaterThan(0);
   });
 
-  test('executeTurn should return gamePlayEvents for unrecognised input', () => {
+  test('executeTurn should return gamePlayEvents with no mustHappen for fully unrecognised input', () => {
     const script = createScript();
     const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultGameState));
-    const output = script.executeTurn('I look around confused', mockState, {});
+    const output = script.executeTurn('I ponder silently', mockState, {});
     expect(output.gamePlayEvents.length).toBeGreaterThan(0);
     const withMustHappen = output.gamePlayEvents.filter((e: GamePlayEvent) => e.mustHappen.length > 0);
     expect(withMustHappen.length).toBe(0);
@@ -92,7 +95,9 @@ describe('GamePlayScript', () => {
       name: 'Test Aspect Cartridge',
       version: '1.0.0',
       stopConditions: ['combat'],
-      availableActions: { combat: ['use_item'] },
+      inputMatchers: [
+        { key: 'use_item', description: 'Use an item', keywords: ['use_item', 'use'] }
+      ],
       defaultGameState: {
         timestamp: '1000-01-01T08:00:00',
         stats: { hp: 20 },
@@ -102,7 +107,7 @@ describe('GamePlayScript', () => {
       worldEventTrackers: [],
       gameRules: {
         'use_item': (state, context) => {
-          if (context.action && context.action.find(a => a.effect.key === 'use_item')) {
+          if (context.intents.length > 0) {
             return {
               outcome: {
                 actionName: 'use_item',

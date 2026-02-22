@@ -78,7 +78,7 @@ class AIDungeonAdapter implements SystemAdapter {
     return null;
   }
 
-  deducePlayerIntent(rawMessage: string, availableActions: string[]): import('../../types').ParsedAction[] | null {
+  deducePlayerIntent(rawMessage: string, matchers: import('../../types').InputMatcher[]): import('../../types').EffectRecord[] | null {
     return null; // To be implemented later
   }
 

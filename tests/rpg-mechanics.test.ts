@@ -23,7 +23,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       };
       const typeCheck = { what: true, meters: { potency: true } };
 
-      const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
       expect(result.stateMutations).not.toBeNull();
       const effects = result.stateMutations as Array<{ impacts: Array<{ stats: string; op: string; val: number }> }>;
@@ -42,7 +42,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       };
       const typeCheck = { what: true, meters: { potency: true } };
 
-      const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
       const effects = result.stateMutations as Array<{ impacts: Array<{ stats: string; val: number }> }>;
       const hpImpact = effects[0].impacts.find(i => i.stats === 'hp');
@@ -58,7 +58,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       };
       const typeCheck = { what: true, meters: { potency: true } };
 
-      const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
       expect(result.outcome.mustHappen.join(' ')).toContain('already at full health');
     });
@@ -73,7 +73,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       };
       const typeCheck = { what: true, meters: { potency: true }, when: true };
 
-      const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
       const effects = result.stateMutations as Array<{ expiry: string; impacts: Array<{ stats: string; val: number }> }>;
       expect(effects[0].expiry).toBeTruthy();
@@ -92,7 +92,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       };
       const typeCheck = { what: true, meters: { potency: true }, when: true };
 
-      const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
       const effects = result.stateMutations as Array<{ what: string }>;
       const poisonImpact = effects[0].what;
@@ -101,7 +101,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
 
     test('Null effect returns default prompt', () => {
       const sheet = makeSheet();
-      const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: null, typeCheck: null });
+      const result = basicFantasyCartridge.gameRules['drink_potion'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'drink_potion', narrationSummary: {}, effectData: null, typeCheck: null });
 
       expect(result.outcome.mustNotHappen.join(' ')).toContain('potion');
       expect(result.stateMutations.length).toBe(0);
@@ -119,7 +119,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       };
       const typeCheck = { what: true, meters: { damage: true }, flags: { critical: true } };
 
-      const result = basicFantasyCartridge.gameRules['combat_event'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'combat_event', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['combat_event'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'combat_event', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
       const effects = result.stateMutations as Array<{ impacts: Array<{ stats: string; op: string; val: number }> }>;
       const impact = effects[0].impacts.find(i => i.stats === 'hp');
@@ -137,7 +137,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       };
       const typeCheck = { what: true, meters: { damage: true }, flags: { critical: true } };
 
-      const result = basicFantasyCartridge.gameRules['combat_event'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'combat_event', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['combat_event'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'combat_event', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
       const effects = result.stateMutations as Array<{ impacts: Array<{ stats: string; val: number }> }>;
       const impact = effects[0].impacts.find(i => i.stats === 'hp');
@@ -155,7 +155,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       };
       const typeCheck = { what: true, meters: { damage: true } };
 
-      const result = basicFantasyCartridge.gameRules['combat_event'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'combat_event', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['combat_event'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'combat_event', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
       const effects = result.stateMutations as Array<{ what: string; temp: boolean }>;
       const stunEffect = effects.find(e => e.what === 'stunned by heavy blow');
@@ -173,7 +173,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       };
       const typeCheck = { what: true, meters: { gold_gained: true, xp_gained: true } };
 
-      const result = basicFantasyCartridge.gameRules['combat_event'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'combat_event', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['combat_event'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'combat_event', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
       const effects = result.stateMutations as Array<{ impacts: Array<{ stats: string; op: string; val: number }> }>;
       const hpImpact = effects[0]?.impacts?.find(i => i.stats === 'hp');
@@ -189,7 +189,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
 
     test('Null effect returns ambient narration guide', () => {
       const sheet = makeSheet();
-      const result = basicFantasyCartridge.gameRules['combat_event'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'combat_event', narrationSummary: {}, effectData: null, typeCheck: null });
+      const result = basicFantasyCartridge.gameRules['combat_event'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'combat_event', narrationSummary: {}, effectData: null, typeCheck: null });
 
       expect(result.outcome.mustNotHappen.join(' ')).toContain('combat');
       expect(result.stateMutations.length).toBe(0);
@@ -206,7 +206,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       };
       const typeCheck = { what: true, when: true };
 
-      const result = basicFantasyCartridge.gameRules['travel'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'travel', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['travel'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'travel', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
       // Should use current time since provided time is in the past
       expect(result.outcome.mustHappen.join(' ')).toContain('1000-01-01T08:00:00');
     });
@@ -216,7 +216,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       const effect = { key: 'travel', what: 'run', when: '1000-01-01T08:30:00' };
       const typeCheck = { what: true, when: true };
 
-      const result = basicFantasyCartridge.gameRules['travel'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'travel', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['travel'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'travel', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
       const effects = result.stateMutations as Array<{ what: string; temp: boolean }>;
       const fatigue = effects.find(e => e.what === 'fatigued from running');
@@ -229,7 +229,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       const effect = { key: 'travel', what: 'walk', when: '1000-01-01T08:30:00' };
       const typeCheck = { what: true, when: true };
 
-      const result = basicFantasyCartridge.gameRules['travel'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'travel', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['travel'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'travel', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
       const effects = result.stateMutations as Array<{ what: string }>;
       const fatigue = effects.find(e => e.what === 'fatigued from running');
@@ -238,7 +238,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
 
     test('Null effect returns mustNotHappen for travel', () => {
       const sheet = makeSheet();
-      const result = basicFantasyCartridge.gameRules['travel'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'travel', narrationSummary: {}, effectData: null, typeCheck: null });
+      const result = basicFantasyCartridge.gameRules['travel'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'travel', narrationSummary: {}, effectData: null, typeCheck: null });
 
       expect(result.outcome.mustHappen.length).toBe(0);
       expect(result.outcome.mustNotHappen.length).toBeGreaterThan(0);
@@ -251,7 +251,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 50 } });
       const effect = { key: 'rest', what: 'short', when: '1000-01-01T10:00:00' };
       const typeCheck = { what: 'string', when: 'string' };
-      const result = basicFantasyCartridge.gameRules['rest'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'rest', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['rest'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'rest', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
       const effects = result.stateMutations as Array<{ impacts: Array<{ stats: string; op: string; val: number }> }>;
       const hpImpact = effects[0].impacts.find(i => i.stats === 'hp');
@@ -264,7 +264,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, hp: 30 } });
       const effect = { key: 'rest', what: 'long', when: '1000-01-01T10:00:00' };
       const typeCheck = { what: 'string', when: 'string' };
-      const result = basicFantasyCartridge.gameRules['rest'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'rest', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
+      const result = basicFantasyCartridge.gameRules['rest'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'rest', narrationSummary: {}, effectData: effect, typeCheck: typeCheck });
 
       const effects = result.stateMutations as Array<{ impacts: Array<{ stats: string; op: string; val: number }> }>;
       const hpImpact = effects[0].impacts.find(i => i.stats === 'hp');
@@ -275,7 +275,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
 
     test('Null effect returns no mustHappen entries', () => {
       const sheet = makeSheet();
-      const result = basicFantasyCartridge.gameRules['rest'](sheet, { action: null, currentCondition: 'combat', ruleKey: 'rest', narrationSummary: {}, effectData: null, typeCheck: null });
+      const result = basicFantasyCartridge.gameRules['rest'](sheet, { intents: [], currentCondition: 'combat', ruleKey: 'rest', narrationSummary: {}, effectData: null, typeCheck: null });
 
       expect(result.outcome.mustNotHappen.length).toBeGreaterThan(0);
       expect(result.stateMutations.length).toBe(0);
@@ -285,7 +285,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       test('Attack triggers combat logic correctly on success', () => {
         const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, strength: 100 } }); // auto-success
         const result = basicFantasyCartridge.gameRules['attack'](sheet, {
-          action: [{ effect: { key: 'attack', what: 'goblin' }, raw: '<attack goblin>' }],
+          intents: [{ key: 'attack', what: 'goblin' }],
           currentCondition: 'combat',
           ruleKey: 'attack',
           narrationSummary: {}, effectData: null, typeCheck: null
@@ -300,7 +300,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       test('Attack triggers combat logic correctly on failure', () => {
         const sheet = makeSheet({ stats: { ...basicFantasyCartridge.defaultGameState.stats, strength: 1 } }); // very weak
         const result = basicFantasyCartridge.gameRules['attack'](sheet, {
-          action: [{ effect: { key: 'attack', what: 'goblin' }, raw: '<attack goblin>' }],
+          intents: [{ key: 'attack', what: 'goblin' }],
           currentCondition: 'combat',
           ruleKey: 'attack',
           narrationSummary: {}, effectData: null, typeCheck: null
@@ -314,7 +314,7 @@ describe('RPG Mechanics - Aspect Functions', () => {
       test('Action used in wrong condition yields neutral outcome', () => {
         const sheet = makeSheet();
         const result = basicFantasyCartridge.gameRules['attack'](sheet, {
-          action: [{ effect: { key: 'attack', what: 'goblin' }, raw: '<attack goblin>' }],
+          intents: [{ key: 'attack', what: 'goblin' }],
           currentCondition: 'social',
           ruleKey: 'attack',
           narrationSummary: {}, effectData: null, typeCheck: null

@@ -29,7 +29,6 @@ export { Character };
 export { GamePlayScript } from '../../systems/game-play-script';
 export { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 export {
-  ParsedAction,
   GameCartridge,
   SystemAdapter,
   GameState,
@@ -38,9 +37,10 @@ export {
   WorldEventTracker,
   GameRule,
   RuleResolution,
-  GamePlayEvent
+  GamePlayEvent,
+  EffectRecord,
+  InputMatcher
 } from '../../types';
 export { rollDie, rollDice, sumRolls } from '../../utils/dice';
-export { parseActionInput } from '../../inputs/action-parser';
-export { parsePlayerInput } from '../../utils/input-parser';
+export { parsePlayerInput } from '../../inputs/input-matcher';
 export { SillyTavernAdapter } from '../../systems/sillytavern/index';
