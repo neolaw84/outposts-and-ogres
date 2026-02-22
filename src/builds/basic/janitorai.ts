@@ -42,7 +42,8 @@ export {
   StatModifier,
   WorldEventTracker,
   GameRule,
-  RuleResolution
+  RuleResolution,
+  GamePlayEvent
 } from '../../types';
 export { rollDie, rollDice, sumRolls } from '../../utils/dice';
 export { parseActionInput } from '../../inputs/action-parser';

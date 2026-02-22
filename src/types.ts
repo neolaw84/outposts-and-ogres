@@ -135,6 +135,38 @@ type TurnEvent =
   | AvailableChoicesEvent;
 
 /**
+ * Standardized output of the game play loop for each rule execution.
+ *
+ * This is the generic output that any system can consume to instruct
+ * the LLM narration engine.  Every rule in the cartridge's ruleSequence
+ * produces exactly one GamePlayEvent, even when it has nothing to do.
+ *
+ * - mustHappen:   Narration elements that MUST appear (e.g. "player takes 15 damage").
+ * - mustNotHappen: Narration elements that MUST NOT appear (e.g. "do not narrate player drinking a potion").
+ * - mayHappen:    Narration elements that MAY appear (e.g. "you may narrate the goblin calling for help").
+ */
+interface GamePlayEvent {
+  /** The rule key that produced this event. */
+  ruleKey: string;
+  /** High-level resolution status. */
+  status: 'success' | 'failure' | 'mixed' | 'neutral';
+  /** Mechanical logs for debugging / display. */
+  mechanicsLogs: string[];
+  /** Things that MUST be narrated. */
+  mustHappen: string[];
+  /** Things that MUST NOT be narrated. */
+  mustNotHappen: string[];
+  /** Things that MAY be narrated. */
+  mayHappen: string[];
+  /** Action name override for reporting. */
+  actionName?: string;
+  /** Action target for reporting. */
+  actionTarget?: string;
+  /** Side effects produced by this rule (already applied to the state). */
+  stateMutations: ActiveCondition[];
+}
+
+/**
  * Structured scenario-update block returned by the LLM at the end of each
  * narration turn.  This is the raw, generic bridge between free-text LLM
  * narration and the game script.  It is intentionally kept wide and open so
@@ -219,6 +251,24 @@ interface SystemAdapter {
     rawMessage: string,
     availableActions: string[]
   ): Promise<ParsedAction[] | null> | ParsedAction[] | null;
+
+  /**
+   * Apply the accumulated game play loop output to the platform's context.
+   *
+   * The system adapter converts the generic `GamePlayEvent[]` into whatever
+   * mutations the underlying platform requires (prompt fields, memory slots,
+   * system-prompt injections, etc.).
+   *
+   * @param events - All GamePlayEvents produced by the current turn, one per rule.
+   * @param state - The game state after all side effects have been applied.
+   * @param conditionsToReportBack - The cartridge's WorldEventTrackers telling
+   *   the LLM what to report back (e.g. potion type, damage dealt).
+   */
+  applyGamePlayOutput?(
+    events: GamePlayEvent[],
+    state: GameState,
+    conditionsToReportBack: WorldEventTracker[]
+  ): void;
 }
 
 // ---- Effect-driven state management types ----
@@ -257,8 +307,17 @@ interface RuleResolution {
     status: 'success' | 'failure' | 'mixed' | 'neutral';
     /** Optional mechanical logs, e.g. "Rolled 15 vs 12" or "Consumed 5 mana". */
     mechanicsLogs: string[];
-    /** Direct instructions for the LLM on how to narrate this specific outcome. */
+    /**
+     * Direct instructions for the LLM on how to narrate this specific outcome.
+     * @deprecated Prefer mustHappen / mustNotHappen / mayHappen for new rules.
+     */
     narrationGuidance: string[];
+    /** Things that MUST be narrated by the LLM. */
+    mustHappen?: string[];
+    /** Things that MUST NOT be narrated by the LLM. */
+    mustNotHappen?: string[];
+    /** Things that MAY optionally be narrated by the LLM. */
+    mayHappen?: string[];
     /** Override the action name reported to the prompt-mapper/LLM (defaults to ruleKey). */
     actionName?: string;
     /** Optional target reported to the prompt-mapper/LLM. */
@@ -392,6 +451,7 @@ export {
   ActionResolutionEvent,
   AvailableChoicesEvent,
   TurnEvent,
+  GamePlayEvent,
   SystemAdapter,
   StatModifier,
   ActiveCondition,

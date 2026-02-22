@@ -107,7 +107,12 @@ const basicFantasyCartridge: GameCartridge = {
     drink_potion: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
       if (!context.effectData) {
         return {
-          outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: ['If {{user}} finds a potion, describe its appearance (color, smell).'] },
+          outcome: {
+            status: 'neutral', mechanicsLogs: [],
+            narrationGuidance: ['If {{user}} finds a potion, describe its appearance (color, smell).'],
+            mayHappen: ['If {{user}} finds a potion, describe its appearance (color, smell).'],
+            mustNotHappen: ['Do not narrate {{user}} drinking a potion unless the player explicitly says so.']
+          },
           stateMutations: []
         };
       }
@@ -188,7 +193,12 @@ const basicFantasyCartridge: GameCartridge = {
     combat_event: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
       if (!context.effectData) {
         return {
-          outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: ["If combat starts, describe the enemy and the environment. Wait for {{user}}'s action."] },
+          outcome: {
+            status: 'neutral', mechanicsLogs: [],
+            narrationGuidance: ["If combat starts, describe the enemy and the environment. Wait for {{user}}'s action."],
+            mayHappen: ["If combat starts, describe the enemy and the environment. Wait for {{user}}'s action."],
+            mustNotHappen: ['Do not resolve combat damage or combat outcomes without a corresponding combat event.']
+          },
           stateMutations: []
         };
       }
@@ -286,7 +296,14 @@ const basicFantasyCartridge: GameCartridge = {
 
     travel: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
       if (!context.effectData) {
-        return { outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: [] }, stateMutations: [] };
+        return {
+          outcome: {
+            status: 'neutral', mechanicsLogs: [],
+            narrationGuidance: [],
+            mustNotHappen: ['Do not narrate {{user}} traveling to a new location unless the player explicitly says so.']
+          },
+          stateMutations: []
+        };
       }
       const effect = context.effectData as Record<string, unknown>;
       const typeCheck = context.typeCheck as Record<string, unknown> | null;
@@ -328,7 +345,14 @@ const basicFantasyCartridge: GameCartridge = {
 
     rest: function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
       if (!context.effectData) {
-        return { outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: [] }, stateMutations: [] };
+        return {
+          outcome: {
+            status: 'neutral', mechanicsLogs: [],
+            narrationGuidance: [],
+            mustNotHappen: ['Do not narrate {{user}} resting unless the player explicitly says so.']
+          },
+          stateMutations: []
+        };
       }
       const effect = context.effectData as Record<string, unknown>;
       const typeCheck = context.typeCheck as Record<string, unknown> | null;
@@ -396,7 +420,14 @@ logicMap.forEach(match => {
   basicFantasyCartridge.gameRules[match.action] = function (sheet: GameState, context: import('../types').RuleContext): RuleResolution {
     const parentIntent = context.action?.find(a => a.action === match.action);
     if (!parentIntent) {
-      return { outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: [] }, stateMutations: [] };
+      return {
+        outcome: {
+          status: 'neutral', mechanicsLogs: [],
+          narrationGuidance: [],
+          mustNotHappen: ['Do not narrate {{user}} performing ' + match.action + ' unless the player explicitly says so.']
+        },
+        stateMutations: []
+      };
     }
 
     if (context.currentCondition !== match.condition) {

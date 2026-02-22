@@ -6,7 +6,7 @@
  * fields for influencing AI behaviour.
  */
 
-import { SystemAdapter, OutputPrompt, WorldSimulationUpdate } from '../../types';
+import { SystemAdapter, OutputPrompt, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 
 /** A single entry in the AI Dungeon action history. */
@@ -93,6 +93,56 @@ class AIDungeonAdapter implements SystemAdapter {
 
   deducePlayerIntent(rawMessage: string, availableActions: string[]): import('../../types').ParsedAction[] | null {
     return null; // To be implemented later
+  }
+
+  applyGamePlayOutput(
+    events: GamePlayEvent[],
+    state: GameState,
+    conditionsToReportBack: WorldEventTracker[]
+  ): void {
+    const globalState = (this.context['state'] || {}) as Record<string, unknown>;
+    const memory = (globalState['memory'] || {}) as Record<string, unknown>;
+
+    const mustLines: string[] = [];
+    const mustNotLines: string[] = [];
+    const mayLines: string[] = [];
+
+    for (let i = 0; i < events.length; i++) {
+      const gpe = events[i];
+      for (let j = 0; j < gpe.mustHappen.length; j++) {
+        mustLines.push(gpe.mustHappen[j]);
+      }
+      for (let j = 0; j < gpe.mustNotHappen.length; j++) {
+        mustNotLines.push(gpe.mustNotHappen[j]);
+      }
+      for (let j = 0; j < gpe.mayHappen.length; j++) {
+        mayLines.push(gpe.mayHappen[j]);
+      }
+    }
+
+    let reportBack = '';
+    if (conditionsToReportBack.length > 0) {
+      const parts: string[] = [];
+      for (let i = 0; i < conditionsToReportBack.length; i++) {
+        const def = conditionsToReportBack[i];
+        const jsonBlock: Record<string, unknown> = {};
+        const keys = Object.keys(def);
+        for (let j = 0; j < keys.length; j++) {
+          if (keys[j] !== 'condition') {
+            jsonBlock[keys[j]] = def[keys[j]];
+          }
+        }
+        parts.push('If ' + def.condition + ', include: ' + JSON.stringify(jsonBlock));
+      }
+      reportBack = parts.join('\n');
+    }
+
+    memory['context'] = (mustLines.length > 0 ? 'MUST:\n' + mustLines.join('\n') + '\n' : '') +
+      (mustNotLines.length > 0 ? 'MUST NOT:\n' + mustNotLines.join('\n') + '\n' : '');
+    memory['authorsNote'] = mayLines.length > 0 ? 'MAY:\n' + mayLines.join('\n') : '';
+    memory['frontMemory'] = reportBack;
+    globalState['memory'] = memory;
+    this.context['state'] = globalState;
   }
 }
 

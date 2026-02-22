@@ -51,7 +51,8 @@ export {
   StatusEffect,
   StoredStatModifier,
   WorldEventTracker,
-  GameRule
+  GameRule,
+  GamePlayEvent
 } from './types';
 export { rollDie, rollDice, sumRolls } from './utils/dice';
 export { parsePlayerInput } from './utils/input-parser';

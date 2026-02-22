@@ -6,7 +6,7 @@
  * State can be persisted via the extension data mechanism.
  */
 
-import { SystemAdapter, OutputPrompt, WorldSimulationUpdate } from '../../types';
+import { SystemAdapter, OutputPrompt, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 
 class SillyTavernAdapter implements SystemAdapter {
@@ -83,6 +83,43 @@ class SillyTavernAdapter implements SystemAdapter {
 
   deducePlayerIntent(rawMessage: string, availableActions: string[]): import('../../types').ParsedAction[] | null {
     return null; // To be implemented later via SillyTavern hidden prompt injection
+  }
+
+  applyGamePlayOutput(
+    events: GamePlayEvent[],
+    state: GameState,
+    conditionsToReportBack: WorldEventTracker[]
+  ): void {
+    const lines: string[] = [];
+    for (let i = 0; i < events.length; i++) {
+      const gpe = events[i];
+      for (let j = 0; j < gpe.mustHappen.length; j++) {
+        lines.push('MUST: ' + gpe.mustHappen[j]);
+      }
+      for (let j = 0; j < gpe.mustNotHappen.length; j++) {
+        lines.push('MUST NOT: ' + gpe.mustNotHappen[j]);
+      }
+      for (let j = 0; j < gpe.mayHappen.length; j++) {
+        lines.push('MAY: ' + gpe.mayHappen[j]);
+      }
+    }
+
+    if (conditionsToReportBack.length > 0) {
+      lines.push('');
+      for (let i = 0; i < conditionsToReportBack.length; i++) {
+        const def = conditionsToReportBack[i];
+        const jsonBlock: Record<string, unknown> = {};
+        const keys = Object.keys(def);
+        for (let j = 0; j < keys.length; j++) {
+          if (keys[j] !== 'condition') {
+            jsonBlock[keys[j]] = def[keys[j]];
+          }
+        }
+        lines.push('If ' + def.condition + ', include: ' + JSON.stringify(jsonBlock));
+      }
+    }
+
+    this.context['systemPrompt'] = lines.join('\n');
   }
 }
 
