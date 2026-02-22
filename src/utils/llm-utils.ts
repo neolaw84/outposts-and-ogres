@@ -10,22 +10,13 @@
 
 import { base64EncodeRaw, base64DecodeRaw } from './base64';
 import { isValidDateStr } from './time-utils';
+import { EffectRecord } from '../types';
 
 /** Effect definition used for LLM instruction generation. */
 interface WorldEventTracker {
   key: string;
   condition: string;
   [prop: string]: unknown;
-}
-
-/** Concrete effect data record (matching the EffectRecord shape from types.ts). */
-interface EffectRecord {
-  key: string;
-  what?: string;
-  when?: string;
-  meters?: Record<string, number>;
-  flags?: Record<string, boolean>;
-  tags?: Record<string, string>;
 }
 
 /** Result of finding an effect by key. */
@@ -137,6 +128,7 @@ function generateEffectInstruction(effectDef: WorldEventTracker): string {
 
 /**
  * Find an effect by its key in a narration summary.
+ * Converts the raw JSON record into a typed EffectRecord.
  */
 function findEffectByKey(
   key: string,
@@ -152,7 +144,15 @@ function findEffectByKey(
   if (effects && Array.isArray(effects)) {
     for (let j = 0; j < effects.length; j++) {
       if (effects[j]['key'] === key) {
-        foundEffect = effects[j] as unknown as EffectRecord;
+        const raw = effects[j];
+        foundEffect = {
+          key: raw['key'] as string,
+          what: typeof raw['what'] === 'string' ? raw['what'] : undefined,
+          when: typeof raw['when'] === 'string' ? raw['when'] : undefined,
+          meters: (raw['meters'] && typeof raw['meters'] === 'object') ? raw['meters'] as Record<string, number> : undefined,
+          flags: (raw['flags'] && typeof raw['flags'] === 'object') ? raw['flags'] as Record<string, boolean> : undefined,
+          tags: (raw['tags'] && typeof raw['tags'] === 'object') ? raw['tags'] as Record<string, string> : undefined
+        };
         if (typeCheckEffects && typeCheckEffects[j]) {
           foundTypeCheck = typeCheckEffects[j];
         }
@@ -247,7 +247,6 @@ function cleanInput(inputObject: Record<string, unknown>): Record<string, unknow
 
 export {
   WorldEventTracker,
-  EffectRecord,
   FoundEffect,
   encodeState,
   decodeState,
