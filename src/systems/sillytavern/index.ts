@@ -6,9 +6,9 @@
  * State can be persisted via the extension data mechanism.
  */
 
-import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
+import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
-import { formatGamePlayEventLines, formatConditionsToReportBack } from '../adapter-helpers';
+import { formatGamePlayEventLines } from '../adapter-helpers';
 
 class SillyTavernAdapter implements SystemAdapter {
   readonly name: string = 'SillyTavern';
@@ -84,13 +84,13 @@ class SillyTavernAdapter implements SystemAdapter {
   applyGamePlayOutput(
     events: GamePlayEvent[],
     state: GameState,
-    conditionsToReportBack: WorldEventTracker[]
+    effectInstructions: string
   ): void {
     const lines = formatGamePlayEventLines(events);
 
-    if (conditionsToReportBack.length > 0) {
+    if (effectInstructions) {
       lines.push('');
-      lines.push(...formatConditionsToReportBack(conditionsToReportBack));
+      lines.push(effectInstructions);
     }
 
     this.context['systemPrompt'] = lines.join('\n');

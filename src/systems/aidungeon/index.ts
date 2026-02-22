@@ -6,9 +6,9 @@
  * fields for influencing AI behaviour.
  */
 
-import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
+import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
-import { collectGamePlayEventArrays, formatConditionsToReportBack } from '../adapter-helpers';
+import { collectGamePlayEventArrays } from '../adapter-helpers';
 
 /** A single entry in the AI Dungeon action history. */
 interface HistoryEntry {
@@ -85,13 +85,12 @@ class AIDungeonAdapter implements SystemAdapter {
   applyGamePlayOutput(
     events: GamePlayEvent[],
     state: GameState,
-    conditionsToReportBack: WorldEventTracker[]
+    effectInstructions: string
   ): void {
     const globalState = (this.context['state'] || {}) as Record<string, unknown>;
     const memory = (globalState['memory'] || {}) as Record<string, unknown>;
 
     const { mustLines, mustNotLines, mayLines } = collectGamePlayEventArrays(events);
-    const reportBackLines = formatConditionsToReportBack(conditionsToReportBack);
 
     const contextParts: string[] = [];
     if (mustLines.length > 0) { contextParts.push('MUST:\n' + mustLines.join('\n')); }
@@ -99,7 +98,7 @@ class AIDungeonAdapter implements SystemAdapter {
     memory['context'] = contextParts.join('\n');
 
     memory['authorsNote'] = mayLines.length > 0 ? 'MAY:\n' + mayLines.join('\n') : '';
-    memory['frontMemory'] = reportBackLines.join('\n');
+    memory['frontMemory'] = effectInstructions;
 
     globalState['memory'] = memory;
     this.context['state'] = globalState;

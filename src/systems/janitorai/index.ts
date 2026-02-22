@@ -33,9 +33,9 @@
  *   to scenario so the LLM produces a plain-JSON summary block.
  */
 
-import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState, WorldEventTracker } from '../../types';
+import { SystemAdapter, WorldSimulationUpdate, GamePlayEvent, GameState } from '../../types';
 import { decodeState, buildRpStateBlock, extractNarrationSummary } from '../../utils/llm-utils';
-import { formatGamePlayEventLines, formatConditionsToReportBack } from '../adapter-helpers';
+import { formatGamePlayEventLines } from '../adapter-helpers';
 
 /** Content of the last LLM response message. */
 interface ChatMessage {
@@ -173,7 +173,7 @@ class JanitorAIAdapter implements SystemAdapter {
   applyGamePlayOutput(
     events: GamePlayEvent[],
     state: GameState,
-    conditionsToReportBack: WorldEventTracker[]
+    effectInstructions: string
   ): void {
     const character = (this.context['character'] || {}) as Record<string, unknown>;
     const existingScenario = (character['scenario'] || '') as string;
@@ -183,10 +183,11 @@ class JanitorAIAdapter implements SystemAdapter {
     lines.push(...formatGamePlayEventLines(events));
     lines.push('[/NARRATION_GUIDE]');
 
-    if (conditionsToReportBack.length > 0) {
+    if (effectInstructions) {
       lines.push('');
-      lines.push('Report the following conditions in your [NARRATION_SUMMARY]:');
-      lines.push(...formatConditionsToReportBack(conditionsToReportBack));
+      lines.push('[NARRATION_SUMMARY_INSTRUCTIONS]');
+      lines.push(effectInstructions);
+      lines.push('[/NARRATION_SUMMARY_INSTRUCTIONS]');
     }
 
     character['scenario'] = lines.join('\n') + '\n' + existingScenario;

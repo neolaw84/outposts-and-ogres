@@ -1,11 +1,11 @@
 /**
  * Shared helpers for system adapters.
  *
- * Centralises the logic for formatting GamePlayEvents and
- * WorldEventTrackers into text lines that any adapter can consume.
+ * Centralises the logic for formatting GamePlayEvents
+ * into text lines that any adapter can consume.
  */
 
-import { GamePlayEvent, WorldEventTracker } from '../types';
+import { GamePlayEvent } from '../types';
 
 /**
  * Flatten GamePlayEvents into prefixed text lines.
@@ -49,23 +49,7 @@ function collectGamePlayEventArrays(events: GamePlayEvent[]): {
   return { mustLines, mustNotLines, mayLines };
 }
 
-/**
- * Format WorldEventTrackers as condition-report-back instructions.
- *
- * Each tracker produces a line like:
- *   "If <condition>, include: { key, what, … }"
- */
-function formatConditionsToReportBack(conditions: WorldEventTracker[]): string[] {
-  const lines: string[] = [];
-  for (const def of conditions) {
-    const { condition, ...jsonBlock } = def;
-    lines.push('If ' + condition + ', include: ' + JSON.stringify(jsonBlock));
-  }
-  return lines;
-}
-
 export {
   formatGamePlayEventLines,
-  collectGamePlayEventArrays,
-  formatConditionsToReportBack
+  collectGamePlayEventArrays
 };

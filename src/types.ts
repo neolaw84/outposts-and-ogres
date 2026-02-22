@@ -180,13 +180,13 @@ interface SystemAdapter {
    *
    * @param events - All GamePlayEvents produced by the current turn, one per rule.
    * @param state - The game state after all side effects have been applied.
-   * @param conditionsToReportBack - The cartridge's WorldEventTrackers telling
-   *   the LLM what to report back (e.g. potion type, damage dealt).
+   * @param effectInstructions - Pre-formatted effect instruction string generated
+   *   by calling `generateEffectInstruction` on each WorldEventTracker.
    */
   applyGamePlayOutput(
     events: GamePlayEvent[],
     state: GameState,
-    conditionsToReportBack: WorldEventTracker[]
+    effectInstructions: string
   ): void;
 }
 
@@ -350,8 +350,6 @@ interface GameCartridge {
    * e.g., ['time_advance', 'weather_change', 'player_action', 'enemy_attack']
    */
   ruleSequence: string[];
-  /** Events that force the LLM to end the turn immediately. */
-  turnEndTriggers: string[];
 }
 
 export {

@@ -29,8 +29,7 @@ describe('GamePlayScript', () => {
       defaultGameState: { timestamp: '1000-01-01T08:00:00', stats: {}, activeConditions: [], flags: [] },
       worldEventTrackers: [],
       gameRules: {},
-      ruleSequence: ['player_action'],
-      turnEndTriggers: []
+      ruleSequence: ['player_action']
     };
     script.setCartridge(custom);
     expect(script.getCartridge().name).toBe('Custom');
@@ -130,8 +129,7 @@ describe('GamePlayScript', () => {
           };
         }
       },
-      ruleSequence: ['use_item'],
-      turnEndTriggers: []
+      ruleSequence: ['use_item']
     };
 
     const script = new GamePlayScript(customCartridge);

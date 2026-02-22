@@ -68,15 +68,21 @@ describe('GamePlayEvent - standardized game play loop output', () => {
     });
   });
 
-  describe('conditionsToReportBack', () => {
-    test('executeTurn returns conditionsToReportBack from the cartridge', () => {
+  describe('effectInstructions', () => {
+    test('executeTurn returns effectInstructions generated from worldEventTrackers', () => {
       const script = new GamePlayScript(basicFantasyCartridge);
       const sheet = makeSheet();
       const result = script.executeTurn('<attack goblin>', sheet, {});
 
-      expect(result.conditionsToReportBack).toBeDefined();
-      expect(result.conditionsToReportBack).toBe(basicFantasyCartridge.worldEventTrackers);
-      expect(result.conditionsToReportBack.length).toBe(4); // drink_potion, combat_event, travel, rest
+      expect(result.effectInstructions).toBeDefined();
+      expect(typeof result.effectInstructions).toBe('string');
+      // Should contain instructions generated from all 4 worldEventTrackers
+      expect(result.effectInstructions).toContain('drink_potion');
+      expect(result.effectInstructions).toContain('combat_event');
+      expect(result.effectInstructions).toContain('travel');
+      expect(result.effectInstructions).toContain('rest');
+      expect(result.effectInstructions).toContain('if and only if');
+      expect(result.effectInstructions).toContain('"effects" array');
     });
   });
 
@@ -234,8 +240,7 @@ describe('GamePlayEvent - standardized game play loop output', () => {
             };
           }
         },
-        ruleSequence: ['strike'],
-        turnEndTriggers: []
+        ruleSequence: ['strike']
       };
 
       const script = new GamePlayScript(customCartridge);

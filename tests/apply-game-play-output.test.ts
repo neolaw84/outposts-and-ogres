@@ -1,7 +1,7 @@
 import { JanitorAIAdapter } from '../src/systems/janitorai/index';
 import { SillyTavernAdapter } from '../src/systems/sillytavern/index';
 import { AIDungeonAdapter } from '../src/systems/aidungeon/index';
-import { GamePlayEvent, GameState, WorldEventTracker } from '../src/types';
+import { GamePlayEvent, GameState } from '../src/types';
 
 function makeSampleEvents(): GamePlayEvent[] {
   return [
@@ -20,15 +20,10 @@ function makeSampleEvents(): GamePlayEvent[] {
   ];
 }
 
-function makeSampleConditions(): WorldEventTracker[] {
-  return [
-    {
-      key: 'drink_potion',
-      what: "string; type of potion; allowed values are 'healing', 'strength', 'poison'",
-      condition: '{{user}} drinks a potion'
-    }
-  ];
-}
+const sampleEffectInstructions =
+  'In the above narration of yours, if and only if {{user}} drinks a potion, ' +
+  'include one instance of the following in the "effects" array.\n\n' +
+  '{\n    "key": "drink_potion",\n    "what": "healing"\n}';
 
 const sampleState: GameState = {
   timestamp: '1000-01-01T08:00:00',
@@ -44,7 +39,7 @@ describe('SystemAdapter.applyGamePlayOutput', () => {
         character: { personality: '', scenario: '' }
       };
       const adapter = new JanitorAIAdapter(context);
-      adapter.applyGamePlayOutput(makeSampleEvents(), sampleState, makeSampleConditions());
+      adapter.applyGamePlayOutput(makeSampleEvents(), sampleState, sampleEffectInstructions);
 
       const character = context['character'] as Record<string, unknown>;
       const scenario = character['scenario'] as string;
@@ -56,17 +51,19 @@ describe('SystemAdapter.applyGamePlayOutput', () => {
       expect(scenario).toContain('[/NARRATION_GUIDE]');
     });
 
-    test('applyGamePlayOutput includes conditionsToReportBack', () => {
+    test('applyGamePlayOutput includes effect instructions', () => {
       const context: Record<string, unknown> = {
         character: { personality: '', scenario: '' }
       };
       const adapter = new JanitorAIAdapter(context);
-      adapter.applyGamePlayOutput(makeSampleEvents(), sampleState, makeSampleConditions());
+      adapter.applyGamePlayOutput(makeSampleEvents(), sampleState, sampleEffectInstructions);
 
       const character = context['character'] as Record<string, unknown>;
       const scenario = character['scenario'] as string;
       expect(scenario).toContain('drinks a potion');
       expect(scenario).toContain('drink_potion');
+      expect(scenario).toContain('[NARRATION_SUMMARY_INSTRUCTIONS]');
+      expect(scenario).toContain('"effects" array');
     });
   });
 
@@ -74,12 +71,14 @@ describe('SystemAdapter.applyGamePlayOutput', () => {
     test('applyGamePlayOutput sets systemPrompt', () => {
       const context: Record<string, unknown> = {};
       const adapter = new SillyTavernAdapter(context);
-      adapter.applyGamePlayOutput(makeSampleEvents(), sampleState, makeSampleConditions());
+      adapter.applyGamePlayOutput(makeSampleEvents(), sampleState, sampleEffectInstructions);
 
       const systemPrompt = context['systemPrompt'] as string;
       expect(systemPrompt).toContain('MUST: Player strikes the goblin decisively.');
       expect(systemPrompt).toContain('MUST NOT: Do not narrate player drinking a potion.');
       expect(systemPrompt).toContain('MAY: You may describe a potion bottle on a shelf.');
+      expect(systemPrompt).toContain('drinks a potion');
+      expect(systemPrompt).toContain('"effects" array');
     });
   });
 
@@ -89,7 +88,7 @@ describe('SystemAdapter.applyGamePlayOutput', () => {
         state: {}
       };
       const adapter = new AIDungeonAdapter(context);
-      adapter.applyGamePlayOutput(makeSampleEvents(), sampleState, makeSampleConditions());
+      adapter.applyGamePlayOutput(makeSampleEvents(), sampleState, sampleEffectInstructions);
 
       const state = context['state'] as Record<string, unknown>;
       const memory = state['memory'] as Record<string, unknown>;
@@ -100,6 +99,7 @@ describe('SystemAdapter.applyGamePlayOutput', () => {
       expect(memory['authorsNote']).toContain('MAY');
       expect(memory['authorsNote']).toContain('You may describe a potion bottle on a shelf.');
       expect(memory['frontMemory']).toContain('drinks a potion');
+      expect(memory['frontMemory']).toContain('"effects" array');
     });
   });
 });

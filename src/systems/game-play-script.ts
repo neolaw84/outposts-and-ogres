@@ -26,7 +26,7 @@ import {
 import { understandPlayerInput } from '../inputs/player-input-understanding';
 import { applySideEffect, revertSideEffect } from '../core/game-state';
 import { addDuration, getMidnightsPassed } from '../utils/time-utils';
-import { cleanInput, findEffectByKey } from '../utils/llm-utils';
+import { cleanInput, findEffectByKey, generateEffectInstruction } from '../utils/llm-utils';
 
 class GamePlayScript {
   private cartridge: GameCartridge;
@@ -116,7 +116,7 @@ class GamePlayScript {
   ): {
     newState: GameState;
     gamePlayEvents: GamePlayEvent[];
-    conditionsToReportBack: WorldEventTracker[];
+    effectInstructions: string;
   } {
     // Phase 1 – Input
     const parsedActions = preParsedActions || this.extractAction(playerMessage);
@@ -183,13 +183,20 @@ class GamePlayScript {
       }
     }
 
-    // Conditions to report back are the cartridge's worldEventTrackers.
-    const conditionsToReportBack = this.cartridge.worldEventTrackers;
+    // Generate effect instructions from worldEventTrackers using generateEffectInstruction.
+    const instructionParts: string[] = [];
+    for (const tracker of this.cartridge.worldEventTrackers) {
+      const instruction = generateEffectInstruction(tracker);
+      if (instruction) {
+        instructionParts.push(instruction);
+      }
+    }
+    const effectInstructions = instructionParts.join('\n\n');
 
     return {
       newState: newState,
       gamePlayEvents: gamePlayEvents,
-      conditionsToReportBack: conditionsToReportBack
+      effectInstructions: effectInstructions
     };
   }
 

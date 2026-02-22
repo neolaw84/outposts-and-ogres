@@ -48,7 +48,7 @@ const basicFantasyCartridge: GameCartridge = {
   name: 'Outposts & Ogres – Basic',
   version: '1.0.0',
 
-  stopConditions: ['combat', 'exploration', 'social'],
+  stopConditions: ['combat', 'exploration', 'social', 'Combat Round Ends', 'Critical Injury', 'Travel complete'],
 
   availableActions: {
     combat: ['attack', 'dodge', 'cast', 'defend', 'flee'],
@@ -104,12 +104,6 @@ const basicFantasyCartridge: GameCartridge = {
       when: 'string; time when rest finishes; in yyyy-mm-ddTHH:MM:SS format',
       condition: '{{user}} takes a rest'
     }
-  ],
-
-  turnEndTriggers: [
-    'Combat Round Ends',
-    'Critical Injury',
-    'Travel complete'
   ],
 
   gameRules: {

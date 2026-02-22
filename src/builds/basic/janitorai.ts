@@ -129,7 +129,7 @@ if (typeof context !== 'undefined') {
 
     // 4. ENCODE & INJECT
     adapter.saveState(rpState as unknown as Record<string, unknown>);
-    adapter.applyGamePlayOutput(turnResult.gamePlayEvents, rpState, turnResult.conditionsToReportBack);
+    adapter.applyGamePlayOutput(turnResult.gamePlayEvents, rpState, turnResult.effectInstructions);
   } else if (dataCorrupted) {
     // Handle data corruption
     const character = (context['character'] || {}) as Record<string, unknown>;
