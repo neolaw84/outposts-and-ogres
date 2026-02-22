@@ -4,7 +4,7 @@ import { detectEmotionSignals } from './emotion-detector';
 import { ScenarioUnderstanding, understandScenario } from './scenario-understanding';
 
 interface PlayerInputUnderstanding {
-  parsedAction: ParsedAction | null;
+  parsedActions: ParsedAction[] | null;
   emotions: PlayerEmotionSignal[];
   scenario: ScenarioUnderstanding;
 }
@@ -16,7 +16,7 @@ function understandPlayerInput(
   scenarioUpdate?: ScenarioUpdate | null
 ): PlayerInputUnderstanding {
   return {
-    parsedAction: parseActionInput(message, knownActions),
+    parsedActions: parseActionInput(message, knownActions),
     emotions: detectEmotionSignals(message),
     scenario: scenarioUpdate != null
       ? understandScenario(scenarioUpdate, availableConditions)

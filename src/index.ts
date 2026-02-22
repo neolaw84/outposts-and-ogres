@@ -40,13 +40,18 @@ export { basicFantasyCartridge } from './cartridges/basic-fantasy';
 export {
   Message,
   ParsedAction,
-  DiceRollResult,
-  ActionResult,
-  CartridgeRule,
   GameCartridge,
   OutputPrompt,
   SystemAdapter,
-  ScenarioUpdate
+  ScenarioUpdate,
+  Impact,
+  SideEffect,
+  AspectFunctionResult,
+  GameState,
+  StoredSideEffect,
+  StoredImpact,
+  EffectDefinition,
+  AspectFunction
 } from './types';
 export { rollDie, rollDice, sumRolls } from './utils/dice';
 export { parsePlayerInput } from './utils/input-parser';
@@ -57,7 +62,8 @@ export {
   buildRpStateBlock,
   extractNarrationSummary,
   generateEffectInstruction,
-  findEffectByKey
+  findEffectByKey,
+  cleanInput
 } from './utils/llm-utils';
 export { extractMatch } from './utils/text-utils';
 export {
@@ -69,3 +75,16 @@ export {
 export { JanitorAIAdapter } from './systems/janitorai/index';
 export { SillyTavernAdapter } from './systems/sillytavern/index';
 export { AIDungeonAdapter } from './systems/aidungeon/index';
+export { applySideEffect, revertSideEffect } from './core/game-state';
+export {
+  parseDuration,
+  addDuration,
+  isPast,
+  isValidDateStr,
+  isValidDurationStr,
+  formatDate,
+  formatDate12Hr,
+  getDow,
+  clampTime,
+  getMidnightsPassed
+} from './utils/time-utils';

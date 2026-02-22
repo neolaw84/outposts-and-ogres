@@ -28,28 +28,23 @@ describe('GamePlayScript', () => {
       version: '0.1.0',
       stopConditions: ['puzzle'],
       availableActions: { puzzle: ['solve', 'hint'] },
-      rules: []
+      defaultGameState: { cur_ts: '1000-01-01T08:00:00', stats: {}, se: [], flags: [] },
+      effectDefinitions: [],
+      aspectFunctions: {},
+      aspectSequence: ['player_action'],
+      turnEndTriggers: []
     };
     script.setCartridge(custom);
     expect(script.getCartridge().name).toBe('Custom');
     expect(script.getCondition()).toBe('puzzle');
   });
 
-  test('should track messages', () => {
-    const script = createScript();
-    script.addMessage({ role: 'ai', content: 'Welcome adventurer.' });
-    script.addMessage({ role: 'player', content: '<attack>' });
-    expect(script.getMessages().length).toBe(2);
-    expect(script.getMessages()[0].role).toBe('ai');
-    expect(script.getMessages()[1].role).toBe('player');
-  });
-
   test('extractAction should find a bracketed action in combat', () => {
     const script = createScript();
     const parsed = script.extractAction('<attack goblin>');
     expect(parsed).not.toBeNull();
-    expect(parsed!.action).toBe('attack');
-    expect(parsed!.target).toBe('goblin');
+    expect(parsed![0].action).toBe('attack');
+    expect(parsed![0].target).toBe('goblin');
   });
 
   test('extractAction should return null for unknown action without brackets', () => {
@@ -58,83 +53,119 @@ describe('GamePlayScript', () => {
     expect(parsed).toBeNull();
   });
 
-  test('findRule should return matching rule', () => {
-    const script = createScript();
-    const rule = script.findRule('attack');
-    expect(rule).not.toBeNull();
-    expect(rule!.condition).toBe('combat');
-    expect(rule!.action).toBe('attack');
-    expect(rule!.diceSides).toBe(20);
-  });
-
-  test('findRule should return null for non-existent action', () => {
-    const script = createScript();
-    const rule = script.findRule('fly');
-    expect(rule).toBeNull();
-  });
-
-  test('resolveAction should produce an ActionResult', () => {
-    const script = createScript();
-    const result = script.resolveAction({ action: 'attack', target: 'orc', raw: '<attack orc>' });
-    expect(result.action.action).toBe('attack');
-    expect(result.rolls.length).toBe(1);
-    expect(result.rolls[0].sides).toBe(20);
-    expect(result.difficulty).toBe(10);
-    expect(typeof result.success).toBe('boolean');
-    expect(result.rollTotal).toBe(result.rolls[0].value);
-  });
-
-  test('resolveAction with unknown action should use default d20 check', () => {
-    const script = createScript();
-    const result = script.resolveAction({ action: 'fly', target: '', raw: '<fly>' });
-    expect(result.rolls.length).toBe(1);
-    expect(result.rolls[0].sides).toBe(20);
-    expect(result.difficulty).toBe(10);
-  });
 
   test('buildPrompt should produce an OutputPrompt', () => {
     const script = createScript();
-    const result = script.resolveAction({ action: 'attack', target: 'orc', raw: '<attack orc>' });
-    const events = script.buildTurnEvents('<attack orc>', { action: 'attack', target: 'orc', raw: '<attack orc>' }, result);
-    const prompt = script.buildPrompt(result, events);
+    const events: import('../src/types').TurnEvent[] = [{
+      type: 'action_resolution',
+      action: 'attack',
+      target: 'orc',
+      mechanicsLogs: ['Rolled a 15.'],
+      status: 'success',
+      narrationGuidance: ['Your attack strikes true.']
+    }];
+    const prompt = script.buildPrompt(events);
     expect(prompt.text).toContain('attack');
     expect(prompt.text).toContain('orc');
-    expect(prompt.channels.shortTerm).toContain('Dice result');
-    expect(prompt.events.length).toBeGreaterThanOrEqual(3);
-    expect(prompt.result).toBe(result);
+    expect(prompt.channels.shortTerm).toContain('NARRATION_GUIDE');
+    expect(prompt.events.length).toBe(1);
   });
 
-  test('processTurn should run full 3-phase loop', () => {
+  test('executeTurn should run full 3-phase loop', () => {
     const script = new GamePlayScript(basicFantasyCartridge, mapBasicFantasySillyTavern);
-    const output = script.processTurn('<attack goblin>');
-    expect(output).not.toBeNull();
-    expect(output!.text).toContain('attack');
-    expect(output!.text).toContain('goblin');
-    expect(script.getMessages().length).toBe(1);
-    expect(script.getMessages()[0].role).toBe('player');
+    const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultGameState));
+    const output = script.executeTurn('<attack goblin>', mockState, {});
+    expect(output.prompt).not.toBeNull();
+    expect(output.prompt!.text).toContain('attack');
+    expect(output.prompt!.text).toContain('goblin');
   });
 
-  test('processTurn should return null for unrecognised input', () => {
+  test('executeTurn should return null prompt for unrecognised input', () => {
     const script = createScript();
-    const output = script.processTurn('I look around confused');
-    expect(output).toBeNull();
-    expect(script.getMessages().length).toBe(1);
+    const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultGameState));
+    const output = script.executeTurn('I look around confused', mockState, {});
+    expect(output.prompt).toBeNull();
   });
 
-  test('processTurn should work in exploration condition', () => {
+  test('executeTurn should work in exploration condition', () => {
     const script = createScript();
     script.setCondition('exploration');
-    const output = script.processTurn('<search>');
-    expect(output).not.toBeNull();
-    expect(output!.text).toContain('search');
+    const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultGameState));
+    const output = script.executeTurn('<search>', mockState, {});
+    expect(output.prompt).not.toBeNull();
+    expect(output.prompt!.text).toContain('search');
   });
 
-  test('processTurn should work in social condition', () => {
+  test('executeTurn should work in social condition', () => {
     const script = createScript();
     script.setCondition('social');
-    const output = script.processTurn('<persuade merchant>');
-    expect(output).not.toBeNull();
-    expect(output!.text).toContain('persuade');
-    expect(output!.text).toContain('merchant');
+    const mockState = JSON.parse(JSON.stringify(basicFantasyCartridge.defaultGameState));
+    const output = script.executeTurn('<persuade merchant>', mockState, {});
+    expect(output.prompt).not.toBeNull();
+    expect(output.prompt!.text).toContain('persuade');
+    expect(output.prompt!.text).toContain('merchant');
+  });
+
+  test('processTurn should trigger aspectFunction and mutate state', () => {
+    // 1. Create a minimal cartridge with an aspectFunction
+    const customCartridge: GameCartridge = {
+      name: 'Test Aspect Cartridge',
+      version: '1.0.0',
+      stopConditions: ['combat'],
+      availableActions: { combat: ['use_item'] },
+      defaultGameState: {
+        cur_ts: '1000-01-01T08:00:00',
+        stats: { hp: 20 }, // Starting HP is 20
+        se: [],
+        flags: []
+      },
+      effectDefinitions: [],
+      aspectFunctions: {
+        'use_item': (state, context) => {
+          if (context.action && context.action.find(a => a.action === 'use_item')) {
+            return {
+              outcome: {
+                actionName: 'use_item',
+                status: 'success',
+                mechanicsLogs: [],
+                narrationGuidance: ['The item drained 5 HP.']
+              },
+              stateMutations: [
+                {
+                  what: 'HP drain',
+                  temp: false,
+                  impacts: [
+                    { stats: 'hp', op: 'sub', val: 5 }
+                  ]
+                }
+              ]
+            };
+          }
+          return {
+            outcome: { status: 'neutral', mechanicsLogs: [], narrationGuidance: [] },
+            stateMutations: []
+          };
+        }
+      },
+      aspectSequence: ['use_item'],
+      turnEndTriggers: []
+    };
+
+    // 2. Initialize script with our custom cartridge
+    const script = new GamePlayScript(customCartridge, mapBasicFantasySillyTavern);
+    const mockState = JSON.parse(JSON.stringify(customCartridge.defaultGameState));
+
+    // 3. Process the turn
+    const output = script.executeTurn('<use_item potion>', mockState, {});
+
+    // 4. Verify the state was mutated by the aspectFunction
+    expect(output.newState.stats.hp).toBe(15); // 20 - 5 = 15
+
+    // 5. Verify the narrationGuidance was appended to the success/failure event in the prompt
+    expect(output.prompt).not.toBeNull();
+    // Events array is where narrationGuidance is pushed to
+    // Let's examine the last event in output.prompt.events
+    const hasGuide = output.prompt!.events.some(e => e.type === 'action_resolution' && e.narrationGuidance?.join(' ').includes('drained 5 HP.'));
+    expect(hasGuide).toBe(true);
   });
 });

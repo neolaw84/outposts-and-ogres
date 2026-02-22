@@ -32,12 +32,15 @@ export { basicFantasyCartridge } from '../../cartridges/basic-fantasy';
 export {
   Message,
   ParsedAction,
-  DiceRollResult,
-  ActionResult,
-  CartridgeRule,
   GameCartridge,
   OutputPrompt,
-  SystemAdapter
+  SystemAdapter,
+  GameState,
+  SideEffect,
+  Impact,
+  EffectDefinition,
+  AspectFunction,
+  AspectFunctionResult
 } from '../../types';
 export { rollDie, rollDice, sumRolls } from '../../utils/dice';
 export { parseActionInput } from '../../inputs/action-parser';
