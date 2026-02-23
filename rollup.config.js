@@ -9,14 +9,14 @@ const buildSystem = process.env.BUILD_SYSTEM || '';
 
 function resolveBuildInput() {
   if (!buildCartridge || !buildSystem) {
-    throw new Error('BUILD_CARTRIDGE and BUILD_SYSTEM are required. Use scripts like build:basic:aidungeon.');
+    throw new Error('BUILD_CARTRIDGE and BUILD_SYSTEM are required. Use scripts like build:basic-fantasy:aidungeon.');
   }
 
   const key = buildCartridge + ':' + buildSystem;
   const entries = {
-    'basic:aidungeon': 'src/builds/basic/aidungeon.ts',
-    'basic:janitorai': 'src/builds/basic/janitorai.ts',
-    'basic:sillytavern': 'src/builds/basic/sillytavern.ts'
+    [`${buildCartridge}:aidungeon`]: 'src/platform/aidungeon/build.ts',
+    [`${buildCartridge}:janitorai`]: 'src/platform/janitorai/build.ts',
+    [`${buildCartridge}:sillytavern`]: 'src/platform/sillytavern/build.ts'
   };
 
   if (!entries[key]) {
@@ -45,7 +45,12 @@ module.exports = {
       tsconfig: './tsconfig.json',
       declaration: false,
       declarationMap: false,
-      sourceMap: false
+      sourceMap: false,
+      compilerOptions: {
+        paths: {
+          "@cartridge": [`./src/cartridges/${buildCartridge}.ts`]
+        }
+      }
     }),
     babel({
       babelHelpers: 'bundled',

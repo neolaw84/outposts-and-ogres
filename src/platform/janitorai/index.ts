@@ -54,14 +54,46 @@ class JanitorAIAdapter implements Platform {
     }
 
     const decoded = decodeState(prevResponse['message'] as string);
-    return decoded || {};
+    if (!decoded) {
+      return {};
+    }
+
+    const expanded: Record<string, unknown> = { ...decoded };
+    if ('ts' in expanded) {
+      expanded['timestamp'] = expanded['ts'];
+      delete expanded['ts'];
+    }
+    if ('ac' in expanded) {
+      expanded['activeConditions'] = expanded['ac'];
+      delete expanded['ac'];
+    }
+    if ('fl' in expanded) {
+      expanded['flags'] = expanded['fl'];
+      delete expanded['fl'];
+    }
+
+    return expanded;
   }
 
   saveState(state: Record<string, unknown>): void {
     const character = (this.context['character'] || {}) as Record<string, unknown>;
     let personality = (character['personality'] || '') as string;
 
-    const stateBlock = buildRpStateBlock(state);
+    const shortState: Record<string, unknown> = { ...state };
+    if ('timestamp' in shortState) {
+      shortState['ts'] = shortState['timestamp'];
+      delete shortState['timestamp'];
+    }
+    if ('activeConditions' in shortState) {
+      shortState['ac'] = shortState['activeConditions'];
+      delete shortState['activeConditions'];
+    }
+    if ('flags' in shortState) {
+      shortState['fl'] = shortState['flags'];
+      delete shortState['flags'];
+    }
+
+    const stateBlock = buildRpStateBlock(shortState);
 
     const instruction =
       'IMPORTANT: The following block contains encoded game state. ' +

@@ -5,7 +5,7 @@ const buildSystem = process.env.BUILD_SYSTEM || '';
 
 function resolveBuildEntry() {
   if (!buildCartridge || !buildSystem) {
-    throw new Error('BUILD_CARTRIDGE and BUILD_SYSTEM are required. Use scripts like build:webpack:basic:aidungeon.');
+    throw new Error('BUILD_CARTRIDGE and BUILD_SYSTEM are required. Use scripts like build:webpack:basic-fantasy:aidungeon.');
   }
 
   const key = buildCartridge + ':' + buildSystem;
@@ -41,8 +41,25 @@ function resolveOutputFile() {
   return 'bundle.' + buildCartridge + '.' + buildSystem + '.webpack.js';
 }
 
-const plugins = [
-  {
+const plugins = [];
+
+if (buildSystem === 'sillytavern') {
+  const CopyWebpackPlugin = require('copy-webpack-plugin');
+  plugins.push(new CopyWebpackPlugin({
+    patterns: [
+      {
+        from: 'src/platform/sillytavern/manifest.json',
+        to: 'manifest.json',
+        transform(content) {
+          return content.toString().replace('<cartridge-name>', buildCartridge);
+        }
+      }
+    ]
+  }));
+}
+
+if (buildSystem === 'janitorai') {
+  plugins.push({
     apply: (compiler) => {
       const { Compilation, sources } = compiler.webpack;
       compiler.hooks.thisCompilation.tap('RemoveDefinePropertyPlugin', (compilation) => {
@@ -93,25 +110,8 @@ const plugins = [
         );
       });
     }
-  }
-];
+  });
 
-if (buildSystem === 'sillytavern') {
-  const CopyWebpackPlugin = require('copy-webpack-plugin');
-  plugins.push(new CopyWebpackPlugin({
-    patterns: [
-      {
-        from: 'src/platform/sillytavern/manifest.json',
-        to: 'manifest.json',
-        transform(content) {
-          return content.toString().replace('<cartridge-name>', buildCartridge);
-        }
-      }
-    ]
-  }));
-}
-
-if (buildSystem === 'janitorai') {
   plugins.push({
     apply: (compiler) => {
       compiler.hooks.thisCompilation.tap('JanitorAIStatePlugin', (compilation) => {
@@ -177,7 +177,7 @@ module.exports = {
   resolve: {
     extensions: ['.ts', '.js'],
     alias: {
-      '@cartridge': path.resolve(__dirname, `src/cartridges/${buildCartridge === 'basic' ? 'basic-fantasy' : buildCartridge}.ts`)
+      '@cartridge': path.resolve(__dirname, `src/cartridges/${buildCartridge}.ts`)
     }
   },
   module: {

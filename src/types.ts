@@ -100,7 +100,7 @@ interface RuleOutcome {
 
 interface State {
   timestamp: string;
-  stats: Record<string, number>;
+  stats: Record<string, any>;
   activeConditions: StoredSideEffect[];
   flags: string[];
 }
