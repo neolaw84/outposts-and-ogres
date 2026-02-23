@@ -15,13 +15,9 @@ import { validateSignalTypes, findSignalByKey, renderSchemaInstruction } from '.
 
 class GameEngine {
   private cartridge: Cartridge;
-  private currentCondition: string;
 
   constructor(cartridge: Cartridge) {
     this.cartridge = cartridge;
-    this.currentCondition = cartridge.breakpoints.length > 0
-      ? cartridge.breakpoints[0]
-      : 'default';
   }
 
   public getCartridge(): Cartridge {
@@ -30,17 +26,6 @@ class GameEngine {
 
   public setCartridge(cartridge: Cartridge): void {
     this.cartridge = cartridge;
-    this.currentCondition = cartridge.breakpoints.length > 0
-      ? cartridge.breakpoints[0]
-      : 'default';
-  }
-
-  public getCondition(): string {
-    return this.currentCondition;
-  }
-
-  public setCondition(condition: string): void {
-    this.currentCondition = condition;
   }
 
   public detectSignals(playerMessage: string): Signal[] {
@@ -97,7 +82,6 @@ class GameEngine {
 
         const context: TurnContext = {
           playerSignals: allSignals.filter(e => e.key === key),
-          currentCondition: this.currentCondition,
           ruleKey: key,
           worldSignal: foundEffect,
           typeCheck: foundTypeCheck,
@@ -105,6 +89,10 @@ class GameEngine {
         };
 
         const result = this.cartridge.rules[key](newState, context);
+
+        if (this.cartridge.debug && result && result.ruleDebugLogs && result.ruleDebugLogs.length > 0) {
+          console.log('[rule debug logs]', result.ruleDebugLogs);
+        }
 
         const gpe = this.buildNarrationDirective(key, result);
         directives.push(gpe);
@@ -137,7 +125,7 @@ class GameEngine {
   }
 
   private buildNarrationDirective(ruleKey: string, result: RuleOutcome | null): NarrationDirective {
-    if (!result || !result.outcome) {
+    if (!result) {
       return {
         ruleKey: ruleKey,
         mustHappen: [],
@@ -146,13 +134,11 @@ class GameEngine {
       };
     }
 
-    const o = result.outcome;
-
     return {
       ruleKey: ruleKey,
-      mustHappen: o.mustHappen.slice(),
-      mustNotHappen: o.mustNotHappen.slice(),
-      mayHappen: o.mayHappen.slice()
+      mustHappen: result.mustHappen ? result.mustHappen.slice() : [],
+      mustNotHappen: result.mustNotHappen ? result.mustNotHappen.slice() : [],
+      mayHappen: result.mayHappen ? result.mayHappen.slice() : []
     };
   }
 }

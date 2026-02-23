@@ -1,6 +1,6 @@
 import { Character } from './character';
 import { GameEngine } from './engine';
-import { basicFantasyCartridge } from './cartridges/basic-fantasy';
+import { basicFantasyCartridge } from './cartridges/basic-fantasy/index';
 
 class OutpostsAndOgres {
   private version: string;
@@ -32,7 +32,7 @@ rpgSystem.createCharacter('Hero', 150);
 export default rpgSystem;
 export { Character };
 export { GameEngine } from './engine';
-export { basicFantasyCartridge } from './cartridges/basic-fantasy';
+export { basicFantasyCartridge } from './cartridges/basic-fantasy/index';
 export {
   Signal,
   SignalDetector,
@@ -62,8 +62,7 @@ export {
 } from './utils/llm-utils';
 export { extractMatch } from './utils/text-utils';
 export {
-  detectSignals,
-  readScene
+  detectSignals
 } from './signals';
 export { JanitorAIAdapter } from './platform/janitorai/index';
 export { SillyTavernAdapter } from './platform/sillytavern/index';

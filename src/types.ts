@@ -19,18 +19,12 @@ interface SignalDetector {
 /** Context passed to a Rule during turn execution. */
 export interface TurnContext {
   playerSignals: Signal[];
-  currentCondition: string;
   ruleKey: string;
   worldSignal: Signal | null;
   typeCheck: Record<string, unknown> | null;
   narrationSummary: Record<string, unknown>;
 }
 
-export interface SceneReading {
-  suggestedCondition: string | null;
-  confidence: 'low' | 'medium' | 'high';
-  cues: string[];
-}
 
 
 /** Per-rule output instructing the LLM what to narrate. */
@@ -86,15 +80,10 @@ interface SideEffect {
 
 /** Result returned by a Rule. */
 interface RuleOutcome {
-  outcome: {
-    status: 'success' | 'failure' | 'mixed' | 'neutral';
-    mechanicsLogs: string[];
-    mustHappen: string[];
-    mustNotHappen: string[];
-    mayHappen: string[];
-    actionName?: string;
-    actionTarget?: string;
-  };
+  ruleDebugLogs: string[];
+  mustHappen: string[];
+  mustNotHappen: string[];
+  mayHappen: string[];
   stateMutations: SideEffect[];
 }
 
@@ -138,8 +127,8 @@ type Rule = (
 
 interface Cartridge {
   name: string;
+  debug?: boolean;
   version: string;
-  breakpoints: string[];
   signalDetectors: SignalDetector[];
   defaultState: State;
   signalSchemas: SignalSchema[];
