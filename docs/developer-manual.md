@@ -98,22 +98,22 @@ The project uses **Jest** with **ts-jest**. All tests live under `tests/`. Cover
 ### 4.1 The Game Play Loop (`GameEngine.executeTurn`)
 
 ```
-┌──────────────────────────────────────────────────────────────┐
+┌───────────────────────────────────────────────────────────────┐
 │  1. Load state  ──>  2. Advance time & revert expired effects │
 │        │                                                      │
 │  3. Extract player intent                                     │
 │        │                                                      │
-│  4. For EVERY key in cartridge.ruleOrder:                  │
-│        │   • Build TurnContext (effect data, action, etc.)     │
-│        │   • Call rules[key]  ──>  RuleOutcome          │
-│        │   • Convert to NarrationDirective                         │
+│  4. For EVERY key in cartridge.ruleOrder:                     │
+│        │   • Build TurnContext (effect data, action, etc.)    │
+│        │   • Call rules[key]  ──>  RuleOutcome                │
+│        │   • Convert to NarrationDirective                    │
 │        │   • Apply stateMutations to state                    │
 │        │                                                      │
-│  5. Generate schemaInstructions from signalSchemas        │
-│     (calls renderSchemaInstruction on each tracker)          │
-│                                                                │
-│  6. Return { newState, directives, schemaInstructions }    │
-└──────────────────────────────────────────────────────────────┘
+│  5. Generate schemaInstructions from signalSchemas            │
+│     (calls renderSchemaInstruction on each tracker)           │
+│                                                               │
+│  6. Return { newState, directives, schemaInstructions }       │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 Key invariant: **every rule is always called**, even when there is no matching player action or world event. This lets rules emit `mustNotHappen` entries to prevent the LLM from hallucinating events.

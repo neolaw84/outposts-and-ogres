@@ -86,4 +86,58 @@ class AIDungeonAdapter implements Platform {
   }
 }
 
+export function createAIDungeonHooks(engine: import('../../engine').GameEngine, globalContext: any, globalState: any) {
+  return {
+    onoOnInput: function (text: string) {
+      const adapter = new AIDungeonAdapter(globalContext);
+      const playerMsg = adapter.getPlayerMessage();
+      if (playerMsg) {
+        const cartridge = engine.getCartridge();
+        const signals = adapter.deducePlayerIntent(playerMsg, cartridge.signalDetectors);
+        globalState.signals = signals;
+      }
+      return { text };
+    },
+    onoContext: function (text: string) {
+      const adapter = new AIDungeonAdapter(globalContext);
+      const cartridge = engine.getCartridge();
+
+      const loadedState = adapter.loadState();
+      let rpState: State | null = (loadedState && (loadedState as any)['timestamp'])
+        ? loadedState as unknown as State
+        : null;
+
+      if (!rpState || !rpState.timestamp) {
+        rpState = JSON.parse(JSON.stringify(cartridge.defaultState)) as State;
+      }
+
+      const scenarioUpdate = adapter.getScenarioUpdate();
+      let narrationSummary: any = { elapsed_time: 'PT1M', effects: [] };
+      if (scenarioUpdate) {
+        narrationSummary = { ...scenarioUpdate };
+      }
+
+      const playerMsg = adapter.getPlayerMessage();
+      if (playerMsg) {
+        let preParsedIntents = Array.isArray(globalState.signals) ? globalState.signals : null;
+        const turnResult = engine.executeTurn(playerMsg, rpState, narrationSummary, preParsedIntents);
+
+        adapter.saveState(turnResult.newState as any);
+        adapter.applyGamePlayOutput(turnResult.directives, turnResult.newState, turnResult.schemaInstructions);
+
+        // Cleanup
+        globalState.raw_text_input = '';
+        globalState.signals = [];
+      } else {
+        adapter.saveState(rpState as any);
+      }
+
+      return { text };
+    },
+    onoOnOutput: function (text: string) {
+      return { text };
+    }
+  };
+}
+
 export { AIDungeonAdapter };

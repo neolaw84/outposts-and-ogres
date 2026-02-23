@@ -2,7 +2,10 @@
   "compilerOptions": {
     "target": "ES5",
     "module": "ES2015",
-    "lib": ["ES5", "ES2015"],
+    "lib": [
+      "ES5",
+      "ES2015"
+    ],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
@@ -14,8 +17,20 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "noEmitOnError": true
+    "noEmitOnError": true,
+    "baseUrl": "./",
+    "paths": {
+      "@cartridge": [
+        "./src/cartridges/basic-fantasy.ts"
+      ]
+    }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "tests", "dist"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "tests",
+    "dist"
+  ]
 }

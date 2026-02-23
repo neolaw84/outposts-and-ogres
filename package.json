@@ -4,6 +4,7 @@
   "description": "Foundation RPG System with LLM as rendering (narration) engine.",
   "main": "dist/bundle.js",
   "scripts": {
+    "clean": "rm -rf dist",
     "build": "rollup -c rollup.config.js",
     "build:basic:aidungeon": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=aidungeon rollup -c rollup.config.js",
     "build:basic:janitorai": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=janitorai rollup -c rollup.config.js",
@@ -12,6 +13,9 @@
     "build:webpack:basic:aidungeon": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=aidungeon webpack --config webpack.config.js",
     "build:webpack:basic:janitorai": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=janitorai webpack --config webpack.config.js",
     "build:webpack:basic:sillytavern": "BUILD_CARTRIDGE=basic BUILD_SYSTEM=sillytavern webpack --config webpack.config.js",
+    "build:webpack:toy-platform:aidungeon": "BUILD_CARTRIDGE=toy-platform BUILD_SYSTEM=aidungeon webpack --config webpack.config.js",
+    "build:webpack:toy-platform:janitorai": "BUILD_CARTRIDGE=toy-platform BUILD_SYSTEM=janitorai webpack --config webpack.config.js",
+    "build:webpack:toy-platform:sillytavern": "BUILD_CARTRIDGE=toy-platform BUILD_SYSTEM=sillytavern webpack --config webpack.config.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
@@ -37,6 +41,7 @@
     "@rollup/plugin-typescript": "^12.3.0",
     "@types/jest": "^30.0.0",
     "babel-loader": "^10.0.0",
+    "copy-webpack-plugin": "^13.0.1",
     "jest": "^30.2.0",
     "rollup": "^4.57.1",
     "rollup-plugin-cleanup": "^3.2.1",

@@ -23,7 +23,8 @@ class SillyTavernAdapter implements Platform {
   }
 
   loadState(): Record<string, unknown> {
-    const extensionData = this.context['extensionData'] as Record<string, unknown> | undefined;
+    const stGlobal = globalThis as any;
+    const extensionData = stGlobal.SillyTavern?.getContext()?.chatMetadata?.['outposts-and-ogres-state'] as Record<string, unknown> | undefined;
     if (extensionData && extensionData['gameState']) {
       return extensionData['gameState'] as Record<string, unknown>;
     }
@@ -31,34 +32,31 @@ class SillyTavernAdapter implements Platform {
   }
 
   saveState(state: Record<string, unknown>): void {
-    const extensionData = (this.context['extensionData'] || {}) as Record<string, unknown>;
+    const stGlobal = globalThis as any;
+    const stContext = stGlobal.SillyTavern?.getContext();
+    if (!stContext || !stContext.chatMetadata) return;
+
+    const extensionData = (stContext.chatMetadata['outposts-and-ogres-state'] || {}) as Record<string, unknown>;
     extensionData['gameState'] = state;
-    this.context['extensionData'] = extensionData;
+    stContext.chatMetadata['outposts-and-ogres-state'] = extensionData;
+
+    // Asynchronously save the metadata without blocking
+    if (typeof stContext.saveMetadata === 'function') {
+      stContext.saveMetadata();
+    }
   }
 
   getScenarioUpdate(): NarrationSummary | null {
-    const chat = this.context['chat'] as Array<Record<string, string>> | undefined;
-    if (!chat || chat.length === 0) {
-      return null;
-    }
+    // We now extract the scenario update directly from metadata if available, instead of parsing chat history every time,
+    // since the MESSAGE_RECEIVED event handles extracting and persisting it.
+    const stGlobal = globalThis as any;
+    const stContext = stGlobal.SillyTavern?.getContext();
+    if (!stContext || !stContext.chatMetadata) return null;
 
-    for (let i = chat.length - 1; i >= 0; i--) {
-      // SillyTavern uses string 'true'/'false' for is_user
-      if (chat[i]['is_user'] !== 'true') {
-        const raw = extractNarrationSummary(chat[i]['mes'] || null);
-        if (!raw) {
-          continue;
-        }
-        return {
-          elapsed_time: (raw['elapsed_time'] as string) || 'PT0S',
-          flags: (raw['flags'] as Record<string, number>) || {},
-          tags: (raw['tags'] as Record<string, string>) || {},
-          meters: (raw['meters'] as Record<string, number>) || {},
-          effects: (raw['effects'] as Signal[]) || []
-        };
-      }
-    }
-    return null;
+    const extensionData = (stContext.chatMetadata['outposts-and-ogres-state'] || {}) as Record<string, unknown>;
+    const summary = extensionData['lastNarrationSummary'] as NarrationSummary | undefined;
+
+    return summary || null;
   }
 
   deducePlayerIntent(rawMessage: string, detectors: SignalDetector[]): Signal[] | null {

@@ -1124,3 +1124,4 @@ const basicFantasyCartridge: Cartridge = {
 };
 
 export { basicFantasyCartridge };
+export default basicFantasyCartridge;
