@@ -1,0 +1,13 @@
+{
+  "display_name": "Outposts and Ogres - <cartridge-name>",
+  "loading_order": 1,
+  "requires": [],
+  "optional": [],
+  "dependencies": [],
+  "js": "index.js",
+  "author": "Neolaw",
+  "version": "1.0.0",
+  "homePage": "https://github.com/neolaw84/outposts-and-ogres",
+  "auto_update": false,
+  "minimum_client_version": "1.12.0"
+}

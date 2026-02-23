@@ -22,16 +22,37 @@ describe('SillyTavernAdapter', () => {
     expect(adapter.getPlayerMessage()).toBeNull();
   });
 
+  beforeEach(() => {
+    // Reset globalThis mock before each test but keep a persistent reference to context
+    const mockContext = {
+      chatMetadata: {} as Record<string, any>,
+      saveMetadata: jest.fn()
+    };
+    (globalThis as any).SillyTavern = {
+      getContext: () => mockContext
+    };
+  });
+
+  afterAll(() => {
+    delete (globalThis as any).SillyTavern;
+  });
+
   test('should load empty state when none exists', () => {
     const adapter = new SillyTavernAdapter({});
     expect(adapter.loadState()).toEqual({});
   });
 
-  test('should save and load state via extensionData', () => {
+  test('should save and load state via chatMetadata', () => {
     const context: Record<string, unknown> = {};
     const adapter = new SillyTavernAdapter(context);
     const state = { condition: 'combat', turn: 3 };
     adapter.saveState(state);
+
+    // Check that it was saved globally
+    const stGlobal = (globalThis as any).SillyTavern.getContext();
+    expect(stGlobal.chatMetadata['outposts-and-ogres-state'].gameState).toEqual(state);
+
+    // Check that it can be loaded
     expect(adapter.loadState()).toEqual(state);
   });
 
@@ -39,69 +60,26 @@ describe('SillyTavernAdapter', () => {
   // getScenarioUpdate
   // ----------------------------------------------------------------
 
-  test('should extract scenario update from last AI chat message', () => {
+  test('should extract scenario update from chatMetadata', () => {
     const update = {
       elapsed_time: 'PT2M',
       flags: { door_open: 0 },
       tags: { npc_mood: 'hostile' },
-      meters: { distance_to_exit: 12 }
+      meters: { distance_to_exit: 12 },
+      effects: []
     };
-    const context = {
-      chat: [
-        { is_user: 'false', mes: 'The door slams shut. [NARRATION_SUMMARY]' + JSON.stringify(update) + '[/NARRATION_SUMMARY]' },
-        { is_user: 'true', mes: '<search room>' }
-      ]
+
+    // Pre-populate global mock
+    (globalThis as any).SillyTavern.getContext().chatMetadata['outposts-and-ogres-state'] = {
+      lastNarrationSummary: update
     };
-    const adapter = new SillyTavernAdapter(context);
-    expect(adapter.getScenarioUpdate()).toEqual({ ...update, effects: [] });
+
+    const adapter = new SillyTavernAdapter({});
+    expect(adapter.getScenarioUpdate()).toEqual(update);
   });
 
-  test('should return null when last AI message has no summary', () => {
-    const context = {
-      chat: [
-        { is_user: 'false', mes: 'Welcome to the dungeon.' },
-        { is_user: 'true', mes: '<look around>' }
-      ]
-    };
-    const adapter = new SillyTavernAdapter(context);
+  test('should return null when last AI message has no summary in metadata', () => {
+    const adapter = new SillyTavernAdapter({});
     expect(adapter.getScenarioUpdate()).toBeNull();
-  });
-
-  test('should return null when chat is empty', () => {
-    const adapter = new SillyTavernAdapter({ chat: [] });
-    expect(adapter.getScenarioUpdate()).toBeNull();
-  });
-
-  test('should skip AI messages without a summary and find an earlier one', () => {
-    const update = {
-      elapsed_time: 'PT1M',
-      flags: { chest_open: 1 },
-      tags: {},
-      meters: {}
-    };
-    const context = {
-      chat: [
-        { is_user: 'false', mes: 'You enter the room. [NARRATION_SUMMARY]' + JSON.stringify(update) + '[/NARRATION_SUMMARY]' },
-        { is_user: 'true', mes: '<open chest>' },
-        { is_user: 'false', mes: 'The chest is already open.' } // no summary
-      ]
-    };
-    const adapter = new SillyTavernAdapter(context);
-    expect(adapter.getScenarioUpdate()).toEqual({ ...update, effects: [] });
-  });
-
-  test('should use defaults for missing NarrationSummary fields', () => {
-    const context = {
-      chat: [
-        { is_user: 'false', mes: 'Narration [NARRATION_SUMMARY]{}[/NARRATION_SUMMARY]' }
-      ]
-    };
-    const adapter = new SillyTavernAdapter(context);
-    const result = adapter.getScenarioUpdate();
-    expect(result).not.toBeNull();
-    expect(result!.elapsed_time).toBe('PT0S');
-    expect(result!.flags).toEqual({});
-    expect(result!.tags).toEqual({});
-    expect(result!.meters).toEqual({});
   });
 });
