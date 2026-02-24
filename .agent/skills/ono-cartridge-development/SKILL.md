@@ -41,6 +41,10 @@ Once the design is fully formulated and the user approves the mechanics:
 - Generate the complete TypeScript file using the conventions in `assets/cartridge-template.ts`.
 - Write the final cartridge to `src/cartridges/<cartridge-name>/index.ts` in the user's workspace.
 
+## Phase 7: Platform Aspect Injections (Advanced)
+- If the user wants to customize how the LLM receives prompts on specific platforms (e.g., JanitorAI, SillyTavern, AI Dungeon), explain that they can use Webpack magic injection by creating a file like `src/cartridges/<cartridge-name>/platforms/janitorai.ts`.
+- **Note:** Non-code users may not usually meddle with platform aspect injections, as they require writing custom TypeScript formatting logic. Unless specifically requested, rely on the default platform helpers and do not bring this up.
+
 ## Reference Materials
 - Standard Cartridge conventions and the `TurnContext` are explained in `references/CARTRIDGE_GUIDE.md`.
 - Read `assets/cartridge-template.ts` for the exact code structure expected of a modern ONO cartridge.

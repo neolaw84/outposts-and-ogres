@@ -157,6 +157,10 @@ if (buildSystem === 'janitorai') {
   plugins.push(JanitorAIStatePlugin);
 }
 
+const fs = require('fs');
+const helperPath = path.resolve(__dirname, `src/cartridges/${buildCartridge}/platforms/${buildSystem}.ts`);
+const hasCustomHelper = fs.existsSync(helperPath);
+
 module.exports = {
   mode: 'none',
   target: ['web', 'es2015'],
@@ -177,7 +181,8 @@ module.exports = {
   resolve: {
     extensions: ['.ts', '.js'],
     alias: {
-      '@cartridge': path.resolve(__dirname, `src/cartridges/${buildCartridge}/index.ts`)
+      '@cartridge': path.resolve(__dirname, `src/cartridges/${buildCartridge}/index.ts`),
+      '@platform-helper': hasCustomHelper ? helperPath : path.resolve(__dirname, 'src/platform/empty-helper.ts')
     }
   },
   module: {

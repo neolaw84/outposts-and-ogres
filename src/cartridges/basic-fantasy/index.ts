@@ -1,7 +1,7 @@
-import { Cartridge, State, RuleOutcome, SideEffect } from '../types';
-import { extractMatch } from '../utils/text-utils';
-import { addDuration, formatDate } from '../utils/time-utils';
-import { rollDice, sumRolls } from '../utils/dice';
+import { Cartridge, State, RuleOutcome, SideEffect } from '../../types';
+import { extractMatch } from '../../utils/text-utils';
+import { addDuration, formatDate } from '../../utils/time-utils';
+import { rollDice, sumRolls } from '../../utils/dice';
 
 const END_THIS_TURN = 'Then, end this turn (i.e. give NARRATION_SUMMARY block) and ' +
   'wait for the Script to provide subsequent events.\n';
@@ -113,7 +113,7 @@ const basicFantasyCartridge: Cartridge = {
   ],
 
   rules: {
-    drink_potion: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    drink_potion: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       if (!context.worldSignal) {
         return {
           ruleDebugLogs: [],
@@ -193,11 +193,11 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         stateMutations: sideEffects,
-        outcome: { status: 'neutral', mechanicsLogs: [], mustHappen: [mustHappenMsg], mustNotHappen: [], mayHappen: [] }
+        ruleDebugLogs: [], mustHappen: [mustHappenMsg], mustNotHappen: [], mayHappen: []
       };
     },
 
-    combat_event: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    combat_event: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       if (!context.worldSignal) {
         return {
           ruleDebugLogs: [],
@@ -305,11 +305,11 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         stateMutations: sideEffects,
-        outcome: { status: 'neutral', mechanicsLogs: [], mustHappen: [mustHappenMsg], mustNotHappen: [], mayHappen: [] }
+        ruleDebugLogs: [], mustHappen: [mustHappenMsg], mustNotHappen: [], mayHappen: []
       };
     },
 
-    travel: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    travel: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       if (!context.worldSignal) {
         return {
           ruleDebugLogs: [],
@@ -353,11 +353,11 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         stateMutations: sideEffects,
-        outcome: { status: 'neutral', mechanicsLogs: [], mustHappen: ['Arrived at destination at ' + formatDate(new Date(arrivalTime)) + '.\n' + END_THIS_TURN], mustNotHappen: [], mayHappen: [] }
+        ruleDebugLogs: [], mustHappen: ['Arrived at destination at ' + formatDate(new Date(arrivalTime)) + '.\n' + END_THIS_TURN], mustNotHappen: [], mayHappen: []
       };
     },
 
-    rest: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    rest: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       if (!context.worldSignal) {
         return {
           ruleDebugLogs: [],
@@ -404,11 +404,11 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         stateMutations: sideEffects,
-        outcome: { status: 'neutral', mechanicsLogs: [], mustHappen: ['Awoke from rest at ' + formatDate(new Date(wakeTime)) + '. HP is now ' + (hp + (restType === 'short' ? Math.floor(maxHP * 0.25) : maxHP)) + '.\n' + END_THIS_TURN], mustNotHappen: [], mayHappen: [] }
+        ruleDebugLogs: [], mustHappen: ['Awoke from rest at ' + formatDate(new Date(wakeTime)) + '. HP is now ' + (hp + (restType === 'short' ? Math.floor(maxHP * 0.25) : maxHP)) + '.\n' + END_THIS_TURN], mustNotHappen: [], mayHappen: []
       };
     },
 
-    attack: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    attack: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'attack');
       if (!parentIntent) {
         return {
@@ -438,16 +438,16 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
-          ],
-          mustHappen: [isSuccess ? 'You attack decisively.' : 'Your attack misses the mark.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
+        ],
+        mustHappen: [isSuccess ? 'You attack decisively.' : 'Your attack misses the mark.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },
 
-    cast: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    cast: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'cast');
       if (!parentIntent) {
         return {
@@ -477,16 +477,16 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
-          ],
-          mustHappen: [isSuccess ? 'Your spell erupts with power.' : 'Your spell fizzles harmlessly.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
+        ],
+        mustHappen: [isSuccess ? 'Your spell erupts with power.' : 'Your spell fizzles harmlessly.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },
 
-    defend: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    defend: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'defend');
       if (!parentIntent) {
         return {
@@ -516,16 +516,16 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
-          ],
-          mustHappen: [isSuccess ? 'You brace and deflect the blow.' : 'Your guard is broken.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
+        ],
+        mustHappen: [isSuccess ? 'You brace and deflect the blow.' : 'Your guard is broken.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },
 
-    dodge: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    dodge: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'dodge');
       if (!parentIntent) {
         return {
@@ -555,16 +555,16 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
-          ],
-          mustHappen: [isSuccess ? 'You gracefully evade the danger.' : 'You fail to get out of the way in time.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
+        ],
+        mustHappen: [isSuccess ? 'You gracefully evade the danger.' : 'You fail to get out of the way in time.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },
 
-    flee: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    flee: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'flee');
       if (!parentIntent) {
         return {
@@ -594,16 +594,16 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 15.`
-          ],
-          mustHappen: [isSuccess ? 'You manage to escape the encounter.' : 'Your escape route is blocked.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 15.`
+        ],
+        mustHappen: [isSuccess ? 'You manage to escape the encounter.' : 'Your escape route is blocked.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },
 
-    persuade: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    persuade: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'persuade');
       if (!parentIntent) {
         return {
@@ -633,16 +633,16 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
-          ],
-          mustHappen: [isSuccess ? 'They listen intently to your words.' : 'Your words fall on deaf ears.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
+        ],
+        mustHappen: [isSuccess ? 'They listen intently to your words.' : 'Your words fall on deaf ears.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },
 
-    intimidate: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    intimidate: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'intimidate');
       if (!parentIntent) {
         return {
@@ -672,16 +672,16 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
-          ],
-          mustHappen: [isSuccess ? 'They shrink back from your imposing stance.' : 'They stand their ground, unimpressed.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
+        ],
+        mustHappen: [isSuccess ? 'They shrink back from your imposing stance.' : 'They stand their ground, unimpressed.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },
 
-    deceive: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    deceive: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'deceive');
       if (!parentIntent) {
         return {
@@ -711,16 +711,16 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 15.`
-          ],
-          mustHappen: [isSuccess ? 'They buy your deception completely.' : 'They see right through your lies.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 15.`
+        ],
+        mustHappen: [isSuccess ? 'They buy your deception completely.' : 'They see right through your lies.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },
 
-    barter: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    barter: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'barter');
       if (!parentIntent) {
         return {
@@ -750,16 +750,16 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
-          ],
-          mustHappen: [isSuccess ? 'You strike a favourable deal.' : 'The negotiation goes poorly.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
+        ],
+        mustHappen: [isSuccess ? 'You strike a favourable deal.' : 'The negotiation goes poorly.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },
 
-    ask: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    ask: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'ask');
       if (!parentIntent) {
         return {
@@ -789,16 +789,16 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
-          ],
-          mustHappen: [isSuccess ? 'You gather useful information.' : 'They refuse to tell you anything.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
+        ],
+        mustHappen: [isSuccess ? 'You gather useful information.' : 'They refuse to tell you anything.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },
 
-    inspect: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    inspect: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'inspect');
       if (!parentIntent) {
         return {
@@ -828,16 +828,16 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
-          ],
-          mustHappen: [isSuccess ? 'You spot danger or hidden secrets.' : 'You notice nothing unusual.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 12.`
+        ],
+        mustHappen: [isSuccess ? 'You spot danger or hidden secrets.' : 'You notice nothing unusual.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },
 
-    search: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    search: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'search');
       if (!parentIntent) {
         return {
@@ -867,16 +867,16 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 15.`
-          ],
-          mustHappen: [isSuccess ? 'You uncover hidden loot or mechanics.' : 'You find only dust and cobwebs.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 15.`
+        ],
+        mustHappen: [isSuccess ? 'You uncover hidden loot or mechanics.' : 'You find only dust and cobwebs.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },
 
-    move: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    move: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'move');
       if (!parentIntent) {
         return {
@@ -906,16 +906,16 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 5.`
-          ],
-          mustHappen: [isSuccess ? 'You make good progress.' : 'The path is grueling and slow.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 5.`
+        ],
+        mustHappen: [isSuccess ? 'You make good progress.' : 'The path is grueling and slow.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },
 
-    use: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+    use: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
       const parentIntent = context.playerSignals.find(a => a.key === 'use');
       if (!parentIntent) {
         return {
@@ -945,11 +945,11 @@ const basicFantasyCartridge: Cartridge = {
 
       return {
         ruleDebugLogs: [
-            `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
-          ],
-          mustHappen: [isSuccess ? 'You handle the item properly.' : 'You fumble with the item.'],
-          mustNotHappen: [],
-          mayHappen: [],
+          `Rolled ${total} + stat mod ${bonus} = ${total + bonus} vs difficulty 10.`
+        ],
+        mustHappen: [isSuccess ? 'You handle the item properly.' : 'You fumble with the item.'],
+        mustNotHappen: [],
+        mayHappen: [],
         stateMutations: []
       };
     },

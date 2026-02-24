@@ -134,6 +134,12 @@ interface Cartridge {
   signalSchemas: SignalSchema[];
   rules: Record<string, Rule>;
   ruleOrder: string[];
+  platformHelpers?: {
+    janitorai?: import('./platform/janitorai/types').JanitorAIHelper;
+    sillytavern?: import('./platform/sillytavern/types').SillyTavernHelper;
+    aidungeon?: import('./platform/aidungeon/types').AIDungeonHelper;
+    [platformPlugin: string]: any;
+  };
 }
 
 export {

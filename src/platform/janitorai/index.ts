@@ -1,6 +1,10 @@
 import { Platform, NarrationSummary, NarrationDirective, State, Signal, SignalDetector } from '../../types';
-import { decodeState, buildRpStateBlock, extractNarrationSummary } from '../../utils/llm-utils';
+import { decodeState, extractNarrationSummary } from '../../utils/llm-utils';
 import { formatDirectiveLines } from '../helpers';
+import { JanitorAIHelper } from './types';
+// @ts-ignore
+import CustomHelper from '@platform-helper';
+import { DefaultJanitorAIHelper } from './helper';
 
 interface ChatMessage {
   message?: string;
@@ -9,9 +13,12 @@ interface ChatMessage {
 class JanitorAIAdapter implements Platform {
   readonly name: string = 'Janitor AI';
   private context: Record<string, unknown>;
+  private helper: JanitorAIHelper;
 
-  constructor(context: Record<string, unknown>) {
+  constructor(context: Record<string, unknown>, testHelper?: JanitorAIHelper) {
     this.context = context;
+    let fallback = new DefaultJanitorAIHelper();
+    this.helper = testHelper || (CustomHelper ? new (CustomHelper as any)() : fallback);
   }
 
   getPlayerMessage(): string | null {
@@ -76,30 +83,19 @@ class JanitorAIAdapter implements Platform {
   }
 
   saveState(state: Record<string, unknown>): void {
+    let finalState = state;
+    let customInstruction: string | undefined = '';
+
+    if (this.helper.beforeSaveState) {
+      const result = this.helper.beforeSaveState(state, this.context);
+      finalState = result.state;
+      customInstruction = result.stateBlockInstruction;
+    }
+
+    const instruction = customInstruction || '';
+
     const character = (this.context['character'] || {}) as Record<string, unknown>;
     let personality = (character['personality'] || '') as string;
-
-    const shortState: Record<string, unknown> = { ...state };
-    if ('timestamp' in shortState) {
-      shortState['ts'] = shortState['timestamp'];
-      delete shortState['timestamp'];
-    }
-    if ('activeConditions' in shortState) {
-      shortState['ac'] = shortState['activeConditions'];
-      delete shortState['activeConditions'];
-    }
-    if ('flags' in shortState) {
-      shortState['fl'] = shortState['flags'];
-      delete shortState['flags'];
-    }
-
-    const stateBlock = buildRpStateBlock(shortState);
-
-    const instruction =
-      'IMPORTANT: The following block contains encoded game state. ' +
-      'You MUST include it EXACTLY as-is in your response, without ' +
-      'any modification whatsoever.\n' +
-      stateBlock;
 
     const rpStateRegex = /[\s\S]*?\[RP_STATE\][\s\S]*?\[\/RP_STATE\]/;
     if (personality.indexOf('[RP_STATE]') !== -1) {
@@ -110,6 +106,10 @@ class JanitorAIAdapter implements Platform {
 
     character['personality'] = personality;
     this.context['character'] = character;
+
+    if (this.helper.afterSaveState) {
+      this.helper.afterSaveState(this.context);
+    }
   }
 
   getScenarioUpdate(): NarrationSummary | null {
@@ -150,22 +150,26 @@ class JanitorAIAdapter implements Platform {
     state: State,
     effectInstructions: string
   ): void {
+    let directivesBlock: string | undefined;
+    let instructionsBlock: string | undefined;
+
+    if (this.helper.beforeApplyGamePlayOutput) {
+      const hookResult = this.helper.beforeApplyGamePlayOutput(directives, state, effectInstructions, this.context);
+      directivesBlock = hookResult.directivesBlock;
+      instructionsBlock = hookResult.instructionsBlock;
+    }
+
     const character = (this.context['character'] || {}) as Record<string, unknown>;
     const existingScenario = (character['scenario'] || '') as string;
 
-    const lines: string[] = [];
-    lines.push('[NARRATION_GUIDE]');
-    lines.push(...formatDirectiveLines(directives));
-    lines.push('[/NARRATION_GUIDE]');
-
-    if (effectInstructions) {
-      lines.push('');
-      lines.push('[NARRATION_SUMMARY_INSTRUCTIONS]');
-      lines.push(effectInstructions);
-      lines.push('[/NARRATION_SUMMARY_INSTRUCTIONS]');
+    const outputLines: string[] = [];
+    if (directivesBlock) outputLines.push(directivesBlock);
+    if (instructionsBlock) {
+      outputLines.push('');
+      outputLines.push(instructionsBlock);
     }
 
-    character['scenario'] = lines.join('\n') + '\n' + existingScenario;
+    character['scenario'] = outputLines.join('\n') + (existingScenario ? '\n' + existingScenario : '');
     this.context['character'] = character;
   }
 }

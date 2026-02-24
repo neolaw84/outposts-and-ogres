@@ -1,6 +1,10 @@
 import { Platform, NarrationSummary, NarrationDirective, State, Signal, SignalDetector } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 import { collectDirectiveArrays } from '../helpers';
+import { AIDungeonHelper } from './types';
+// @ts-ignore
+import CustomHelper from '@platform-helper';
+import { DefaultAIDungeonHelper } from './helper';
 
 interface HistoryEntry {
   type?: string;
@@ -11,9 +15,12 @@ interface HistoryEntry {
 class AIDungeonAdapter implements Platform {
   readonly name: string = 'AI Dungeon';
   private context: Record<string, unknown>;
+  private helper: AIDungeonHelper;
 
-  constructor(context: Record<string, unknown>) {
+  constructor(context: Record<string, unknown>, testHelper?: AIDungeonHelper) {
     this.context = context;
+    let fallback = new DefaultAIDungeonHelper();
+    this.helper = testHelper || (CustomHelper ? new (CustomHelper as any)() : fallback);
   }
 
   getPlayerMessage(): string | null {
@@ -71,15 +78,24 @@ class AIDungeonAdapter implements Platform {
     const globalState = (this.context['state'] || {}) as Record<string, unknown>;
     const memory = (globalState['memory'] || {}) as Record<string, unknown>;
 
-    const { mustLines, mustNotLines, mayLines } = collectDirectiveArrays(directives);
+    let memoryContext = '';
+    let authorsNote = '';
+    let frontMemory = '';
 
-    const contextParts: string[] = [];
-    if (mustLines.length > 0) { contextParts.push('MUST:\n' + mustLines.join('\n')); }
-    if (mustNotLines.length > 0) { contextParts.push('MUST NOT:\n' + mustNotLines.join('\n')); }
-    memory['context'] = contextParts.join('\n');
+    if (this.helper.beforeApplyGamePlayOutput) {
+      const hookResult = this.helper.beforeApplyGamePlayOutput(directives, state, effectInstructions, this.context);
+      if (hookResult.promptString !== undefined) {
+        memoryContext = hookResult.promptString;
+      } else {
+        memoryContext = hookResult.memoryContext || '';
+        authorsNote = hookResult.authorsNote || '';
+        frontMemory = hookResult.frontMemory || '';
+      }
+    }
 
-    memory['authorsNote'] = mayLines.length > 0 ? 'MAY:\n' + mayLines.join('\n') : '';
-    memory['frontMemory'] = effectInstructions;
+    memory['context'] = memoryContext;
+    memory['authorsNote'] = authorsNote;
+    memory['frontMemory'] = frontMemory;
 
     globalState['memory'] = memory;
     this.context['state'] = globalState;
@@ -99,8 +115,8 @@ export function createAIDungeonHooks(engine: import('../../engine').GameEngine, 
       return { text };
     },
     onoContext: function (text: string) {
-      const adapter = new AIDungeonAdapter(globalContext);
       const cartridge = engine.getCartridge();
+      const adapter = new AIDungeonAdapter(globalContext);
 
       const loadedState = adapter.loadState();
       let rpState: State | null = (loadedState && (loadedState as any)['timestamp'])

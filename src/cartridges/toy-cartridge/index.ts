@@ -1,4 +1,4 @@
-import { Cartridge, State, RuleOutcome, SideEffect } from '../types';
+import { Cartridge, State, RuleOutcome, SideEffect, Signal } from '../../types';
 
 console.log('[TOY CARTRIDGE] Initializing...');
 
@@ -40,7 +40,7 @@ export const toyPlatformCartridge: Cartridge = {
     ],
 
     rules: {
-        world_event: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+        world_event: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
             console.log(`[TOY CARTRIDGE] Evaluating 'world_event' rule... Current state counter: ${sheet.stats['test_counter']}`);
 
             if (!context.worldSignal) {
@@ -64,9 +64,9 @@ export const toyPlatformCartridge: Cartridge = {
             };
         },
 
-        test_action: function (sheet: State, context: import('../types').TurnContext): RuleOutcome {
+        test_action: function (sheet: State, context: import('../../types').TurnContext): RuleOutcome {
             console.log(`[TOY CARTRIDGE] Evaluating 'test_action' rule...`);
-            const signal = context.playerSignals.find(s => s.key === 'test_action');
+            const signal = context.playerSignals.find((s: Signal) => s.key === 'test_action');
 
             if (!signal) {
                 console.log(`[TOY CARTRIDGE] 'test_action' - Player did not trigger this action.`);

@@ -21,7 +21,10 @@
     "baseUrl": "./",
     "paths": {
       "@cartridge": [
-        "./src/cartridges/basic-fantasy.ts"
+        "./src/cartridges/basic-fantasy/index.ts"
+      ],
+      "@platform-helper": [
+        "./src/platform/empty-helper.ts"
       ]
     }
   },

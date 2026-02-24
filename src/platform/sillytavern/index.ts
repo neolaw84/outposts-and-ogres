@@ -1,13 +1,20 @@
 import { Platform, NarrationSummary, NarrationDirective, State, Signal, SignalDetector } from '../../types';
 import { extractNarrationSummary } from '../../utils/llm-utils';
 import { formatDirectiveLines } from '../helpers';
+import { SillyTavernHelper } from './types';
+// @ts-ignore
+import CustomHelper from '@platform-helper';
+import { DefaultSillyTavernHelper } from './helper';
 
 class SillyTavernAdapter implements Platform {
   readonly name: string = 'SillyTavern';
   private context: Record<string, unknown>;
+  private helper: SillyTavernHelper;
 
-  constructor(context: Record<string, unknown>) {
+  constructor(context: Record<string, unknown>, testHelper?: SillyTavernHelper) {
     this.context = context;
+    let fallback = new DefaultSillyTavernHelper();
+    this.helper = testHelper || (CustomHelper ? new (CustomHelper as any)() : fallback);
   }
 
   getPlayerMessage(): string | null {
@@ -68,11 +75,20 @@ class SillyTavernAdapter implements Platform {
     state: State,
     effectInstructions: string
   ): void {
-    const lines = formatDirectiveLines(directives);
+    let directivesBlock: string | undefined;
+    let instructionsBlock: string | undefined;
 
-    if (effectInstructions) {
+    if (this.helper.beforeApplyGamePlayOutput) {
+      const hookResult = this.helper.beforeApplyGamePlayOutput(directives, state, effectInstructions, this.context);
+      directivesBlock = hookResult.directivesBlock;
+      instructionsBlock = hookResult.instructionsBlock;
+    }
+
+    const lines: string[] = [];
+    if (directivesBlock) lines.push(directivesBlock);
+    if (instructionsBlock) {
       lines.push('');
-      lines.push(effectInstructions);
+      lines.push(instructionsBlock);
     }
 
     this.context['systemPrompt'] = lines.join('\n');
