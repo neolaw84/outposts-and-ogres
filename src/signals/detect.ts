@@ -70,6 +70,28 @@ function detectSignals(
       if (found) continue;
     }
 
+    if (detector.verbs && detector.verbs.length > 0 && detector.whatDict) {
+      let found = false;
+      for (const verb of detector.verbs) {
+        if (lowerMessage.indexOf(verb.toLowerCase()) !== -1) {
+          for (const [whatVal, aliases] of Object.entries(detector.whatDict)) {
+            for (const alias of aliases) {
+              if (lowerMessage.indexOf(alias.toLowerCase()) !== -1) {
+                const record: Signal = { key: detector.key, what: whatVal, tags: { sourceKeyword: `${verb} ${alias}` } };
+                results.push(record);
+                matchedKeys.add(detector.key);
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
+        }
+        if (found) break;
+      }
+      if (found) continue;
+    }
+
     for (const keyword of detector.keywords) {
       if (lowerMessage.indexOf(keyword.toLowerCase()) !== -1) {
         results.push({ key: detector.key, tags: { sourceKeyword: keyword } });

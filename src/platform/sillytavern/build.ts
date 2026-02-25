@@ -66,20 +66,11 @@ function initSillyTavern() {
       const engine = rpgSystem.createGameEngine();
       const runtimeCartridge = engine.getCartridge();
 
-      // Ask LLM to extract signals from player message using quiet prompt
+      // Ask LLM to extract signals from player message using platform quiet prompt
       let signals: import('../../types').Signal[] | null = null;
       if (runtimeCartridge.signalDetectors && runtimeCartridge.signalDetectors.length > 0) {
-        try {
-          // Prepare quiet prompt context
-          const detectorLines = runtimeCartridge.signalDetectors.map(d => `- ${d.key}: ${d.description || 'Detects ' + d.key}`).join('\n');
-          const quietPrompt = `Analyze the following user input and detect any intended actions based on these rules:\n${detectorLines}\n\nInput: "${playerMsg}"\n\nReturn ONLY a JSON array of objects with 'key' and optional 'what' targeting the action.`;
-
-          const result = await context.generateQuietPrompt({ quietPrompt });
-          if (result) {
-            signals = JSON.parse(result);
-          }
-        } catch (e) {
-          console.error("Failed to deduce player intents via quiet prompt:", e);
+        if (typeof adapter.deducePlayerIntent === 'function') {
+          signals = await adapter.deducePlayerIntent(playerMsg, runtimeCartridge.signalDetectors);
         }
       }
 

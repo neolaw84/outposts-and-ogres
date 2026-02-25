@@ -14,6 +14,8 @@ interface SignalDetector {
   description: string;
   keywords: string[];
   patterns?: RegExp[];
+  verbs?: string[];
+  whatDict?: Record<string, string[]>;
 }
 
 /** Context passed to a Rule during turn execution. */

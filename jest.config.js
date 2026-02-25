@@ -8,6 +8,10 @@ module.exports = {
     '!src/**/*.d.ts'
   ],
   moduleFileExtensions: ['ts', 'js'],
+  moduleNameMapper: {
+    '^@platform-helper$': '<rootDir>/src/platform/empty-helper.ts',
+    '^@cartridge$': '<rootDir>/src/cartridges/basic-fantasy/index.ts'
+  },
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       tsconfig: {

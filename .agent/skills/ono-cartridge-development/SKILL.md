@@ -23,16 +23,25 @@ Translate the brainstormed concepts into an ONO `State` object.
 
 ## Phase 3: Creating Signal Detectors (Input)
 Help the user translate their planned player actions into `signalDetectors`.
-- A Signal Detector maps what the player types ("I fire my laser") into code-friendly Intents (`{ key: 'shoot' }`).
-- Draft the detectors with a `key`, `description`, and a list of `keywords`.
+- A Signal Detector maps what the player types ("I drink a beer") into code-friendly Intents (`{ key: 'consume', what: 'beer' }`).
+- Draft the detectors with a `key` and `description`.
+- **Intent Detection Fallback Sequence**: Explain the order in which ONO resolves what the player typed:
+  1. **Platform Overrides** (`deducePlayerIntent`): Advanced host UIs (like SillyTavern) evaluate the player string through a quiet LLM call first.
+  2. **Pattern Matching** (`patterns`): Custom Developer Regular Expressions take absolute fallback priority if defined.
+  3. **NLP Dictionary** (`verbs` + `whatDict`): For grouping actions dynamically. Set `verbs: ['drink', 'chug']` and `whatDict: { beer: ['ale', 'stout'] }`. ONO parses "I chug the stout" into `{ key: 'consume', what: 'beer' }` seamlessly without RegEx!
+  4. **Keyword Scanning** (`keywords`): The absolute baseline boolean substring check.
 
 ## Phase 4: Designing Signal Schemas (Output)
 Explain to the user that we need to instruct the LLM on what data to extract when it narrates an event.
 - For each major event (like an enemy attacking or a puzzle triggering), design a `SignalSchema`.
+- The `what` field MUST be defined in the format: `"string; description of the event; allowed values are 'value1', 'value2', ..."`.
 - Define `flags` (booleans, e.g., "was this a critical hit?"), `meters` (numbers, e.g., "damage from 1-10"), and `tags` (strings, e.g., "type of damage").
 
 ## Phase 5: Writing Rules
 Write the deterministic rules that evaluate the inputs and outputs.
+- **CRITICAL ARCHITECTURAL RULE:** Rules MUST map strictly 1-to-1 with the `key` property of the `signalDetectors` (player intents) and `signalSchemas` (LLM mechanics) defined in the cartridge. The ONO Engine loop hard-filters `context.playerSignals` down to only the exact string match of the currently executing `ruleKey`.
+  - **Do NOT** group multiple keys under a single Phase "catch-all" rule, or the `playerSignals` array passed to that rule will always be empty.
+  - **DO** use the `whatDict` design described in Phase 3 if you want a single rule to handle variations. For example, a single rule mapped to `negotiate` can handle `what: 'bargain'` and `what: 'refuse'` inside the same function block simply by checking `context.playerSignals[0].what`.
 - Explain the logic simply: "When you get hit, we will subtract the LLM's damage meter from your Health stat."
 - Ensure every rule returns a **flat** `RuleOutcome` containing `ruleDebugLogs`, `mustHappen`, `mustNotHappen`, `mayHappen`, and `stateMutations`.
 

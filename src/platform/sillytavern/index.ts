@@ -66,8 +66,23 @@ class SillyTavernAdapter implements Platform {
     return summary || null;
   }
 
-  deducePlayerIntent(rawMessage: string, detectors: SignalDetector[]): Signal[] | null {
-    return null; // To be implemented later via SillyTavern hidden prompt injection
+  async deducePlayerIntent(rawMessage: string, detectors: SignalDetector[]): Promise<Signal[] | null> {
+    const stGlobal = globalThis as any;
+    const stContext = stGlobal.SillyTavern?.getContext();
+    if (!stContext || !stContext.generateQuietPrompt) return null;
+
+    try {
+      const detectorLines = detectors.map(d => `- ${d.key}: ${d.description || 'Detects ' + d.key}`).join('\n');
+      const quietPrompt = `Analyze the following user input and detect any intended actions based on these rules:\n${detectorLines}\n\nInput: "${rawMessage}"\n\nReturn ONLY a JSON array of objects with 'key' and optional 'what' targeting the action.`;
+
+      const result = await stContext.generateQuietPrompt({ quietPrompt });
+      if (result) {
+        return JSON.parse(result) as Signal[];
+      }
+    } catch (e) {
+      console.error("Failed to deduce player intents via quiet prompt:", e);
+    }
+    return null;
   }
 
   applyGamePlayOutput(

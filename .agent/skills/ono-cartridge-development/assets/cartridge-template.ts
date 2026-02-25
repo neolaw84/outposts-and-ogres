@@ -20,7 +20,8 @@ export const templateCartridge: Cartridge = {
 
     signalDetectors: [
         // Map natural language to inputs here
-        // { key: 'attack', description: 'Player tries to attack', keywords: ['hit', 'strike'] }
+        // Simple example: { key: 'attack', description: 'Player tries to attack', keywords: ['hit', 'strike'] }
+        // Complex example: { key: 'consume', verbs: ['drink', 'eat'], whatDict: { potion: ['flask', 'elixir'], food: ['bread', 'meat'] } }
     ],
 
     signalSchemas: [
@@ -28,7 +29,7 @@ export const templateCartridge: Cartridge = {
         /*
         {
             key: 'enemy_attack',
-            what: 'An enemy damages the player',
+            what: "string; type of attack; allowed values are 'melee', 'ranged', 'magic'",
             condition: 'When the player is attacked...',
             flags: { critical: 'True if it was a deadly blow' },
             meters: { damage: 'Scale of 1-10' },
@@ -45,8 +46,10 @@ export const templateCartridge: Cartridge = {
         // Implement the math logic and LLM directives here
         /*
         'example_rule': (state: State, context: TurnContext): RuleOutcome => {
-            const intent = context.playerSignals.find(s => s.key === 'example_action');
-            if (!intent) return { ruleDebugLogs: [], mustHappen: [], mustNotHappen: [], mayHappen: [], stateMutations: [] };
+            if (context.playerSignals.length === 0) return { ruleDebugLogs: [], mustHappen: [], mustNotHappen: [], mayHappen: [], stateMutations: [] };
+            
+            // If using whatDict, you can filter sub-intents here:
+            // const subIntent = context.playerSignals[0].what;
 
             return {
                 ruleDebugLogs: ['Action evaluated.'],
